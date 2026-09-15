@@ -1,0 +1,71 @@
+/* Курси валют. Кольори — CSS-змінні теми (src/theme.ts). */
+.po-page.po-rates-page {
+  flex: 1 0 auto;
+}
+.po-rates-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+.po-rates-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .po-rates-bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.po-rates-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.po-rates-cur {
+  font-weight: 600;
+}
+.po-rates-cur .po-muted {
+  font-weight: 400;
+}
+.po-rates-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.po-rates-unit {
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45);
+}
+.po-rates-delta {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  background: #f5f7fa;
+}
+.po-rates-up {
+  color: var(--po-error);
+  background: var(--po-error-bg);
+}
+.po-rates-down {
+  color: var(--po-min);
+  background: var(--po-min-bg);
+}
+.po-rates-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.po-rates-table .ant-table {
+  font-size: 13px;
+}
+.po-rates-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+}

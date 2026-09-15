@@ -1,0 +1,104 @@
+/* Клієнти: картка і форма. Кольори — CSS-змінні теми (src/theme.ts). */
+.ag-row.po-cli-row {
+  cursor: pointer;
+}
+.po-cli-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #f7f9fc;
+  border-radius: 6px;
+}
+.po-cli-summary .ant-typography {
+  margin: 0;
+}
+.po-cli-section {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 20px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+}
+.po-cli-section-hint {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.po-cli-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.po-cli-item {
+  position: relative;
+  padding: 8px 12px;
+  border: 1px solid var(--po-border);
+  border-radius: 6px;
+  background: #fff;
+}
+.po-cli-item-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-weight: 600;
+}
+.po-cli-item-head .ant-tag {
+  margin-inline-end: 0;
+  font-weight: 400;
+}
+.po-cli-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 2px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+}
+.po-cli-item-full {
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+}
+.po-cli-requests .ant-table {
+  font-size: 12px;
+}
+.po-cli-requests .ant-table-row {
+  cursor: pointer;
+}
+
+/* ── форма клієнта ─────────────────────────────────────────────── */
+.po-cli-form .po-cli-item {
+  padding: 10px 44px 0 12px;
+  background: #fafbfd;
+}
+.po-cli-form .po-cli-item .ant-form-item {
+  margin-bottom: 10px;
+}
+.po-cli-grid {
+  display: grid;
+  column-gap: 12px;
+}
+.po-cli-grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+.po-cli-grid-cp {
+  grid-template-columns: 2fr 1fr auto;
+}
+.po-cli-grid-ct {
+  grid-template-columns: 1.3fr 1fr 1fr;
+}
+.po-cli-remove.ant-btn {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+}
+.po-cli-add {
+  margin-top: 8px;
+}

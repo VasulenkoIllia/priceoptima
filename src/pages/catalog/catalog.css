@@ -1,0 +1,100 @@
+/* Номенклатура: сітка товарів і картка товару. Кольори — CSS-змінні теми (src/theme.ts). */
+.po-cat-avail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.po-cat-avail-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--po-placeholder);
+}
+.po-cat-avail-in_stock .po-cat-avail-dot {
+  background: var(--po-min);
+}
+.po-cat-avail-low_stock .po-cat-avail-dot {
+  background: var(--po-warning);
+}
+.po-cat-avail-out_of_stock .po-cat-avail-dot {
+  background: var(--po-error);
+}
+.po-cat-avail-on_order .po-cat-avail-dot {
+  background: var(--po-brand);
+}
+.po-cat-tag.ant-tag {
+  margin-inline-end: 0;
+  line-height: 18px;
+}
+.po-cat-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ag-row.po-cat-row {
+  cursor: pointer;
+}
+
+/* ── картка товару ─────────────────────────────────────────────── */
+.po-cat-drawer-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.po-cat-name {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.po-cat-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.po-cat-tags .ant-tag {
+  margin-inline-end: 0;
+}
+.po-cat-section {
+  margin: 20px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+}
+.po-cat-price-action {
+  margin-top: 12px;
+}
+.po-cat-chart {
+  padding: 8px 10px 4px;
+  margin-bottom: 10px;
+  background: #f7f9fc;
+  border: 1px solid var(--po-border);
+  border-radius: 6px;
+}
+.po-cat-chart-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+}
+.po-cat-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.po-cat-chart-empty {
+  padding: 16px 0;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+.po-cat-history .ant-table {
+  font-size: 12px;
+}

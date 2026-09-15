@@ -1,0 +1,70 @@
+/* Вікно вибору товару (§6.7). */
+.po-picker-line {
+  margin: -4px 0 8px;
+  color: rgba(0, 0, 0, 0.75);
+}
+.po-picker-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.po-picker-hint {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.po-picker .ant-table-tbody > tr {
+  cursor: pointer;
+}
+.po-picker .ant-table-tbody > tr.po-picker-fuzzy > td {
+  color: rgba(0, 0, 0, 0.5);
+}
+.po-picker-sku-hit {
+  font-weight: 700;
+  color: var(--po-brand);
+}
+.po-picker-min {
+  font-weight: 600;
+  color: var(--po-min);
+}
+.po-picker-mult {
+  color: var(--po-warning);
+  font-weight: 600;
+}
+.po-picker-warn {
+  color: var(--po-warning);
+}
+.po-picker-selected {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  margin-top: 8px;
+}
+.po-picker-selected .ant-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-end: 0;
+}
+.po-picker-spacer {
+  flex: 1;
+}
+.po-picker-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* спільний низ діалогів з власним футером */
+.po-dialog-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--po-border, #e3e7ed);
+}

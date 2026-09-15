@@ -1,0 +1,144 @@
+// Параметри системи: ціни і націнка, КП, нумерація.
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { App, Button, Card, Form, InputNumber, Result, Select, Spin } from 'antd';
+import {
+  DISCOUNT_FORMULAS,
+  DISCOUNT_FORMULA_LABELS,
+  KP_NAME_SOURCES,
+  KP_NAME_SOURCE_LABELS,
+  KP_VAT_MODE_LABELS,
+  MARKUP_METHODS,
+  MARKUP_METHOD_LABELS,
+  PRICE_ROUNDINGS,
+  PRICE_ROUNDING_LABELS,
+  type KpVatMode,
+} from '@shared/enums';
+import type { AppSettings, AppSettingsPatch } from '@shared/types';
+import { ds, errorMessage, qk } from '@/data';
+
+type FormValues = Pick<
+  AppSettings,
+  | 'vatRatePct'
+  | 'priceStaleDays'
+  | 'defaultMarkupMethod'
+  | 'defaultMarkupValue'
+  | 'discountFormula'
+  | 'priceRounding'
+  | 'kpValidityDays'
+  | 'kpNameSource'
+  | 'kpDefaultVatMode'
+  | 'nextRequestNumber'
+  | 'nextKpNumber'
+>;
+
+const options = <T extends string>(values: readonly T[], labels: Record<T, string>) => values.map((value) => ({ value, label: labels[value] }));
+/** ФОП-режим «без ПДВ» обирається в заявці автоматично — за замовчуванням лише ці два. */
+const KP_VAT_OPTIONS = options<KpVatMode>(['without_vat', 'with_vat'], KP_VAT_MODE_LABELS);
+const NUM = { style: { width: '100%' }, decimalSeparator: ',' } as const;
+
+function pickValues(s: AppSettings): FormValues {
+  return {
+    vatRatePct: s.vatRatePct,
+    priceStaleDays: s.priceStaleDays,
+    defaultMarkupMethod: s.defaultMarkupMethod,
+    defaultMarkupValue: s.defaultMarkupValue,
+    discountFormula: s.discountFormula,
+    priceRounding: s.priceRounding,
+    kpValidityDays: s.kpValidityDays,
+    kpNameSource: s.kpNameSource,
+    kpDefaultVatMode: s.kpDefaultVatMode,
+    nextRequestNumber: s.nextRequestNumber,
+    nextKpNumber: s.nextKpNumber,
+  };
+}
+
+function ParamsForm({ settings }: { settings: AppSettings }) {
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [form] = Form.useForm<FormValues>();
+  const method = Form.useWatch('defaultMarkupMethod', form) ?? settings.defaultMarkupMethod;
+
+  const save = useMutation({
+    mutationFn: async (v: FormValues) => {
+      // лічильники лише збільшуються: порівнюємо зі свіжими значеннями (заявку могли створити, поки форма відкрита)
+      const current = await ds.getSettings();
+      const { nextRequestNumber, nextKpNumber, ...rest } = v;
+      const patch: AppSettingsPatch = { ...rest };
+      if (nextRequestNumber > current.nextRequestNumber) patch.nextRequestNumber = nextRequestNumber;
+      if (nextKpNumber > current.nextKpNumber) patch.nextKpNumber = nextKpNumber;
+      return ds.updateSettings(patch);
+    },
+    onSuccess: (next) => {
+      queryClient.setQueryData(qk.settings, next);
+      void queryClient.invalidateQueries({ queryKey: qk.settings });
+      void queryClient.invalidateQueries({ queryKey: qk.me });
+      form.setFieldsValue({ nextRequestNumber: next.nextRequestNumber, nextKpNumber: next.nextKpNumber });
+      message.success('Налаштування збережено');
+    },
+    onError: (e) => message.error(errorMessage(e)),
+  });
+
+  const counterRules = (min: number) => [
+    { required: true, message: 'Вкажіть номер' },
+    { type: 'number' as const, min, message: `Не менше ніж ${min}` },
+  ];
+
+  return (
+    <Form<FormValues> form={form} layout="vertical" requiredMark={false} initialValues={pickValues(settings)} onFinish={(v) => save.mutate(v)}>
+      <div className="po-set-cards">
+        <Card title="Ціни і націнка" size="small">
+          <Form.Item name="vatRatePct" label="Ставка ПДВ, %" rules={[{ required: true, message: 'Вкажіть ставку' }]}>
+            <InputNumber {...NUM} min={0} max={100} precision={2} />
+          </Form.Item>
+          <Form.Item name="priceStaleDays" label="Застарілість ціни, днів" extra="Старіша ціна позначається як «застаріла»" rules={[{ required: true, message: 'Вкажіть кількість днів' }]}>
+            <InputNumber {...NUM} min={1} max={365} precision={0} />
+          </Form.Item>
+          <Form.Item name="defaultMarkupMethod" label="Спосіб націнки нової заявки">
+            <Select options={options(MARKUP_METHODS, MARKUP_METHOD_LABELS)} />
+          </Form.Item>
+          <Form.Item name="defaultMarkupValue" label="Значення, %" extra={method === 'rrp' || method === 'manual' ? 'Для цього способу не використовується' : undefined}>
+            <InputNumber {...NUM} min={0} max={1000} precision={2} disabled={method === 'rrp' || method === 'manual'} />
+          </Form.Item>
+          <Form.Item name="discountFormula" label="Формула знижки від РРЦ">
+            <Select options={options(DISCOUNT_FORMULAS, DISCOUNT_FORMULA_LABELS)} />
+          </Form.Item>
+          <Form.Item name="priceRounding" label="Округлення ціни продажу" style={{ marginBottom: 0 }}>
+            <Select options={options(PRICE_ROUNDINGS, PRICE_ROUNDING_LABELS)} />
+          </Form.Item>
+        </Card>
+        <Card title="Комерційні пропозиції (КП)" size="small">
+          <Form.Item name="kpValidityDays" label="КП: термін дії, днів" rules={[{ required: true, message: 'Вкажіть термін' }]}>
+            <InputNumber {...NUM} min={1} max={365} precision={0} />
+          </Form.Item>
+          <Form.Item name="kpNameSource" label="Назва товару в КП">
+            <Select options={options(KP_NAME_SOURCES, KP_NAME_SOURCE_LABELS)} />
+          </Form.Item>
+          <Form.Item name="kpDefaultVatMode" label="Ціни в КП за замовчуванням" style={{ marginBottom: 0 }}>
+            <Select options={KP_VAT_OPTIONS} />
+          </Form.Item>
+        </Card>
+        <Card title="Нумерація" size="small">
+          <Form.Item name="nextRequestNumber" label="Наступний № заявки" extra="Лічильник можна лише збільшити" rules={counterRules(settings.nextRequestNumber)}>
+            <InputNumber {...NUM} min={settings.nextRequestNumber} precision={0} />
+          </Form.Item>
+          <Form.Item name="nextKpNumber" label="Наступний № КП" extra="Лічильник можна лише збільшити" rules={counterRules(settings.nextKpNumber)} style={{ marginBottom: 0 }}>
+            <InputNumber {...NUM} min={settings.nextKpNumber} precision={0} />
+          </Form.Item>
+        </Card>
+      </div>
+      <div className="po-set-actions">
+        <Button type="primary" htmlType="submit" loading={save.isPending}>
+          Зберегти
+        </Button>
+        <Button onClick={() => form.resetFields()}>Скасувати зміни</Button>
+      </div>
+    </Form>
+  );
+}
+
+export function ParamsTab() {
+  const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
+  if (settings.isPending) return <Spin style={{ display: 'block', margin: '48px auto' }} />;
+  if (settings.isError) return <Result status="error" title="Не вдалося завантажити налаштування" subTitle={errorMessage(settings.error)} />;
+  return <ParamsForm settings={settings.data} />;
+}

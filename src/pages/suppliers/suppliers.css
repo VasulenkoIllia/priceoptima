@@ -1,0 +1,132 @@
+/* Постачальники: картки і бічна панель. Кольори — CSS-змінні теми (src/theme.ts). */
+.po-page.po-sup-page {
+  flex: 1 0 auto;
+}
+.po-sup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.po-sup-card.ant-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.po-sup-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.po-sup-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.po-sup-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.po-sup-count {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.5);
+}
+.po-sup-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  row-gap: 6px;
+  margin: 0;
+  font-size: 13px;
+}
+.po-sup-facts dt {
+  color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+.po-sup-facts dd {
+  margin: 0;
+  min-width: 0;
+}
+.po-sup-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.65);
+  background: #f7f9fc;
+  border-radius: 6px;
+}
+.po-sup-status .ant-tag {
+  margin-inline-end: 0;
+}
+.po-sup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+.po-sup-up {
+  color: var(--po-error);
+}
+.po-sup-down {
+  color: var(--po-min);
+}
+
+/* ── бічна панель ──────────────────────────────────────────────── */
+.po-sup-section {
+  margin: 20px 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+}
+.po-sup-section:first-child {
+  margin-top: 0;
+}
+.po-sup-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.po-sup-item {
+  padding: 8px 12px;
+  border: 1px solid var(--po-border);
+  border-radius: 6px;
+}
+.po-sup-item-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-weight: 600;
+}
+.po-sup-item-head .ant-tag {
+  margin-inline-end: 0;
+  font-weight: 400;
+}
+.po-sup-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 2px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+}
+.po-sup-form {
+  padding: 12px 12px 0;
+  background: #f7f9fc;
+  border: 1px solid var(--po-border);
+  border-radius: 6px;
+}
+.po-sup-log .ant-table {
+  font-size: 12px;
+}

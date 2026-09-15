@@ -1,0 +1,584 @@
+/* Вкладка «Позиції і підбір». Кольори — CSS-змінні теми (src/theme.ts). */
+.po-sourcing {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+.po-sourcing-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fff;
+  border-bottom: 1px solid var(--po-border);
+}
+.po-sourcing-toolbar-spacer {
+  flex: 1;
+}
+.po-sourcing-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.po-sourcing-grid {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 8px 8px 12px;
+  display: flex;
+}
+.po-sourcing-grid-inner {
+  flex: 1;
+  min-width: 0;
+  min-height: 240px;
+}
+.po-supplier-option {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ── клітинки ─────────────────────────────────────────────────── */
+.po-cell-fill {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.po-cell-flex {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+}
+.po-cell-grow {
+  flex: 1;
+  text-align: right;
+}
+.ag-right-aligned-cell .po-cell-flex {
+  width: 100%;
+  justify-content: flex-end;
+}
+.po-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.po-cell-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ag-cell.po-cell-pos {
+  padding: 0;
+}
+.ag-cell.po-cell-pos .po-cell-fill {
+  justify-content: center;
+  cursor: context-menu;
+}
+.po-placeholder {
+  color: var(--po-placeholder);
+  font-style: italic;
+}
+.po-sku-miss {
+  color: var(--po-error);
+  text-decoration: underline wavy;
+  text-underline-offset: 3px;
+}
+.po-sku-miss-link {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ag-cell.po-cell-miss {
+  background: var(--po-error-bg);
+}
+.po-icon-btn {
+  cursor: pointer;
+  font-size: 12px;
+}
+.po-sku-editor.ant-select {
+  width: 100%;
+  height: 100%;
+}
+.po-sku-editor .ant-select-selector {
+  height: 100% !important;
+  padding: 0 6px !important;
+  align-items: center;
+}
+.po-sku-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.po-sku-opt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.po-price-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.po-price-change {
+  flex: none;
+  font-size: 10px;
+  line-height: 1;
+  cursor: help;
+}
+.po-price-up {
+  color: var(--po-error);
+}
+.po-price-down {
+  color: var(--po-min);
+}
+.po-pick {
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.po-pick-approved {
+  color: var(--po-approved);
+}
+.po-pick-recommended {
+  color: var(--po-min);
+}
+.po-pick-empty {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid #c3cad4;
+}
+.po-pick-empty:hover {
+  border-color: var(--po-approved);
+}
+.po-mark-approved {
+  color: var(--po-approved);
+  font-size: 12px;
+}
+.po-mark-not-approved {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fadb14;
+  color: #613400;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  flex: none;
+}
+
+/* межа між блоками постачальників */
+.ag-cell.po-block-start::before,
+.ag-header-cell.po-block-start::before,
+.ag-header-group-cell.po-block-start::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #c9d1dc;
+  pointer-events: none;
+}
+.ag-cell.po-cell-excluded .po-pick,
+.ag-cell.po-cell-excluded .po-cmp-price {
+  opacity: 0.6;
+}
+
+/* рядок підсумків (pinned bottom) */
+.ag-row.po-totals-row {
+  background: #f7f9fc;
+  font-weight: 600;
+}
+.po-totals-label {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+/* ── шапка блоку ───────────────────────────────────────────────── */
+.ag-header-group-cell-label:has(.po-bh),
+.ag-header-group-text:has(.po-bh) {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.po-bh {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-width: 0;
+  max-width: 100%;
+  font-weight: 400;
+  line-height: 16px;
+}
+.po-bh-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.po-bh-name {
+  font-weight: 700;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.po-bh-btn.ant-btn {
+  width: 22px;
+  height: 20px;
+  min-width: 22px;
+  padding: 0;
+}
+.po-bh-meta,
+.po-bh-totals {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.6);
+}
+.po-bh-totals {
+  gap: 4px;
+  cursor: help;
+}
+.po-bh-delta {
+  color: var(--po-warning);
+}
+.po-bh-link {
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font: inherit;
+  color: var(--po-brand);
+  cursor: pointer;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.po-bh-link:hover:not(:disabled) {
+  background: rgba(16, 80, 184, 0.08);
+}
+.po-bh-link:disabled {
+  color: inherit;
+  cursor: default;
+}
+.po-bh-compact {
+  gap: 2px;
+}
+.po-bh-pop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 260px;
+}
+.po-bh-pop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ── режим «Порівняння» ────────────────────────────────────────── */
+.ag-cell.po-cell-compare {
+  cursor: pointer;
+}
+.po-cmp-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.25;
+  height: 100%;
+  min-width: 0;
+}
+.ag-right-aligned-cell .po-cmp-cell {
+  align-items: flex-end;
+}
+.po-cmp-price {
+  font-weight: 600;
+}
+.po-cmp-sub {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.po-cmp-diff,
+.po-cmp-overpay {
+  color: var(--po-warning);
+}
+.po-cmp-min {
+  color: var(--po-min);
+}
+
+/* ── бічна панель, діалоги ─────────────────────────────────────── */
+.po-offer-drawer.ant-drawer {
+  position: absolute;
+}
+.po-offer-drawer .ant-drawer-content-wrapper {
+  box-shadow: -6px 0 16px rgba(0, 0, 0, 0.08);
+}
+.po-drawer-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.po-drawer-body .ant-descriptions-item {
+  padding-bottom: 6px !important;
+}
+.po-drawer-warnings {
+  margin: 8px 0;
+  font-size: 12px;
+}
+.po-drawer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--po-border);
+}
+.po-price-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.po-price-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  background: #f7f9fc;
+  border-radius: 6px;
+}
+.po-price-preview-label {
+  display: inline-block;
+  width: 170px;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+/* ── сценарії (панель праворуч) ─────────────────────────────────── */
+.po-scenarios {
+  width: 360px;
+  flex: none;
+  padding: 10px 12px;
+  background: #fff;
+  border-left: 1px solid var(--po-border);
+  overflow: auto;
+}
+.po-scenarios-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.po-scenarios-close {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 12px;
+}
+.po-sc-card {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  background: #fff;
+  border: 1px solid var(--po-border);
+  border-radius: 8px;
+}
+.po-sc-mix {
+  border-left: 3px solid var(--po-min);
+}
+.po-sc-current {
+  border-left: 3px solid var(--po-brand);
+}
+.po-sc-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.po-sc-card-title {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.po-sc-card-head .ant-tag {
+  margin-inline-end: 0;
+}
+.po-sc-sum {
+  font-size: 16px;
+  font-weight: 700;
+}
+.po-sc-meta {
+  color: rgba(0, 0, 0, 0.55);
+}
+.po-sc-good {
+  color: var(--po-min);
+}
+.po-sc-bad {
+  color: var(--po-warning);
+}
+.po-sc-cover {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.po-sc-cover .ant-progress {
+  flex: 1;
+  margin: 0;
+}
+.po-sc-approve {
+  margin-top: 6px;
+}
+.po-sc-section {
+  margin: 12px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.45);
+}
+.po-sc-alert {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.po-sc-counters {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.po-sc-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.po-sc-counter:hover {
+  background: #f5f7fa;
+}
+.po-sc-counter-active {
+  background: rgba(16, 80, 184, 0.06);
+  border-color: var(--po-brand);
+}
+.po-sc-count {
+  min-width: 22px;
+  text-align: right;
+  color: rgba(0, 0, 0, 0.45);
+}
+.po-sc-count-warn {
+  font-weight: 600;
+  color: var(--po-warning);
+}
+.po-sc-reset {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+/* ── «Найменування» клієнта: кнопка вибору в каталозі ─────────────── */
+.po-client-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+.po-client-name .po-ellipsis {
+  flex: 1;
+}
+.po-client-pick {
+  flex: none;
+  font-size: 12px;
+  color: var(--po-brand);
+  cursor: pointer;
+  opacity: 0;
+}
+.ag-row-hover .po-client-pick,
+.ag-cell-focus .po-client-pick {
+  opacity: 1;
+}
+
+/* ── імпорт і вставка рядків клієнта ───────────────────────────────── */
+.po-lines-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.po-lines-file-icon {
+  font-size: 18px;
+  color: #1d6f42;
+}
+.po-lines-template {
+  margin-top: 8px;
+  color: rgba(0, 0, 0, 0.55);
+}
+.po-lines-kind.ant-typography {
+  margin: 8px 0 4px;
+}
+.po-lp-mapping {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.po-lp-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.po-lp-col {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.po-lp .ant-table {
+  font-size: 12px;
+}
+.po-lp .ant-table-cell.po-lp-mapped {
+  background: rgba(16, 80, 184, 0.05);
+}
+.po-lp-header-row > td {
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.45);
+}
+.po-lp-more {
+  margin: 4px 0 8px;
+  font-size: 12px;
+}
+
+/* мінімум важливіший за фон попередження (іконка попередження лишається) */
+.ag-cell.po-cell-min.po-cell-warning {
+  background: var(--po-min-bg);
+}
