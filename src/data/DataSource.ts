@@ -23,6 +23,7 @@ import type {
   OwnCompanyDto,
   OwnCompanyInput,
   PriceHistoryEntry,
+  PriceImportBody,
   PriceUpdateDto,
   ProductDetail,
   ProductInput,
@@ -105,6 +106,8 @@ export interface DataSource {
   refreshSupplierPrices(supplierId: UUID): Promise<PriceUpdateDto>;
   /** Журнал оновлень прайсів, від найновішого. */
   listPriceUpdates(supplierId?: UUID): Promise<PriceUpdateDto[]>;
+  /** Прайс файлом (постачальники без вигрузки за посиланням): звірка за кодом; dryRun — лише порахувати зміни. */
+  importSupplierPrices(supplierId: UUID, body: PriceImportBody): Promise<PriceUpdateDto>;
 
   // ── Каталог ─────────────────────────────────────────────────────
   /** Товари каталогу (прототип — усі одразу, фільтрація на клієнті). */

@@ -148,7 +148,17 @@ export default function CatalogPage() {
         colId: 'availability',
         valueGetter: (p) => (p.data ? AVAILABILITY_LABELS[p.data.availability] : ''),
         width: 156,
-        cellRenderer: ({ data }: Cell) => (data ? <Availability status={data.availability} qty={data.stockQty} /> : null),
+        cellRenderer: ({ data }: Cell) =>
+          data ? (
+            <span className="po-cat-date">
+              <Availability status={data.availability} qty={data.stockQty} />
+              {data.missingSince ? (
+                <Tag color="red" bordered={false} className="po-cat-tag" title={`Немає у прайсі з ${formatDate(data.missingSince)} — ціна остання відома`}>
+                  немає у прайсі
+                </Tag>
+              ) : null}
+            </span>
+          ) : null,
       },
       { headerName: 'Дата ціни', field: 'priceUpdatedAt', width: 164, cellRenderer: DateCell },
       {

@@ -36,6 +36,7 @@ import type {
   PricingContext,
   RequestHeader,
   RequestLine,
+  SupplierPriceSource,
   SupplierRef,
   UserDto,
   UserRef,
@@ -58,8 +59,9 @@ import { approvedSaleGrossOf } from './totals';
  * v4: кілька товарів, доданих вручну (ціну змінюють вручну; прайс їх не оновлює).
  * v5: версії КП зберігають налаштування («Сформувати на основі цієї»).
  * v6: вхід одним обліковим записом (хеш пароля); кратність у демо — лише труби ППР (4 м).
+ * v7: джерело прайсу в постачальника (за посиланням / файлом), позначка «немає у прайсі» в товарі.
  */
-export const SEED_VERSION = 6;
+export const SEED_VERSION = 7;
 /** Демо-КП наявних заявок — № 2110–2113, тож перше нове КП (заявки 000001) отримає № 2114 (ТЗ §6, AC-КП-1). */
 const FIRST_DEMO_KP_NUMBER = 2110;
 const DAY_MS = 86_400_000;
@@ -250,6 +252,21 @@ function originOf(url: string): string | null {
   }
 }
 
+/** Джерело прайсу: у двох постачальників — вигрузка за посиланням, у решти прайс приходить файлом. */
+const PRICE_SOURCES: Record<string, SupplierPriceSource> = {
+  s1: { kind: 'auto', format: 'json', host: 'b2b.santeh-import.example.com', scheduleHour: 6, hasPurchasePrice: true, note: 'Вигрузка за посиланням: ціни, залишки по складах, фото.' },
+  s2: {
+    kind: 'auto',
+    format: 'xml',
+    host: 'b2b.akva-trade.example.com',
+    scheduleHour: 6,
+    hasPurchasePrice: false,
+    note: 'У прайсі лише РРЦ — вхідна ціна рахується зі знижки від РРЦ за договором.',
+  },
+  s3: { kind: 'manual', format: 'xlsx', host: null, scheduleHour: null, hasPurchasePrice: true, note: 'Вигрузки за посиланням немає — менеджер завантажує Excel з кабінету постачальника.' },
+  s4: { kind: 'auto', format: 'yml', host: 'b2b.gidro-opt.example.com', scheduleHour: 6, hasPurchasePrice: true, note: null },
+};
+
 function seedSuppliers(catalog: DemoCatalog, overrides: SeedOverrides | null, logos: Record<string, string>, t: TimeHelpers): StoredSupplier[] {
   return catalog.suppliers.map((s, i): StoredSupplier => {
     const o = overrides?.suppliers?.[s.seedKey];
@@ -277,6 +294,7 @@ function seedSuppliers(catalog: DemoCatalog, overrides: SeedOverrides | null, lo
       website,
       b2bUrl: s.seedKey === 's3' ? website : null,
       lastImportAt: t.iso(s.priceListAgeDays),
+      priceSource: PRICE_SOURCES[s.seedKey] ?? PRICE_SOURCES.s3,
       isActive: true,
       sortOrder: i + 1,
       notes: o?.notes ?? s.profile,
@@ -346,6 +364,7 @@ function seedProducts(catalog: DemoCatalog, t: TimeHelpers) {
       stockQty: p.stockQty,
       availability: availabilityOf(p.stockQty),
       priceUpdatedAt,
+      missingSince: null,
       imageUrl: null,
       productUrl: null,
       isArchived: false,
@@ -377,6 +396,16 @@ function seedProducts(catalog: DemoCatalog, t: TimeHelpers) {
     const bySupplier = byCanonical.get(p.canonicalKey) ?? new Map<SupplierKey, StoredProduct>();
     bySupplier.set(p.supplierKey, stored);
     byCanonical.set(p.canonicalKey, bySupplier);
+  }
+  // кілька позицій, яких постачальник більше не дає в прайсі: ціна лишається останньою відомою
+  const ids = Object.keys(products).sort();
+  for (const [i, daysAgo] of [
+    [17, 8],
+    [523, 21],
+    [1041, 34],
+  ] as const) {
+    const p = products[ids[i] ?? ''];
+    if (p) p.missingSince = t.date(daysAgo);
   }
   return { products, priceHistory, nextPriceHistoryId: historyId, byCanonical };
 }
@@ -445,6 +474,7 @@ function seedManualProducts(
       stockQty: m.stockQty,
       availability,
       priceUpdatedAt: t.iso(updatedDaysAgo),
+      missingSince: null,
       imageUrl: null,
       productUrl: null,
       isArchived: false,
@@ -500,6 +530,7 @@ function seedPriceUpdates(
       if (cur > prev) stats.up++;
       else stats.down++;
     }
+    const fromFile = s.priceSource.kind === 'manual';
     out.push({
       id: 0,
       supplierId: s.id,
@@ -508,6 +539,11 @@ function seedPriceUpdates(
       changed: stats.up + stats.down,
       priceUp: stats.up,
       priceDown: stats.down,
+      added: 0,
+      missing: 0,
+      stockChanged: 0,
+      source: fromFile ? 'file' : 'auto',
+      fileName: fromFile ? `price-${s.lastImportAt.slice(0, 10)}.xlsx` : null,
       rates: { USD: s.priceListRates.USD, EUR: s.priceListRates.EUR },
       user: null,
     });

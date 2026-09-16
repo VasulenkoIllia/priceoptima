@@ -24,6 +24,7 @@ function product(id: string, supplierId: string, patch: Partial<ProductPickDto> 
     availability: 'in_stock',
     priceUpdatedAt: '2026-09-10T09:00:00Z',
     isStale: false,
+    missingSince: null,
     imageUrl: null,
     productUrl: null,
     isArchived: false,

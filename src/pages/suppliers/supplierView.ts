@@ -1,6 +1,17 @@
 // Підписи для карток постачальників.
 import { formatDate, formatPct, formatRate } from '@shared/format';
-import type { PriceListRates } from '@shared/types';
+import type { PriceListRates, SupplierPriceSource } from '@shared/types';
+
+const FORMAT_LABELS: Record<string, string> = { json: 'JSON', yml: 'YML', xml: 'XML', csv: 'CSV', xlsx: 'Excel' };
+
+/** «Автоматично · JSON · щодня о 06:00» або «Вручну · Excel · файлом». */
+export function priceSourceLabel(s: SupplierPriceSource): string {
+  const parts = [s.kind === 'auto' ? 'Автоматично' : 'Вручну'];
+  if (s.format) parts.push(FORMAT_LABELS[s.format] ?? s.format.toUpperCase());
+  if (s.kind === 'auto' && s.scheduleHour != null) parts.push(`щодня о ${String(s.scheduleHour).padStart(2, '0')}:00`);
+  else if (s.kind === 'manual') parts.push('файлом');
+  return parts.join(' · ');
+}
 
 /** 'USD 45,00 · EUR 52,10 (від 12.09.2026)'; курсів немає — '—'. */
 export function priceListRatesLabel(r: PriceListRates): string {

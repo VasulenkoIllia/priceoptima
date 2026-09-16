@@ -92,6 +92,11 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
               застаріла
             </Tag>
           ) : null}
+          {product.missingSince ? (
+            <Tag color="red" bordered={false} className="po-cat-tag">
+              немає у прайсі з {formatDate(product.missingSince)}
+            </Tag>
+          ) : null}
         </span>
       ),
     },

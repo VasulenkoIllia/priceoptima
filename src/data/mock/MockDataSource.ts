@@ -39,6 +39,8 @@ import type {
   OwnCompanyDto,
   OwnCompanyInput,
   PriceHistoryEntry,
+  PriceImportBody,
+  PriceImportRow,
   PriceUpdateDto,
   ProductDetail,
   ProductInput,
@@ -385,6 +387,7 @@ export class MockDataSource implements DataSource {
       const counts = this.productCounts();
       return this.db.suppliers.map((s) => ({
         ...toSupplierRef(s),
+        priceSource: s.priceSource,
         productsCount: counts.get(s.id) ?? 0,
         lastImportAt: s.lastImportAt,
         isActive: s.isActive,
@@ -416,6 +419,8 @@ export class MockDataSource implements DataSource {
           ...data,
           id: supplierId,
           lastImportAt: prev?.lastImportAt ?? null,
+          // джерело прайсу налаштовується окремо від картки постачальника
+          priceSource: prev?.priceSource ?? { kind: 'manual', format: 'xlsx', host: null, scheduleHour: null, hasPurchasePrice: true, note: null },
           legalEntities: data.legalEntities
             ? data.legalEntities.map((x, i) => ({ ...x, id: leIds[i], supplierId }))
             : (prev?.legalEntities ?? []),
@@ -480,6 +485,11 @@ export class MockDataSource implements DataSource {
           changed: stats.up + stats.down,
           priceUp: stats.up,
           priceDown: stats.down,
+          added: 0,
+          missing: 0,
+          stockChanged: 0,
+          source: 'auto',
+          fileName: null,
           rates: { USD: supplier.priceListRates.USD, EUR: supplier.priceListRates.EUR },
           user: userRef,
         };
@@ -493,6 +503,147 @@ export class MockDataSource implements DataSource {
     return this.call(() => {
       this.requireUser();
       return clone(this.db.priceUpdates.filter((u) => !supplierId || u.supplierId === supplierId).reverse());
+    });
+  }
+
+  importSupplierPrices(supplierId: UUID, body: PriceImportBody): Promise<PriceUpdateDto> {
+    return this.call(() => {
+      const user = this.requireUser();
+      const supplier = this.requireSupplier(supplierId);
+      const rows = new Map<string, PriceImportRow>();
+      for (const r of body.rows) {
+        const code = r.code?.trim();
+        if (code) rows.set(normalizeSku(code), { ...r, code });
+      }
+      if (!rows.size) throw new DataSourceError('VALIDATION_ERROR', 'У файлі немає рядків з кодом товару');
+      const now = this.now();
+      const at = now.toISOString();
+      const today = toIsoDate(now);
+      const userRef: UserRef = { id: user.id, shortName: user.shortName };
+
+      /** Звірка прайсу з каталогом; write=false — лише порахувати (dryRun). */
+      const run = (db: MockDb, write: boolean): PriceUpdateDto => {
+        const stats = { matched: 0, changed: 0, up: 0, down: 0, added: 0, missing: 0, stockChanged: 0 };
+        // товари, додані вручну, прайс не чіпає
+        const own = Object.values(db.products).filter((p) => p.supplierId === supplierId && p.priceSource !== 'manual');
+        const byKey = new Map(own.map((p) => [p.skuKey, p]));
+        for (const [key, row] of rows) {
+          const p = byKey.get(key);
+          if (!p) {
+            stats.added++;
+            if (!write) continue;
+            const id = newId();
+            const stockQty = row.stockQty ?? null;
+            const base = {
+              id,
+              supplierId,
+              sku: row.code,
+              nameWork: row.name?.trim() || row.code,
+              name1c: null,
+              brand: row.brand?.trim() || null,
+              unitCode: row.unitCode?.trim() || 'шт',
+              currency: row.currency ?? supplier.defaultCurrency,
+              purchasePrice: row.purchasePrice ?? null,
+              rrp: row.rrp ?? null,
+              multiplicity: row.multiplicity && row.multiplicity > 0 ? row.multiplicity : 1,
+              stockQty,
+              availability: row.availability ?? availabilityOf(stockQty),
+              priceUpdatedAt: at,
+              missingSince: null,
+              imageUrl: null,
+              productUrl: null,
+              isArchived: false,
+              minOrderQty: row.minOrderQty ?? null,
+              notes: null,
+              priceSource: 'import' as const,
+              lastImportId: null,
+              createdAt: at,
+              updatedAt: at,
+            };
+            db.products[id] = { ...base, ...productKeys(base) };
+            continue;
+          }
+          stats.matched++;
+          const purchasePrice = row.purchasePrice ?? p.purchasePrice;
+          const rrp = row.rrp ?? p.rrp;
+          const stockQty = row.stockQty ?? null;
+          const availability = row.availability ?? availabilityOf(stockQty);
+          const priceChanged = purchasePrice !== p.purchasePrice || rrp !== p.rrp;
+          if (priceChanged) {
+            stats.changed++;
+            if ((purchasePrice ?? 0) > (p.purchasePrice ?? 0)) stats.up++;
+            else stats.down++;
+          }
+          if (stockQty !== p.stockQty || availability !== p.availability) stats.stockChanged++;
+          if (!write) continue;
+          Object.assign(p, {
+            purchasePrice,
+            rrp,
+            stockQty,
+            availability,
+            priceUpdatedAt: at,
+            updatedAt: at,
+            priceSource: 'import' as const,
+            missingSince: null,
+          });
+          if (row.name?.trim()) p.nameWork = row.name.trim();
+          if (row.brand?.trim()) p.brand = row.brand.trim();
+          if (row.unitCode?.trim()) p.unitCode = row.unitCode.trim();
+          if (row.multiplicity && row.multiplicity > 0) p.multiplicity = row.multiplicity;
+          if (row.minOrderQty != null) p.minOrderQty = row.minOrderQty;
+          Object.assign(p, productKeys(p));
+          if (priceChanged) {
+            (db.priceHistory[p.id] ??= []).push({
+              id: db.nextPriceHistoryId++,
+              productId: p.id,
+              effectiveAt: at,
+              currency: p.currency,
+              purchasePrice,
+              rrp,
+              stockQty,
+              availability,
+              source: 'import',
+              importId: null,
+              requestId: null,
+              requestNumber: null,
+              user: userRef,
+              note: `Прайс ${body.fileName}`,
+            });
+          }
+        }
+        // позиції, яких немає у файлі: не видаляємо, лише позначаємо
+        if (body.markMissing) {
+          for (const p of own) {
+            if (rows.has(p.skuKey)) continue;
+            stats.missing++;
+            if (write && !p.missingSince) Object.assign(p, { missingSince: today, updatedAt: at });
+          }
+        }
+        const entry: PriceUpdateDto = {
+          id: (db.priceUpdates[db.priceUpdates.length - 1]?.id ?? 0) + 1,
+          supplierId,
+          at,
+          productsTotal: stats.matched + stats.added,
+          changed: stats.changed,
+          priceUp: stats.up,
+          priceDown: stats.down,
+          added: stats.added,
+          missing: stats.missing,
+          stockChanged: stats.stockChanged,
+          source: 'file',
+          fileName: body.fileName,
+          rates: { USD: supplier.priceListRates.USD, EUR: supplier.priceListRates.EUR },
+          user: userRef,
+        };
+        if (write) {
+          db.suppliers.find((s) => s.id === supplierId)!.lastImportAt = at;
+          db.priceUpdates.push(entry);
+        }
+        return entry;
+      };
+
+      if (body.dryRun) return clone(run(this.db, false));
+      return this.mutate((db) => clone(run(db, true)));
     });
   }
 
@@ -573,6 +724,7 @@ export class MockDataSource implements DataSource {
         stockQty,
         availability: input.availability ?? availabilityOf(stockQty),
         priceUpdatedAt: at,
+        missingSince: null,
         imageUrl: null,
         productUrl: input.productUrl ?? null,
         isArchived: false,

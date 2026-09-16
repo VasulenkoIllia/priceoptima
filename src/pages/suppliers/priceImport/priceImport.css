@@ -1,0 +1,115 @@
+/* Завантаження прайсу постачальника: діалог з кроками, перегляд файлу і зіставлення колонок. */
+.po-pi-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 420px;
+}
+.po-pi-steps {
+  margin-bottom: 4px;
+}
+
+/* крок «Файл» */
+.po-pi-drop .ant-upload-drag {
+  padding: 12px 0;
+}
+.po-pi-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.po-pi-file-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 420px;
+}
+
+/* зіставлення колонок */
+.po-pi-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px 16px;
+}
+.po-pi-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.po-pi-field > span:first-child {
+  flex: 0 0 150px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+}
+.po-pi-field .ant-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.po-pi-required > span:first-child::after {
+  content: ' *';
+  color: #d93025;
+}
+.po-pi-options {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* таблиці перегляду */
+.po-pi-sheet .ant-table-cell,
+.po-pi-rows .ant-table-cell {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.po-pi-col {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.po-pi-col .ant-tag {
+  margin-inline-end: 0;
+}
+.po-pi-mapped {
+  background: #f0f7ff;
+}
+.po-pi-header-row > td {
+  font-weight: 600;
+  background: #fafafa;
+}
+.po-pi-row-bad > td {
+  background: #fdecea;
+}
+.po-pi-issues {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.po-pi-issues .ant-tag {
+  margin-inline-end: 0;
+}
+.po-pi-more {
+  padding: 6px 2px 0;
+  font-size: 12px;
+}
+.po-pi-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.po-pi-summary b {
+  font-variant-numeric: tabular-nums;
+}
+.po-pi-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.po-pi-footer-spacer {
+  flex: 1 1 auto;
+}

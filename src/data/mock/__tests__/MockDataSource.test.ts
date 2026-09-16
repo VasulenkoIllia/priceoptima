@@ -9,7 +9,7 @@ import { DB_SCHEMA_VERSION } from '../db';
 import { MockDataSource } from '../MockDataSource';
 import { overridesFingerprint, type SeedOverrides } from '../overrides';
 import { memoryPersistence, type DbPersistence } from '../persistence';
-import { DEMO_USER_IDS, requestIdOf, SEED_VERSION } from '../seed';
+import { DEMO_USER_IDS, requestIdOf, SEED_VERSION, supplierIdOf } from '../seed';
 
 const REQ1 = requestIdOf(1);
 let env: TestEnv;
@@ -375,5 +375,42 @@ describe('MockDataSource — вхід', () => {
     } finally {
       byHash.dispose();
     }
+  });
+});
+
+describe('MockDataSource — прайс файлом', () => {
+  it('dryRun нічого не змінює; далі — нові позиції, зміни цін і «немає у прайсі», товари вручну не чіпає', async () => {
+    env = createTestEnv();
+    const tab = await loggedTab('a', DEMO_USER_IDS.admin);
+    const supplierId = supplierIdOf('s1');
+    const before = await tab.listProducts({ supplierId });
+    const target = before.find((p) => p.priceSource !== 'manual' && p.purchasePrice != null)!;
+    const manual = before.find((p) => p.priceSource === 'manual')!;
+    expect(manual).toBeDefined();
+    const rows = [
+      { code: target.sku, name: target.nameWork, purchasePrice: (target.purchasePrice ?? 0) * 2, rrp: target.rrp, stockQty: 7 },
+      { code: 'НОВИЙ-001', name: 'Новий товар з прайсу', purchasePrice: 100, rrp: 180, stockQty: 3 },
+    ];
+    const body = { rows, fileName: 'price-16-09.xlsx', markMissing: true };
+
+    const dry = await tab.importSupplierPrices(supplierId, { ...body, dryRun: true });
+    expect(dry).toMatchObject({ added: 1, changed: 1, priceUp: 1, source: 'file', fileName: 'price-16-09.xlsx' });
+    expect(dry.missing).toBeGreaterThan(0);
+    expect((await tab.getProduct(target.id)).purchasePrice).toBe(target.purchasePrice);
+    expect(await tab.listPriceUpdates(supplierId)).toHaveLength(1); // лише запис із сіду
+
+    const run = await tab.importSupplierPrices(supplierId, body);
+    expect(run).toMatchObject({ added: 1, changed: 1, missing: dry.missing, productsTotal: 2 });
+    const after = await tab.getProduct(target.id);
+    expect(after.purchasePrice).toBe((target.purchasePrice ?? 0) * 2);
+    expect(after.stockQty).toBe(7);
+    expect(after.missingSince).toBeNull();
+    expect((await tab.getPriceHistory(target.id))[0]).toMatchObject({ source: 'import', note: 'Прайс price-16-09.xlsx' });
+
+    const all = await tab.listProducts({ supplierId });
+    expect(all.find((p) => p.sku === 'НОВИЙ-001')).toMatchObject({ nameWork: 'Новий товар з прайсу', priceSource: 'import' });
+    expect(all.filter((p) => p.missingSince)).toHaveLength(run.missing);
+    expect((await tab.getProduct(manual.id)).missingSince).toBeNull();
+    expect((await tab.listPriceUpdates(supplierId))[0]).toMatchObject({ source: 'file', fileName: 'price-16-09.xlsx', user: { id: DEMO_USER_IDS.admin } });
   });
 });

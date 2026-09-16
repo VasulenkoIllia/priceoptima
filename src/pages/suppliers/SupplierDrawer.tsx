@@ -8,7 +8,7 @@ import { formatDateTime, formatRate } from '@shared/format';
 import type { PriceUpdateDto, SupplierDetail, SupplierInput, SupplierListItem } from '@shared/types';
 import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
-import { hostOf, priceListRatesLabel } from './supplierView';
+import { hostOf, priceListRatesLabel, priceSourceLabel } from './supplierView';
 
 interface TermsValues {
   supplierMarkupPct: number | null;
@@ -50,11 +50,28 @@ const LOG_COLUMNS: TableColumnsType<PriceUpdateDto> = [
       </span>
     ),
   },
+  {
+    title: 'Нові',
+    dataIndex: 'added',
+    align: 'right',
+    render: (v: number) => <span className="po-num">{v || <span className="po-muted">—</span>}</span>,
+  },
+  {
+    title: 'Немає у прайсі',
+    dataIndex: 'missing',
+    align: 'right',
+    render: (v: number) => <span className="po-num">{v || <span className="po-muted">—</span>}</span>,
+  },
   { title: 'Курс USD / EUR', key: 'rates', align: 'right', render: (_, u) => <span className="po-num">{`${formatRate(u.rates.USD)} / ${formatRate(u.rates.EUR)}`}</span> },
   {
-    title: 'Хто',
-    key: 'user',
-    render: (_, u) => (u.user ? `запущено: ${u.user.shortName}` : <span className="po-muted">автоматично</span>),
+    title: 'Джерело',
+    key: 'source',
+    render: (_, u) => (
+      <span>
+        {u.source === 'file' ? (u.fileName ? `файл ${u.fileName}` : 'файл') : <span className="po-muted">за посиланням</span>}
+        {u.user ? <span className="po-muted"> · {u.user.shortName}</span> : null}
+      </span>
+    ),
   },
 ];
 
@@ -88,10 +105,12 @@ function SupplierCard({ detail }: { detail: SupplierDetail }) {
       label: 'Прайс',
       children: (
         <span>
-          <Tag color="green" bordered={false}>
-            Автоматично
+          <Tag color={detail.priceSource.kind === 'auto' ? 'green' : 'blue'} bordered={false}>
+            {priceSourceLabel(detail.priceSource)}
           </Tag>
           {detail.lastImportAt ? `оновлено ${formatDateTime(detail.lastImportAt)}` : 'ще не завантажено'}
+          {detail.priceSource.host ? <div className="po-muted">{detail.priceSource.host}</div> : null}
+          {detail.priceSource.note ? <div className="po-muted">{detail.priceSource.note}</div> : null}
         </span>
       ),
     },

@@ -1,5 +1,5 @@
 import type { AvailabilityStatus, CurrencyCode, PriceSource } from '../enums';
-import type { ISODateTime, ListQuery, UUID, UserRef } from './common';
+import type { ISODate, ISODateTime, ListQuery, UUID, UserRef } from './common';
 
 export interface ProductListItem {
   id: UUID;
@@ -22,6 +22,8 @@ export interface ProductListItem {
   availability: AvailabilityStatus;
   priceUpdatedAt: ISODateTime | null;
   isStale: boolean;
+  /** Дата, з якої позиції немає у прайсі постачальника (ціна лишається останньою відомою). */
+  missingSince: ISODate | null;
   imageUrl: string | null;
   productUrl: string | null;
   isArchived: boolean;
