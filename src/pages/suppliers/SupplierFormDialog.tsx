@@ -178,7 +178,6 @@ function ColorField({ value, onChange }: { value?: string | null; onChange?: (v:
     <ColorPicker
       value={value ?? undefined}
       allowClear
-      disabledAlpha
       format="hex"
       showText={(c) => (value ? c.toHexString() : 'Без кольору')}
       onChangeComplete={(c) => onChange?.(c.toHexString())}

@@ -19,8 +19,8 @@ describe('ролі джерела прайсу', () => {
   });
 
   it('hybrid: посилання — асортимент і наявність без цін; файл — ціни й наявність без асортименту', () => {
-    expect(rolesFor('hybrid', 'link')).toEqual({ prices: false, stock: true, assortment: true });
-    expect(rolesFor('hybrid', 'file')).toEqual({ prices: true, stock: true, assortment: false });
+    expect(rolesFor('hybrid', 'link')).toEqual({ purchasePrice: false, rrp: 'set', stock: true, assortment: true });
+    expect(rolesFor('hybrid', 'file')).toEqual({ purchasePrice: true, rrp: 'fill', stock: true, assortment: false });
   });
 });
 

@@ -146,7 +146,7 @@ export function RowsPreview({ preview, limit = 50 }: RowsPreviewProps) {
       render: (_: unknown, r: PreviewRow) => (
         <span>
           {r.row.stockQty != null ? <span className="po-num">{formatQty(r.row.stockQty)} · </span> : null}
-          <span className="po-muted">{AVAILABILITY_LABELS[r.row.availability ?? 'unknown']}</span>
+          <span className="po-muted">{r.row.availability ? AVAILABILITY_LABELS[r.row.availability] : 'не змінюється'}</span>
         </span>
       ),
     },

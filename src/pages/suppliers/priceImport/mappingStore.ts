@@ -1,63 +1,14 @@
-// Останнє зіставлення колонок прайсу — по постачальниках, у localStorage: наступного разу підставляємо його.
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import type { CurrencyCode } from '@shared/enums';
-import type { UUID } from '@shared/types';
+// Останнє зіставлення колонок прайсу постачальника: зберігається на сервері (ds.savePriceImportMapping),
+// тут — перетворення «поточне зіставлення ↔ збережене».
+import type { PriceImportMapping } from '@shared/types';
 import {
   EMPTY_COLUMN_MAP,
   PRICE_COLUMN_ROLES,
   headerKey,
   type PriceColumnMap,
-  type PriceColumnRole,
 } from './priceRows';
 
-export interface SavedPriceMapping {
-  sheetName: string | null;
-  headerRow: number | null;
-  /** Індекс колонки + її заголовок — якщо колонки посунуться, знайдемо за заголовком. */
-  columns: Partial<Record<PriceColumnRole, { index: number; header: string }>>;
-  pricesIncludeVat: boolean;
-  currency: CurrencyCode;
-  skipRowsWithoutPrice: boolean;
-  markMissing: boolean;
-}
-
-interface PriceImportMappingState {
-  bySupplier: Record<UUID, SavedPriceMapping>;
-  get(supplierId: UUID): SavedPriceMapping | null;
-  save(supplierId: UUID, mapping: SavedPriceMapping): void;
-  forget(supplierId: UUID): void;
-}
-
-export const usePriceMappingStore = create<PriceImportMappingState>()(
-  persist(
-    (set, get) => ({
-      bySupplier: {},
-      get: (supplierId) => get().bySupplier[supplierId] ?? null,
-      save: (supplierId, mapping) => set((s) => ({ bySupplier: { ...s.bySupplier, [supplierId]: mapping } })),
-      forget: (supplierId) =>
-        set((s) => {
-          const next = { ...s.bySupplier };
-          delete next[supplierId];
-          return { bySupplier: next };
-        }),
-    }),
-    {
-      name: 'po-price-import-mapping',
-      version: 1,
-      storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ bySupplier: s.bySupplier }),
-    },
-  ),
-);
-
-export function savedMappingOf(supplierId: UUID): SavedPriceMapping | null {
-  return usePriceMappingStore.getState().get(supplierId);
-}
-
-export function rememberMapping(supplierId: UUID, mapping: SavedPriceMapping): void {
-  usePriceMappingStore.getState().save(supplierId, mapping);
-}
+export type SavedPriceMapping = PriceImportMapping;
 
 /** Зіставлення → те, що зберігаємо (разом із заголовками колонок). */
 export function toSavedMapping(

@@ -69,8 +69,13 @@
 }
 .po-sup-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   margin-top: auto;
+}
+.po-sup-actions .ant-btn-link {
+  padding-inline: 4px;
 }
 .po-sup-up {
   color: var(--po-error);
@@ -185,7 +190,9 @@
 .po-sup-source-head .ant-tag {
   margin-inline-end: 0;
 }
-.po-sup-source-head .ant-btn {
+.po-sup-source-actions {
+  display: inline-flex;
+  gap: 6px;
   margin-left: auto;
 }
 .po-sup-section-row {
@@ -203,4 +210,45 @@
   .po-sup-span-2 {
     grid-column: auto;
   }
+}
+
+/* ── звіт оновлення прайсу ─────────────────────────────────────── */
+.po-pu-report {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.po-pu-counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px 16px;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: #f7f9fc;
+  border: 1px solid var(--po-border);
+  border-radius: 6px;
+}
+.po-pu-counters dt {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.5);
+}
+.po-pu-counters dd {
+  margin: 0;
+  font-weight: 600;
+}
+.po-pu-warnings {
+  margin: 0;
+  padding-left: 18px;
+}
+.po-pu-hint {
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+.po-pu-more {
+  margin-top: 6px;
+  font-size: 12px;
+}
+.po-pu-table .ant-table {
+  font-size: 12px;
 }

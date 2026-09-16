@@ -41,6 +41,7 @@ import type {
   PriceHistoryEntry,
   PriceImportBody,
   PriceImportRow,
+  PriceImportMapping,
   PriceUpdateDto,
   ProductDetail,
   ProductImageDto,
@@ -442,6 +443,7 @@ export class MockDataSource implements DataSource {
             : (prev?.legalEntities ?? []),
           contacts: data.contacts ? data.contacts.map((x, i) => ({ ...x, id: ctIds[i], supplierId })) : (prev?.contacts ?? []),
           importProfiles: prev?.importProfiles ?? [],
+          priceImportMapping: prev?.priceImportMapping ?? null,
         };
         if (prev) db.suppliers[db.suppliers.indexOf(prev)] = next;
         else db.suppliers.push(next);
@@ -484,9 +486,10 @@ export class MockDataSource implements DataSource {
     });
   }
 
-  refreshSupplierPrices(supplierId: UUID): Promise<PriceUpdateDto> {
+  refreshSupplierPrices(supplierId: UUID, options?: { dryRun?: boolean }): Promise<PriceUpdateDto> {
     return this.call(() => {
       const user = this.requireUser();
+      if (options?.dryRun) throw new DataSourceError('NOT_IMPLEMENTED', 'Перевірка вигрузки без запису доступна лише на сервері');
       this.requireSupplier(supplierId);
       const now = this.now();
       const at = now.toISOString();
@@ -551,6 +554,34 @@ export class MockDataSource implements DataSource {
     return this.call(() => {
       this.requireUser();
       return clone(this.db.priceUpdates.filter((u) => !supplierId || u.supplierId === supplierId).reverse());
+    });
+  }
+
+  getPriceUpdate(id: number): Promise<PriceUpdateDto> {
+    return this.call(() => {
+      this.requireUser();
+      const entry = this.db.priceUpdates.find((u) => u.id === id);
+      if (!entry) throw new DataSourceError('NOT_FOUND', 'Запис журналу не знайдено');
+      return clone(entry);
+    });
+  }
+
+  getPriceImportMapping(supplierId: UUID): Promise<PriceImportMapping | null> {
+    return this.call(() => {
+      this.requireUser();
+      return clone(this.requireSupplier(supplierId).priceImportMapping ?? null);
+    });
+  }
+
+  savePriceImportMapping(supplierId: UUID, mapping: PriceImportMapping): Promise<PriceImportMapping> {
+    return this.call(() => {
+      this.requireUser();
+      this.requireSupplier(supplierId);
+      this.mutate((db) => {
+        const s = db.suppliers.find((x) => x.id === supplierId);
+        if (s) s.priceImportMapping = clone(mapping);
+      });
+      return clone(mapping);
     });
   }
 

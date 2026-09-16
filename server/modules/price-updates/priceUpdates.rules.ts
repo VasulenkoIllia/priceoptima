@@ -19,13 +19,14 @@ const DAY_MS = 86_400_000;
 /**
  * Що веде джерело прайсу:
  * - посилання auto і файл без змішаного режиму — усе;
- * - hybrid: посилання — асортимент, наявність, описи й фото; файл — ціни (і наявність, якщо вона є у файлі).
+ * - hybrid: посилання — асортимент, наявність, описи, фото й РРЦ; файл — вхідні ціни (і наявність, якщо вона є у файлі),
+ *   а РРЦ із файлу лише заповнює порожню — так два джерела не перезаписують одне одного щодня.
  */
 export function rolesFor(kind: PriceFeedKind | null | undefined, source: 'link' | 'file'): SourceRoles {
   if (kind !== 'hybrid') return FULL_ROLES;
   return source === 'link'
-    ? { prices: false, stock: true, assortment: true }
-    : { prices: true, stock: true, assortment: false };
+    ? { purchasePrice: false, rrp: 'set', stock: true, assortment: true }
+    : { purchasePrice: true, rrp: 'fill', stock: true, assortment: false };
 }
 
 export function isLinkFormat(format: string | null | undefined): format is LinkFormat {

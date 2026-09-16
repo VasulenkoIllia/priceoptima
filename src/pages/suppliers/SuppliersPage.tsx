@@ -86,15 +86,23 @@ export default function SuppliersPage() {
   const refresh = useMutation({
     mutationFn: (s: SupplierListItem) => ds.refreshSupplierPrices(s.id),
     onSuccess: (r, s) => {
+      const remarks = (r.report?.bigPriceChanges.total ?? 0) + (r.detailsDiffer ?? 0) + (r.skipped ?? 0);
       message.success({
-        content: `Прайс ${s.name} оновлено: товарів ${r.productsTotal}, змінилось цін ${r.changed} (▲ ${r.priceUp}, ▼ ${r.priceDown})`,
-        duration: 5,
+        content: `Прайс ${s.name} оновлено: товарів ${r.productsTotal}, нових ${r.added}, змінилось цін ${r.changed} (▲ ${r.priceUp}, ▼ ${r.priceDown})${
+          remarks ? ' — є зауваги, звіт у журналі («Детальніше»)' : ''
+        }`,
+        duration: remarks ? 8 : 5,
       });
       for (const queryKey of [qk.suppliers, qk.supplier(s.id), qk.productsAll, qk.productAll, qk.priceHistoryAll, qk.priceUpdatesAll]) {
         void queryClient.invalidateQueries({ queryKey });
       }
     },
-    onError: (e) => message.error(errorMessage(e)),
+    onError: (e, s) => {
+      message.error({ content: errorMessage(e), duration: 8 });
+      // невдалий запуск теж лягає в журнал
+      void queryClient.invalidateQueries({ queryKey: qk.priceUpdatesAll });
+      void queryClient.invalidateQueries({ queryKey: qk.supplier(s.id) });
+    },
   });
 
   return (

@@ -113,3 +113,11 @@
 .po-pi-footer-spacer {
   flex: 1 1 auto;
 }
+.po-pi-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 65vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}

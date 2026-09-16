@@ -5,7 +5,7 @@ import { parse } from '../http/validate';
 import { clientInputSchema } from '../modules/clients/clients.schemas';
 import { ownCompanyInputSchema } from '../modules/own-companies/ownCompanies.schemas';
 import { manualRateSchema, ratesQuerySchema } from '../modules/rates/rates.schemas';
-import { isHttpUrl, priceSourceSchema, supplierInputSchema } from '../modules/suppliers/suppliers.schemas';
+import { isHttpUrl, priceMappingSchema, priceSourceSchema, supplierInputSchema } from '../modules/suppliers/suppliers.schemas';
 import { unitPatchSchema } from '../modules/units/units.schemas';
 
 /** Повідомлення, яке побачить користувач. */
@@ -141,6 +141,26 @@ describe('джерело прайсу', () => {
     expect(parse(priceSourceSchema, { kind: 'manual', secret: '' }).secret).toBe('');
     expect(parse(priceSourceSchema, { kind: 'manual', secret: null }).secret).toBeNull();
     expect(parse(priceSourceSchema, { kind: 'manual' }).secret).toBeUndefined();
+  });
+});
+
+describe('зіставлення колонок файлу прайсу', () => {
+  it('приймає збережене зіставлення й підставляє значення за замовчуванням', () => {
+    const out = parse(priceMappingSchema, { headerRow: 0, columns: { code: { index: 0, header: 'Код' }, purchasePrice: { index: 3, header: 'Ціна з ПДВ' } } });
+    expect(out).toEqual({
+      sheetName: null,
+      headerRow: 0,
+      columns: { code: { index: 0, header: 'Код' }, purchasePrice: { index: 3, header: 'Ціна з ПДВ' } },
+      pricesIncludeVat: false,
+      currency: 'UAH',
+      skipRowsWithoutPrice: true,
+      markMissing: false,
+    });
+  });
+
+  it('невідома колонка чи від’ємний номер не проходять', () => {
+    expect(priceMappingSchema.safeParse({ columns: { colour: { index: 1, header: 'Колір' } } }).success).toBe(false);
+    expect(priceMappingSchema.safeParse({ columns: { code: { index: -1, header: 'Код' } } }).success).toBe(false);
   });
 });
 

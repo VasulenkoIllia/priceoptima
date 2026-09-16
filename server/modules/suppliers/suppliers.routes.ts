@@ -3,8 +3,17 @@ import { Router } from 'express';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseParams } from '../../http/validate';
 import { requireAuth } from '../auth/middleware';
-import { priceSourceSchema, supplierIdSchema, supplierInputSchema } from './suppliers.schemas';
-import { createSupplier, getPriceSource, getSupplier, listSuppliers, updatePriceSource, updateSupplier } from './suppliers.service';
+import { priceMappingSchema, priceSourceSchema, supplierIdSchema, supplierInputSchema } from './suppliers.schemas';
+import {
+  createSupplier,
+  getPriceMapping,
+  getPriceSource,
+  getSupplier,
+  listSuppliers,
+  savePriceMapping,
+  updatePriceSource,
+  updateSupplier,
+} from './suppliers.service';
 
 export const suppliersRouter = Router();
 
@@ -57,5 +66,23 @@ suppliersRouter.put(
   asyncHandler(async (req, res) => {
     const { id } = parseParams(supplierIdSchema, req);
     res.json(await updatePriceSource(id, parseBody(priceSourceSchema, req)));
+  }),
+);
+
+suppliersRouter.get(
+  '/:id/price-mapping',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { id } = parseParams(supplierIdSchema, req);
+    res.json(await getPriceMapping(id));
+  }),
+);
+
+suppliersRouter.put(
+  '/:id/price-mapping',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { id } = parseParams(supplierIdSchema, req);
+    res.json(await savePriceMapping(id, parseBody(priceMappingSchema, req)));
   }),
 );

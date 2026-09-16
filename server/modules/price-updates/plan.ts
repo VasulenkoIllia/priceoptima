@@ -10,7 +10,18 @@ import { randomUUID } from 'node:crypto';
 import type { AvailabilityStatus, CurrencyCode } from '@shared/enums';
 import { DEFAULT_UNITS, normalizeSku, normalizeUnit, type UnitAliasSource } from '@shared/parse';
 import { round3, round4 } from '@shared/pricing';
-import type { ISODate, UUID } from '@shared/types';
+import type {
+  ISODate,
+  PriceBigChange,
+  PriceDetailDiff,
+  PriceDetailField,
+  PriceNotFoundRow,
+  PriceRelinkedItem,
+  PriceReportSection,
+  PriceSkippedRow,
+  PriceUpdateReport,
+  UUID,
+} from '@shared/types';
 import { searchTextOf } from '../products/products.rules';
 import { availabilityForQty, imageList, type PriceRow } from './adapters/types';
 
@@ -29,13 +40,16 @@ const MIN_BARCODE_LENGTH = 8;
 const MIN_ARTICLE_LENGTH = 3;
 
 export interface SourceRoles {
-  prices: boolean;
+  /** Вхідна ціна й валюта товару. */
+  purchasePrice: boolean;
+  /** РРЦ: 'set' — з прайсу, коли вона там є; 'fill' — лише якщо в каталозі порожньо; 'none' — не чіпати. */
+  rrp: 'set' | 'fill' | 'none';
   stock: boolean;
   assortment: boolean;
 }
 
 /** Прайс, що веде все (вигрузка «auto» або файл для постачальника без вигрузки). */
-export const FULL_ROLES: SourceRoles = { prices: true, stock: true, assortment: true };
+export const FULL_ROLES: SourceRoles = { purchasePrice: true, rrp: 'set', stock: true, assortment: true };
 
 /** Товар каталогу в тому вигляді, який потрібен звірці (гроші — числа, дата — ISO). */
 export interface ExistingProduct {
@@ -133,57 +147,14 @@ export interface PlanCounters {
   detailsDiffer: number;
 }
 
-export type DetailField = 'nameWork' | 'brand' | 'unitCode' | 'multiplicity' | 'minOrderQty' | 'barcode' | 'categoryPath';
-
-export interface DetailDiff {
-  code: string;
-  field: DetailField;
-  catalog: string;
-  price: string;
-}
-
-export interface BigPriceChange {
-  code: string;
-  field: 'purchasePrice' | 'rrp';
-  old: number;
-  new: number;
-  /** Зміна у відсотках зі знаком, до десятих. */
-  pct: number;
-}
-
-export interface RelinkedItem {
-  code: string;
-  previousSku: string;
-  by: 'barcode' | 'article';
-}
-
-export interface NotFoundRow {
-  /** Номер рядка у прайсі (з 1). */
-  row: number;
-  code: string;
-  name: string | null;
-}
-
-export interface SkippedRow {
-  row: number;
-  code: string;
-  reason: string;
-}
-
-/** Скільки всього й перші REPORT_SAMPLE прикладів. */
-export interface ReportSection<T> {
-  total: number;
-  sample: T[];
-}
-
-export interface PlanReport {
-  /** Поля, у яких заповнене значення каталогу відрізняється від прайсу (по запису на поле). */
-  detailsDiffer: ReportSection<DetailDiff>;
-  bigPriceChanges: ReportSection<BigPriceChange>;
-  relinked: ReportSection<RelinkedItem>;
-  notFound: ReportSection<NotFoundRow>;
-  skippedRows: ReportSection<SkippedRow>;
-}
+export type DetailField = PriceDetailField;
+export type DetailDiff = PriceDetailDiff;
+export type BigPriceChange = PriceBigChange;
+export type RelinkedItem = PriceRelinkedItem;
+export type NotFoundRow = PriceNotFoundRow;
+export type SkippedRow = PriceSkippedRow;
+export type ReportSection<T> = PriceReportSection<T>;
+export type PlanReport = PriceUpdateReport;
 
 export interface ApplyPlan {
   counters: PlanCounters;
@@ -444,13 +415,23 @@ export function planApply(input: PlanInput): PlanResult {
       note(report.relinked, { code, previousSku: current.sku, by: match.by });
     }
 
-    if (roles.prices && current.priceOrigin === 'import') {
-      next.purchasePrice = price(row.purchasePrice) ?? current.purchasePrice;
-      next.rrp = price(row.rrp) ?? current.rrp;
-      next.currency = row.currency ?? current.currency;
-      plan.priceConfirmedIds.push(current.id);
-      pricedItems++;
-      if (next.currency !== current.currency) currencyChanges++;
+    if ((roles.purchasePrice || roles.rrp !== 'none') && current.priceOrigin === 'import') {
+      if (roles.purchasePrice) {
+        // валюту веде джерело вхідної ціни; «ціну перевірено» — теж лише воно
+        next.purchasePrice = price(row.purchasePrice) ?? current.purchasePrice;
+        next.currency = row.currency ?? current.currency;
+        plan.priceConfirmedIds.push(current.id);
+        pricedItems++;
+        if (next.currency !== current.currency) currencyChanges++;
+      }
+      // РРЦ у чужій валюті джерело, що не веде валюту, не записує
+      const rrpCurrencyFits = roles.purchasePrice || (row.currency ?? current.currency) === current.currency;
+      if (rrpCurrencyFits && (roles.rrp === 'set' || (roles.rrp === 'fill' && current.rrp == null))) {
+        next.rrp = price(row.rrp) ?? current.rrp;
+      } else if (next.currency !== current.currency) {
+        // валюта змінилась, а нової РРЦ немає — стара РРЦ у старій валюті вже не має сенсу
+        next.rrp = price(row.rrp) ?? null;
+      }
       if (hasComparablePrice(current, next)) comparablePriced++;
       if (next.currency !== current.currency || next.purchasePrice !== current.purchasePrice || next.rrp !== current.rrp) {
         counters.changed++;

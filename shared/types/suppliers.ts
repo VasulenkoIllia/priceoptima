@@ -2,6 +2,7 @@ import type {
   AvailabilityStatus,
   CurrencyCode,
   ForeignCurrency,
+  PriceColumnRole,
   RatePolicy,
   RateSource,
 } from '../enums';
@@ -197,6 +198,88 @@ export interface PriceUpdateDto {
   rates: RatesPair;
   /** null — автоматично за розкладом; інакше — хто запустив оновлення. */
   user: UserRef | null;
+  // ── стан запуску й звіт звірки (з сервера; у демо-даних їх немає) ──
+  /** 'error' — оновлення не застосовано (див. error). */
+  status?: 'ok' | 'error';
+  error?: string | null;
+  /** Попередження розбору: немає цін, пропущені рядки тощо. */
+  warnings?: string[];
+  /** Рядки, які не застосовано: без коду, повтори, неоднозначні, не знайдені. */
+  skipped?: number;
+  /** Знайдено за штрихкодом або артикулом (код у каталозі замінено кодом із прайсу). */
+  relinked?: number;
+  /** Повернуто з архіву. */
+  restored?: number;
+  /** Товарів, у яких опис у каталозі відрізняється від прайсу (опис не змінено). */
+  detailsDiffer?: number;
+  finishedAt?: ISODateTime | null;
+  /** Звіт — у відповіді на запуск і в картці запису журналу; у списку журналу його немає. */
+  report?: PriceUpdateReport | null;
+}
+
+/** Поля опису, які прайс лише доповнює (заповнене значення не перезаписується). */
+export type PriceDetailField = 'nameWork' | 'brand' | 'unitCode' | 'multiplicity' | 'minOrderQty' | 'barcode' | 'categoryPath';
+
+export interface PriceDetailDiff {
+  code: string;
+  field: PriceDetailField;
+  catalog: string;
+  price: string;
+}
+
+export interface PriceBigChange {
+  code: string;
+  field: 'purchasePrice' | 'rrp';
+  old: number;
+  new: number;
+  /** Зміна у відсотках зі знаком, до десятих. */
+  pct: number;
+}
+
+export interface PriceRelinkedItem {
+  code: string;
+  previousSku: string;
+  by: 'barcode' | 'article';
+}
+
+export interface PriceNotFoundRow {
+  /** Номер рядка у прайсі (з 1). */
+  row: number;
+  code: string;
+  name: string | null;
+}
+
+export interface PriceSkippedRow {
+  row: number;
+  code: string;
+  reason: string;
+}
+
+/** Скільки всього й перші приклади (до 50). */
+export interface PriceReportSection<T> {
+  total: number;
+  sample: T[];
+}
+
+export interface PriceUpdateReport {
+  /** Поля, у яких заповнене значення каталогу відрізняється від прайсу (по запису на поле). */
+  detailsDiffer: PriceReportSection<PriceDetailDiff>;
+  bigPriceChanges: PriceReportSection<PriceBigChange>;
+  relinked: PriceReportSection<PriceRelinkedItem>;
+  notFound: PriceReportSection<PriceNotFoundRow>;
+  skippedRows: PriceReportSection<PriceSkippedRow>;
+}
+
+/** Останнє зіставлення колонок файлу прайсу постачальника — підставляється наступного разу. */
+export interface PriceImportMapping {
+  sheetName: string | null;
+  headerRow: number | null;
+  /** Індекс колонки + її заголовок — якщо колонки посунуться, знайдемо за заголовком. */
+  columns: Partial<Record<PriceColumnRole, { index: number; header: string }>>;
+  pricesIncludeVat: boolean;
+  currency: CurrencyCode;
+  skipRowsWithoutPrice: boolean;
+  markMissing: boolean;
 }
 
 /** Рядок прайсу для завантаження (ціни — у валюті прайсу, вхід без ПДВ, РРЦ з ПДВ). */

@@ -17,8 +17,8 @@ import {
 import { searchTextOf } from '../modules/products/products.rules';
 
 const TODAY = '2026-09-16';
-const HYBRID_LINK: SourceRoles = { prices: false, stock: true, assortment: true };
-const HYBRID_FILE: SourceRoles = { prices: true, stock: true, assortment: false };
+const HYBRID_LINK: SourceRoles = { purchasePrice: false, rrp: 'set', stock: true, assortment: true };
+const HYBRID_FILE: SourceRoles = { purchasePrice: true, rrp: 'fill', stock: true, assortment: false };
 
 let seq = 0;
 /** Товар каталогу з узгодженим ключем і пошуковим текстом. */
@@ -366,19 +366,40 @@ describe('звірка: «немає у прайсі» й архів', () => {
 });
 
 describe('звірка: ролі змішаного джерела', () => {
-  it('посилання hybrid: асортимент і наявність оновлюються, ціни — ні', () => {
+  it('посилання hybrid: асортимент, наявність і РРЦ оновлюються, вхідна ціна — ні', () => {
     const p = product({ purchasePrice: 100, stockQty: 1 });
     const absent = product();
     const result = plan({
       existing: [p, absent],
-      rows: [rowOf(p, { purchasePrice: 999, rrp: 999, stockQty: 50 }), { ...emptyRow('NEW-1'), rrp: 10 }],
+      rows: [rowOf(p, { purchasePrice: 999, rrp: 180, stockQty: 50 }), { ...emptyRow('NEW-1'), rrp: 10 }],
       roles: HYBRID_LINK,
       markMissing: true,
     });
-    expect(result.updates[0]).toMatchObject({ purchasePrice: 100, rrp: 150, stockQty: 50 });
-    expect(result.counters).toMatchObject({ changed: 0, stockChanged: 1, added: 1, missing: 1 });
+    expect(result.updates[0]).toMatchObject({ purchasePrice: 100, rrp: 180, stockQty: 50 });
+    expect(result.counters).toMatchObject({ changed: 1, stockChanged: 1, added: 1, missing: 1 });
+    // «ціну перевірено» ставить лише джерело вхідної ціни
     expect(result.priceConfirmedIds).toEqual([]);
     expect(result.missingMarks).toEqual([absent.id]);
+  });
+
+  it('посилання hybrid не змінює валюту й не пише РРЦ у чужій валюті', () => {
+    const p = product({ currency: 'EUR', purchasePrice: 10, rrp: 20 });
+    const result = plan({ existing: [p], rows: [rowOf(p, { currency: 'UAH', purchasePrice: null, rrp: 900 })], roles: HYBRID_LINK });
+    expect(result.updates).toEqual([]);
+    expect(result.counters.changed).toBe(0);
+  });
+
+  it('файл hybrid: РРЦ лише заповнює порожню, заповнену веде посилання', () => {
+    const withRrp = product({ rrp: 150 });
+    const noRrp = product({ rrp: null });
+    const result = plan({
+      existing: [withRrp, noRrp],
+      rows: [rowOf(withRrp, { purchasePrice: 110, rrp: 999 }), rowOf(noRrp, { rrp: 175 })],
+      roles: HYBRID_FILE,
+    });
+    expect(result.updates.find((u) => u.id === withRrp.id)).toMatchObject({ purchasePrice: 110, rrp: 150 });
+    expect(result.updates.find((u) => u.id === noRrp.id)).toMatchObject({ rrp: 175 });
+    expect(result.priceConfirmedIds).toEqual([withRrp.id, noRrp.id]);
   });
 
   it('файл hybrid: ціни й наявність оновлюються, нових не створює й зниклих не позначає', () => {

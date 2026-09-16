@@ -13,6 +13,8 @@ export const qk = {
   supplierPriceSource: (id: UUID) => ['supplier-price-source', id] as const,
   priceUpdates: (supplierId?: UUID) => ['price-updates', supplierId ?? 'all'] as const,
   priceUpdatesAll: ['price-updates'] as const,
+  priceUpdate: (id: number) => ['price-update', id] as const,
+  priceMapping: (supplierId: UUID) => ['price-mapping', supplierId] as const,
   products: (query: ProductListQuery) => ['products', query] as const,
   productsAll: ['products'] as const,
   product: (id: UUID) => ['product', id] as const,

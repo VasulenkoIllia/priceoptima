@@ -2,7 +2,7 @@
 // Посилання на вигрузку й токен доступу лишаються на сервері — в API йде лише хост і стан доступу.
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
-import type { SupplierDetail, SupplierListItem, SupplierPriceSourceSettings } from '@shared/types';
+import type { PriceImportMapping, SupplierDetail, SupplierListItem, SupplierPriceSourceSettings } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
 import { ApiError, notFound } from '../../http/errors';
@@ -11,7 +11,7 @@ import { dateOnly } from '../../lib/mapping';
 import { createSecretBox } from '../../lib/secretBox';
 import type { SupplierDetailRow } from './suppliers.mapper';
 import { toPriceSourceSettings, toSupplierDetail, toSupplierListItem } from './suppliers.mapper';
-import type { PriceSourceBody, SupplierInputBody } from './suppliers.schemas';
+import { priceMappingSchema, type PriceMappingBody, type PriceSourceBody, type SupplierInputBody } from './suppliers.schemas';
 
 // ключ шифрування секретів виводимо з ключа підпису cookie — окремої змінної середовища не заводимо
 const secrets = createSecretBox(config.SESSION_SECRET);
@@ -100,6 +100,27 @@ export async function updatePriceSource(id: string, input: PriceSourceBody): Pro
     update: data,
   });
   return toPriceSourceSettings(row);
+}
+
+/** Зіставлення колонок файлу прайсу; збережене в старому форматі чи пошкоджене — немає. */
+export async function getPriceMapping(id: string): Promise<PriceImportMapping | null> {
+  const supplier = await prisma.supplier.findUnique({ where: { id }, include: { feed: { select: { columnMapping: true } } } });
+  if (!supplier) throw notFound('Постачальника не знайдено');
+  const parsed = priceMappingSchema.safeParse(supplier.feed?.columnMapping ?? undefined);
+  return supplier.feed?.columnMapping != null && parsed.success ? parsed.data : null;
+}
+
+/** Запис у рядок джерела прайсу; якщо його ще немає — створюється з налаштуваннями за замовчуванням (прайс файлом). */
+export async function savePriceMapping(id: string, input: PriceMappingBody): Promise<PriceImportMapping> {
+  const supplier = await prisma.supplier.findUnique({ where: { id }, select: { id: true } });
+  if (!supplier) throw notFound('Постачальника не знайдено');
+  const columnMapping = input as Prisma.InputJsonObject;
+  await prisma.supplierPriceFeed.upsert({
+    where: { supplierId: id },
+    create: { supplierId: id, columnMapping },
+    update: { columnMapping },
+  });
+  return input;
 }
 
 /** Поля секрету немає — лишаємо збережений; порожнє значення — прибираємо; інакше шифруємо нове. */

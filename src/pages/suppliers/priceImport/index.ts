@@ -1,7 +1,7 @@
 // Завантаження прайсу постачальника файлом і наш шаблон Excel.
 export { PriceImportDialog, type PriceImportDialogProps } from './PriceImportDialog';
 export { downloadPriceTemplate, TEMPLATE_COLUMNS } from './template';
-export { usePriceMappingStore, type SavedPriceMapping } from './mappingStore';
+export { applySavedMapping, toSavedMapping, type SavedPriceMapping } from './mappingStore';
 export {
   buildPriceRows,
   detectColumns,

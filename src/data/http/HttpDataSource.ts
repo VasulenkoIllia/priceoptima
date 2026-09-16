@@ -16,6 +16,7 @@ import type {
   OwnCompanyInput,
   PriceHistoryEntry,
   PriceImportBody,
+  PriceImportMapping,
   PriceUpdateDto,
   ProductDetail,
   ProductImageDto,
@@ -145,12 +146,24 @@ export class HttpDataSource {
   // ── прайси постачальників ─────────────────────────────────────────
 
   /** Завантажити вигрузку постачальника зараз (за розкладом це робиться щоранку). */
-  refreshSupplierPrices(supplierId: UUID): Promise<PriceUpdateDto> {
-    return api<PriceUpdateDto>('/price-updates/run', { body: { supplierId } });
+  refreshSupplierPrices(supplierId: UUID, options?: { dryRun?: boolean }): Promise<PriceUpdateDto> {
+    return api<PriceUpdateDto>('/price-updates/run', { body: { supplierId, dryRun: options?.dryRun ?? false } });
   }
 
   listPriceUpdates(supplierId?: UUID): Promise<PriceUpdateDto[]> {
     return api<PriceUpdateDto[]>('/price-updates', { query: { supplierId } });
+  }
+
+  getPriceUpdate(id: number): Promise<PriceUpdateDto> {
+    return api<PriceUpdateDto>(`/price-updates/${id}`);
+  }
+
+  getPriceImportMapping(supplierId: UUID): Promise<PriceImportMapping | null> {
+    return api<PriceImportMapping | null>(`/suppliers/${supplierId}/price-mapping`);
+  }
+
+  savePriceImportMapping(supplierId: UUID, mapping: PriceImportMapping): Promise<PriceImportMapping> {
+    return api<PriceImportMapping>(`/suppliers/${supplierId}/price-mapping`, { method: 'PUT', body: mapping });
   }
 
   importSupplierPrices(supplierId: UUID, body: PriceImportBody): Promise<PriceUpdateDto> {

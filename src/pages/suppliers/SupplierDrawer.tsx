@@ -1,7 +1,7 @@
 // Бічна панель постачальника: картка й умови (редагуються у формі), джерело прайсу, журнал оновлень.
-import { EditOutlined, GlobalOutlined, MailOutlined, PhoneOutlined, SettingOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Descriptions, Drawer, Result, Spin, Table, Tag, Typography, type TableColumnsType } from 'antd';
+import { EditOutlined, ExperimentOutlined, GlobalOutlined, MailOutlined, PhoneOutlined, SettingOutlined } from '@ant-design/icons';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Alert, App, Button, Descriptions, Drawer, Modal, Result, Spin, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
 import { useState, type ReactNode } from 'react';
 import { CURRENCY_LABELS, RATE_POLICY_LABELS } from '@shared/enums';
 import { formatDateTime, formatMoneyUah, formatRate } from '@shared/format';
@@ -9,8 +9,9 @@ import type { PriceUpdateDto, SupplierDetail, SupplierListItem } from '@shared/t
 import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { PriceSourceDialog } from './PriceSourceDialog';
+import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierFormDialog } from './SupplierFormDialog';
-import { hostOf, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel } from './supplierView';
+import { hostOf, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, viaLink } from './supplierView';
 
 /** «НБУ + 1,5 %», «Вручну: USD 41,20 · EUR 45,10». */
 function ratePolicyLabel(s: SupplierDetail): string {
@@ -32,11 +33,33 @@ function ExtLink({ url }: { url: string | null }) {
 }
 
 const LOG_COLUMNS: TableColumnsType<PriceUpdateDto> = [
-  { title: 'Дата і час', dataIndex: 'at', render: (v: string) => <span className="po-num">{formatDateTime(v)}</span> },
+  { title: 'Дата і час', dataIndex: 'at', width: 124, render: (v: string) => <span className="po-num">{formatDateTime(v)}</span> },
+  {
+    title: 'Стан',
+    key: 'status',
+    width: 100,
+    render: (_, u) =>
+      u.status === 'error' ? (
+        <Tooltip title={u.error}>
+          <Tag color="red" bordered={false}>
+            не застосовано
+          </Tag>
+        </Tooltip>
+      ) : (u.detailsDiffer ?? 0) + (u.skipped ?? 0) > 0 ? (
+        <Tag color="gold" bordered={false}>
+          є зауваги
+        </Tag>
+      ) : (
+        <Tag color="green" bordered={false}>
+          ок
+        </Tag>
+      ),
+  },
   { title: 'Товарів', dataIndex: 'productsTotal', align: 'right', render: (v: number) => <span className="po-num">{v}</span> },
   {
     title: 'Змінилось',
     key: 'changed',
+    width: 130,
     align: 'right',
     render: (_, u) => (
       <span className="po-num">
@@ -57,23 +80,53 @@ const LOG_COLUMNS: TableColumnsType<PriceUpdateDto> = [
     render: (v: number) => <span className="po-num">{v || <span className="po-muted">—</span>}</span>,
   },
   {
-    title: 'Немає у прайсі',
+    title: 'Зникли',
     dataIndex: 'missing',
     align: 'right',
     render: (v: number) => <span className="po-num">{v || <span className="po-muted">—</span>}</span>,
   },
-  { title: 'Курс USD / EUR', key: 'rates', align: 'right', render: (_, u) => <span className="po-num">{`${formatRate(u.rates.USD)} / ${formatRate(u.rates.EUR)}`}</span> },
   {
     title: 'Джерело',
     key: 'source',
-    render: (_, u) => (
-      <span>
-        {u.source === 'file' ? (u.fileName ? `файл ${u.fileName}` : 'файл') : <span className="po-muted">за посиланням</span>}
-        {u.user ? <span className="po-muted"> · {u.user.shortName}</span> : null}
-      </span>
-    ),
+    width: 130,
+    ellipsis: { showTitle: false },
+    render: (_, u) => {
+      const label = u.source === 'file' ? (u.fileName ?? 'файл') : 'посилання';
+      const who = u.user ? u.user.shortName : 'за розкладом';
+      return (
+        <Tooltip title={`${u.source === 'file' ? `Файл ${label}` : 'Вигрузка за посиланням'} · ${who}`}>
+          <span className={u.source === 'file' ? undefined : 'po-muted'}>{label}</span>
+          <div className="po-muted" style={{ fontSize: 11 }}>
+            {who}
+          </div>
+        </Tooltip>
+      );
+    },
   },
 ];
+
+/** Запис журналу зі звітом (звіт вантажимо окремо — у списку журналу його немає). */
+function PriceUpdateModal({ id, onClose }: { id: number | null; onClose: () => void }) {
+  const entry = useQuery({ queryKey: qk.priceUpdate(id ?? 0), queryFn: () => ds.getPriceUpdate(id!), enabled: id != null });
+  return (
+    <Modal
+      open={id != null}
+      width={880}
+      footer={null}
+      onCancel={onClose}
+      destroyOnHidden
+      title={entry.data ? `Оновлення прайсу ${formatDateTime(entry.data.at)} · ${entry.data.source === 'file' ? (entry.data.fileName ?? 'файл') : 'за посиланням'}` : 'Оновлення прайсу'}
+    >
+      {entry.data ? (
+        <PriceUpdateReportView update={entry.data} />
+      ) : entry.isError ? (
+        <Alert type="error" showIcon message="Не вдалося завантажити звіт" description={errorMessage(entry.error)} />
+      ) : (
+        <Spin style={{ display: 'block', margin: '32px auto' }} />
+      )}
+    </Modal>
+  );
+}
 
 interface SupplierCardProps {
   detail: SupplierDetail;
@@ -81,8 +134,28 @@ interface SupplierCardProps {
 }
 
 function SupplierCard({ detail, onSource }: SupplierCardProps) {
+  const { message, modal } = App.useApp();
   const log = useQuery({ queryKey: qk.priceUpdates(detail.id), queryFn: () => ds.listPriceUpdates(detail.id) });
   const source = detail.priceSource;
+  const [openedUpdate, setOpenedUpdate] = useState<number | null>(null);
+
+  // вигрузка без запису: чи працює посилання й що саме зміниться
+  const check = useMutation({
+    mutationFn: () => ds.refreshSupplierPrices(detail.id, { dryRun: true }),
+    onSuccess: (dry) =>
+      modal.info({
+        title: `Перевірка вигрузки ${detail.name} — нічого не записано`,
+        width: 880,
+        icon: null,
+        okText: 'Закрити',
+        content: (
+          <div className="po-pi-confirm">
+            <PriceUpdateReportView update={dry} preview />
+          </div>
+        ),
+      }),
+    onError: (e) => message.error({ content: errorMessage(e), duration: 8 }),
+  });
 
   const info: { key: string; label: string; children: ReactNode }[] = [
     { key: 'site', label: 'Сайт', children: <ExtLink url={detail.website} /> },
@@ -106,10 +179,10 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
   return (
     <>
       <div className="po-sup-section">Картка</div>
-      <Descriptions column={1} size="small" items={info} styles={{ label: { width: 170 } }} />
+      <Descriptions column={1} size="small" items={info} styles={{ label: { width: 190 } }} />
 
       <div className="po-sup-section">Умови для заявок</div>
-      <Descriptions column={1} size="small" items={terms} styles={{ label: { width: 170 } }} />
+      <Descriptions column={1} size="small" items={terms} styles={{ label: { width: 190 } }} />
 
       <div className="po-sup-section">Джерело прайсу</div>
       <div className="po-sup-source">
@@ -122,9 +195,18 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
               лише РРЦ
             </Tag>
           ) : null}
-          <Button size="small" icon={<SettingOutlined />} onClick={onSource}>
-            Налаштувати
-          </Button>
+          <span className="po-sup-source-actions">
+            {viaLink(source.kind) ? (
+              <Tooltip title="Завантажити вигрузку й показати, що зміниться, нічого не записуючи">
+                <Button size="small" icon={<ExperimentOutlined />} loading={check.isPending} onClick={() => check.mutate()}>
+                  Перевірити
+                </Button>
+              </Tooltip>
+            ) : null}
+            <Button size="small" icon={<SettingOutlined />} onClick={onSource}>
+              Налаштувати
+            </Button>
+          </span>
         </div>
         <span className="po-muted">
           {detail.lastImportAt ? `Оновлено ${formatDateTime(detail.lastImportAt)}` : 'Прайс ще не завантажено'}
@@ -203,8 +285,13 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
           dataSource={log.data}
           pagination={{ pageSize: 6, size: 'small', hideOnSinglePage: true }}
           locale={{ emptyText: 'Оновлень ще не було' }}
+          onRow={(u) => (u.id > 0 ? { onClick: () => setOpenedUpdate(u.id), style: { cursor: 'pointer' } } : {})}
         />
       )}
+      <div className="po-muted" style={{ fontSize: 12, marginTop: 4 }}>
+        Натисніть на рядок, щоб побачити звіт: великі зміни цін, розбіжності описів, пропущені рядки.
+      </div>
+      <PriceUpdateModal id={openedUpdate} onClose={() => setOpenedUpdate(null)} />
     </>
   );
 }
@@ -226,7 +313,7 @@ export function SupplierDrawer({ open, supplier, onClose }: SupplierDrawerProps)
     <Drawer
       open={open}
       onClose={onClose}
-      width={640}
+      width={760}
       destroyOnHidden
       title={shown ? <SupplierLogo name={shown.name} logoUrl={shown.logoUrl} color={shown.color} size={24} showName /> : 'Постачальник'}
       extra={

@@ -1,13 +1,15 @@
 // Завантаження прайсу постачальника файлом: файл → аркуш і заголовок → колонки → перегляд і застосування.
-// Потрібне тим постачальникам, які не дають посилання на вигрузку (прайс приходить .xlsx від менеджера).
+// Перед записом сервер рахує зміни без запису (dryRun) — користувач бачить звіт і лише тоді підтверджує.
+// Зіставлення колонок зберігається на сервері для постачальника й підставляється наступного разу.
 import { DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Checkbox, InputNumber, Input, Modal, Select, Spin, Steps, Tooltip, Upload } from 'antd';
 import { useMemo, useState } from 'react';
 import { CURRENCY_CODES, CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
 import { formatQty } from '@shared/format';
-import type { PriceUpdateDto, UUID } from '@shared/types';
+import type { PriceImportMapping, PriceUpdateDto, UUID } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
+import { PriceUpdateReportView } from '../PriceUpdateReport';
 import { columnOptions, RowsPreview, SheetPreview } from './PriceTablePreview';
 import {
   buildPriceRows,
@@ -22,7 +24,7 @@ import {
   type PriceColumnMap,
   type PriceColumnRole,
 } from './priceRows';
-import { applySavedMapping, rememberMapping, savedMappingOf, toSavedMapping } from './mappingStore';
+import { applySavedMapping, toSavedMapping } from './mappingStore';
 import { readSpreadsheetFile, sheetFromText, SpreadsheetError, type SheetData } from './spreadsheet';
 import { downloadPriceTemplate } from './template';
 import './priceImport.css';
@@ -68,31 +70,14 @@ function TemplateButton() {
   );
 }
 
-function ChangesSummary({ u }: { u: PriceUpdateDto }) {
-  return (
-    <div className="po-pi-summary" style={{ marginTop: 8 }}>
-      <span>
-        Нові позиції: <b>{formatQty(u.added)}</b>
-      </span>
-      <span>
-        Зміна ціни: <b>{formatQty(u.changed)}</b> (▲ {formatQty(u.priceUp)} ▼ {formatQty(u.priceDown)})
-      </span>
-      <span>
-        Зміна наявності: <b>{formatQty(u.stockChanged)}</b>
-      </span>
-      <span>
-        Немає у прайсі: <b>{formatQty(u.missing)}</b>
-      </span>
-    </div>
-  );
-}
-
 function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImportDialogProps, 'open'>) {
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const supplier = useQuery({ queryKey: qk.supplier(supplierId), queryFn: () => ds.getSupplier(supplierId) });
   const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
+  const savedMapping = useQuery({ queryKey: qk.priceMapping(supplierId), queryFn: () => ds.getPriceImportMapping(supplierId) });
   const vatRatePct = settings.data?.vatRatePct ?? 20;
+  const sourceKind = supplier.data?.priceSource.kind ?? 'manual';
 
   const [step, setStep] = useState(0);
   const [reading, setReading] = useState(false);
@@ -123,7 +108,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   /** Аркуш → автовизначення колонок + збережене минулого разу зіставлення цього постачальника. */
   const selectSheet = (list: SheetData[], name: string) => {
     const picked = list.find((s) => s.name === name) ?? list[0];
-    const saved = savedMappingOf(supplierId);
+    const saved = savedMapping.data ?? null;
     const detected = detectColumns(picked.rows);
     const next = applySavedMapping(detected, saved, picked.rows);
     const head = next.headerRow != null ? (picked.rows[next.headerRow] ?? []) : [];
@@ -147,8 +132,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     setError(null);
     setFileName(name);
     setSheets(withRows);
-    const saved = savedMappingOf(supplierId);
-    selectSheet(withRows, saved?.sheetName ?? withRows[0].name);
+    selectSheet(withRows, savedMapping.data?.sheetName ?? withRows[0].name);
     setStep(1);
   };
 
@@ -179,20 +163,53 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   };
 
   const missingRoles = REQUIRED_ROLES.filter((r) => mapping[r] == null);
+  // у гібриді файл не відповідає за асортимент — позначати відсутні він не може
+  const markMissing = sourceKind !== 'hybrid' && options.markMissing;
+  const hasPriceColumns = mapping.purchasePrice != null || mapping.rrp != null;
 
   const importPrices = useMutation({
     mutationFn: (dryRun: boolean) =>
       ds.importSupplierPrices(supplierId, {
         rows: built.rows,
         fileName,
-        markMissing: options.markMissing,
+        markMissing,
         ...(dryRun ? { dryRun: true } : {}),
       }),
   });
 
+  const switchToHybrid = useMutation({
+    mutationFn: async () => {
+      const s = await ds.getSupplierPriceSource(supplierId);
+      return ds.saveSupplierPriceSource(supplierId, {
+        kind: 'hybrid',
+        format: s.format,
+        auth: s.auth,
+        scheduleHour: s.scheduleHour,
+        hasPurchasePrice: s.hasPurchasePrice,
+        note: s.note,
+      });
+    },
+    onSuccess: (saved) => {
+      queryClient.setQueryData(qk.supplierPriceSource(supplierId), saved);
+      void queryClient.invalidateQueries({ queryKey: qk.supplier(supplierId) });
+      void queryClient.invalidateQueries({ queryKey: qk.suppliers });
+      message.success('Режим «Гібрид»: ціни — з файлу, асортимент і наявність — за посиланням');
+    },
+    onError: (e) => message.error(errorMessage(e)),
+  });
+
+  const rememberColumns = async () => {
+    const next: PriceImportMapping = toSavedMapping(mapping, header, options, sheetName);
+    try {
+      queryClient.setQueryData(qk.priceMapping(supplierId), await ds.savePriceImportMapping(supplierId, next));
+    } catch (e) {
+      message.warning(`Прайс завантажено, але вибір колонок не збережено: ${errorMessage(e)}`);
+    }
+  };
+
   const applyNow = async () => {
     const res = await importPrices.mutateAsync(false);
-    rememberMapping(supplierId, toSavedMapping(mapping, header, options, sheetName));
+    await rememberColumns();
     for (const queryKey of [qk.suppliers, qk.supplier(supplierId), qk.productsAll, qk.productAll, qk.priceHistoryAll, qk.priceUpdatesAll]) {
       void queryClient.invalidateQueries({ queryKey });
     }
@@ -209,20 +226,22 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       const dry = await importPrices.mutateAsync(true);
       modal.confirm({
         title: `Завантажити прайс для ${supplierName}?`,
-        width: 560,
+        width: 880,
         icon: null,
         content: (
-          <>
+          <div className="po-pi-confirm">
             <div>
-              Файл <b>{fileName}</b> — рядків у каталог: {formatQty(built.rows.length)}.
+              Файл <b>{fileName}</b> — рядків: {formatQty(built.rows.length)}. Нижче — що зміниться в каталозі; поки ви не підтвердите, нічого не записано.
             </div>
-            <ChangesSummary u={dry} />
-            {options.markMissing && dry.missing > 0 ? (
-              <div className="po-muted" style={{ marginTop: 8, fontSize: 12 }}>
-                Позиції, яких немає у файлі, будуть позначені «немає у прайсі».
-              </div>
+            {sourceKind === 'auto' && hasPriceColumns ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="Ціни цього постачальника щоранку оновлюються за посиланням — ціни з файлу буде перезаписано під час наступного оновлення."
+              />
             ) : null}
-          </>
+            <PriceUpdateReportView update={dry} preview />
+          </div>
         ),
         okText: 'Завантажити',
         cancelText: 'Скасувати',
@@ -240,6 +259,34 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       message.error(errorMessage(e));
     }
   };
+
+  // два джерела цін: посилання перезапише ціни з файлу; у гібриді файл відповідає лише за ціни
+  const sourceAlert =
+    sourceKind === 'auto' && hasPriceColumns ? (
+      <Alert
+        type="warning"
+        showIcon
+        message="Ціни цього постачальника оновлюються за посиланням щоранку"
+        description={
+          <>
+            Ціни з файлу протримаються лише до наступного оновлення вигрузки. Якщо ціни мають братися з файлу, а асортимент, наявність і
+            фото — з посилання, перемкніть постачальника в режим «Гібрид».
+            <div style={{ marginTop: 8 }}>
+              <Button size="small" loading={switchToHybrid.isPending} onClick={() => switchToHybrid.mutate()}>
+                Перемкнути на «Гібрид»
+              </Button>
+            </div>
+          </>
+        }
+      />
+    ) : sourceKind === 'hybrid' ? (
+      <Alert
+        type="info"
+        showIcon
+        message="Гібрид: файл оновлює лише ціни (і наявність, якщо вибрано її колонку)"
+        description="Нові позиції з файлу не створюються й відсутні не позначаються — асортимент веде вигрузка за посиланням. Коди, яких немає в каталозі, покажемо у звіті перед записом."
+      />
+    ) : null;
 
   const summary = (
     <div className="po-pi-summary">
@@ -294,7 +341,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
         {error ? <Alert type="error" showIcon message={error} closable onClose={() => setError(null)} /> : null}
 
         {step === 0 ? (
-          <Spin spinning={reading} tip="Читаємо файл…">
+          <Spin spinning={reading || savedMapping.isPending} tip={reading ? 'Читаємо файл…' : 'Завантажуємо налаштування…'}>
             <Upload.Dragger
               className="po-pi-drop"
               accept=".xlsx,.xls,.csv,.tsv,.txt"
@@ -413,15 +460,18 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               >
                 Пропускати рядки без ціни
               </Checkbox>
-              <Tooltip title="Позиції каталогу, яких немає у файлі, будуть позначені «немає у прайсі»">
-                <Checkbox
-                  checked={options.markMissing}
-                  onChange={(e) => setOptions((o) => ({ ...o, markMissing: e.target.checked }))}
-                >
-                  Позначити зниклі позиції
-                </Checkbox>
-              </Tooltip>
+              {sourceKind === 'hybrid' ? null : (
+                <Tooltip title="Позиції каталогу, яких немає у файлі, будуть позначені «немає у прайсі»">
+                  <Checkbox
+                    checked={options.markMissing}
+                    onChange={(e) => setOptions((o) => ({ ...o, markMissing: e.target.checked }))}
+                  >
+                    Позначити зниклі позиції
+                  </Checkbox>
+                </Tooltip>
+              )}
             </div>
+            {sourceAlert}
             {missingRoles.length ? (
               <Alert
                 type="warning"
@@ -438,6 +488,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
 
         {step === 3 ? (
           <>
+            {sourceAlert}
             {summary}
             {built.rows.length ? null : (
               <Alert type="error" showIcon message="Жоден рядок не придатний для завантаження — перевірте зіставлення колонок." />

@@ -1,41 +1,13 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { detectColumns, EMPTY_COLUMN_MAP, type PriceColumnMap } from '../priceRows';
-import {
-  applySavedMapping,
-  rememberMapping,
-  savedMappingOf,
-  toSavedMapping,
-  usePriceMappingStore,
-  type SavedPriceMapping,
-} from '../mappingStore';
-
-const SUPPLIER = 'sup-1';
+import { applySavedMapping, toSavedMapping, type SavedPriceMapping } from '../mappingStore';
 
 const HEADER = ['Код 1С', 'Назва номенклатури', 'Ціна опт з ПДВ', 'Наявність філія'];
 const ROWS = [HEADER, ['ТА-1', 'Кран', '219,00', '100+']];
 
 const OPTIONS = { pricesIncludeVat: true, currency: 'UAH' as const, skipRowsWithoutPrice: true, markMissing: false };
 
-beforeEach(() => {
-  usePriceMappingStore.setState({ bySupplier: {} });
-  localStorage.clear();
-});
-
-describe('стор зіставлень прайсу', () => {
-  it('за замовчуванням порожній', () => {
-    expect(usePriceMappingStore.getState().bySupplier).toEqual({});
-    expect(savedMappingOf(SUPPLIER)).toBeNull();
-  });
-
-  it('зберігає зіставлення по постачальниках і забуває його', () => {
-    const saved = toSavedMapping(detectColumns(ROWS), HEADER, OPTIONS, 'Прайс');
-    rememberMapping(SUPPLIER, saved);
-    expect(savedMappingOf(SUPPLIER)).toEqual(saved);
-    expect(savedMappingOf('sup-2')).toBeNull();
-    usePriceMappingStore.getState().forget(SUPPLIER);
-    expect(savedMappingOf(SUPPLIER)).toBeNull();
-  });
-
+describe('збереження зіставлень прайсу', () => {
   it('toSavedMapping запам’ятовує і заголовки колонок, і налаштування', () => {
     const saved = toSavedMapping(detectColumns(ROWS), HEADER, OPTIONS, 'Прайс');
     expect(saved).toMatchObject({

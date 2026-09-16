@@ -8,6 +8,7 @@ import type {
   Offer,
   OwnCompanyDto,
   PriceHistoryEntry,
+  PriceImportMapping,
   PriceUpdateDto,
   ProductDetail,
   RequestDocument,
@@ -32,7 +33,7 @@ export type StoredProduct = Omit<ProductDetail, 'supplierName' | 'purchasePriceU
   searchText: string;
 };
 
-export type StoredSupplier = Omit<SupplierDetail, 'productsCount'>;
+export type StoredSupplier = Omit<SupplierDetail, 'productsCount'> & { priceImportMapping?: PriceImportMapping | null };
 
 /** Пропозиція без знімка каталогу (додається при читанні з поточного товару). */
 export type StoredOffer = Omit<Offer, 'catalog'>;

@@ -24,6 +24,7 @@ import type {
   OwnCompanyInput,
   PriceHistoryEntry,
   PriceImportBody,
+  PriceImportMapping,
   PriceUpdateDto,
   ProductDetail,
   ProductImageDto,
@@ -111,9 +112,14 @@ export interface DataSource {
   getSupplierPriceSource(supplierId: UUID): Promise<SupplierPriceSourceSettings>;
   saveSupplierPriceSource(supplierId: UUID, input: SupplierPriceSourceInput): Promise<SupplierPriceSourceSettings>;
   /** Оновити прайс постачальника зараз (у робочій системі прайси приходять автоматично; тут — імітація). */
-  refreshSupplierPrices(supplierId: UUID): Promise<PriceUpdateDto>;
+  refreshSupplierPrices(supplierId: UUID, options?: { dryRun?: boolean }): Promise<PriceUpdateDto>;
   /** Журнал оновлень прайсів, від найновішого. */
   listPriceUpdates(supplierId?: UUID): Promise<PriceUpdateDto[]>;
+  /** Запис журналу разом зі звітом звірки. */
+  getPriceUpdate(id: number): Promise<PriceUpdateDto>;
+  /** Останнє зіставлення колонок файлу прайсу постачальника (null — ще не завантажували). */
+  getPriceImportMapping(supplierId: UUID): Promise<PriceImportMapping | null>;
+  savePriceImportMapping(supplierId: UUID, mapping: PriceImportMapping): Promise<PriceImportMapping>;
   /** Прайс файлом (постачальники без вигрузки за посиланням): звірка за кодом; dryRun — лише порахувати зміни. */
   importSupplierPrices(supplierId: UUID, body: PriceImportBody): Promise<PriceUpdateDto>;
 

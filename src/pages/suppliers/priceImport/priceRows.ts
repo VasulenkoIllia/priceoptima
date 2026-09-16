@@ -1,37 +1,12 @@
 // Прайс постачальника: автовизначення заголовка й колонок за назвами (укр./рос.) і побудова рядків для імпорту.
 // Чисті функції (без DOM) — покриті тестами.
-import type { CurrencyCode } from '@shared/enums';
+import { PRICE_COLUMN_ROLES, type CurrencyCode, type PriceColumnRole } from '@shared/enums';
 import { normalizeUnit, parseCurrency, parseLocaleNumber } from '@shared/parse';
 import { normalizeInputPrice, round4 } from '@shared/pricing';
 import type { PriceImportRow } from '@shared/types';
 import { parseStockText } from './stock';
 
-export type PriceColumnRole =
-  | 'code'
-  | 'sku'
-  | 'name'
-  | 'brand'
-  | 'unit'
-  | 'purchasePrice'
-  | 'currency'
-  | 'rrp'
-  | 'stock'
-  | 'multiplicity'
-  | 'minOrderQty';
-
-export const PRICE_COLUMN_ROLES: readonly PriceColumnRole[] = [
-  'code',
-  'sku',
-  'name',
-  'brand',
-  'unit',
-  'purchasePrice',
-  'currency',
-  'rrp',
-  'stock',
-  'multiplicity',
-  'minOrderQty',
-];
+export { PRICE_COLUMN_ROLES, type PriceColumnRole };
 
 export const ROLE_LABELS: Record<PriceColumnRole, string> = {
   code: 'Код постачальника',
@@ -286,7 +261,8 @@ export function buildPriceRows(
       stats.duplicates++;
     }
 
-    const stock = parseStockText(text(raw, mapping.stock));
+    // колонку наявності не вибрано — наявність у каталозі не чіпаємо (null), а не скидаємо на «невідомо»
+    const stock = mapping.stock != null ? parseStockText(text(raw, mapping.stock)) : { stockQty: null, availability: null };
     const unitRaw = text(raw, mapping.unit);
     const row: PriceImportRow = {
       code,

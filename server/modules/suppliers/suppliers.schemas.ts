@@ -1,6 +1,6 @@
 // Перевірка даних постачальника, його юросіб, контактів і джерела прайсу.
 import { z } from 'zod';
-import { CURRENCY_CODES, RATE_POLICIES } from '@shared/enums';
+import { CURRENCY_CODES, PRICE_COLUMN_ROLES, RATE_POLICIES } from '@shared/enums';
 import type { PriceFeedFormat } from '@shared/types';
 import { numberField, optionalIsoDateString, optionalNumberField, optionalText, trimmed } from '../../lib/fields';
 
@@ -125,7 +125,24 @@ export function isHttpUrl(value: string): boolean {
   }
 }
 
+const columnRef = z.object({
+  index: z.number().int('Номер колонки: ціле число').min(0, 'Номер колонки: від 0').max(500, 'Номер колонки: до 500'),
+  header: z.string().max(300, 'Задовгий заголовок колонки'),
+});
+
+/** Зіставлення колонок файлу прайсу — зберігається для постачальника, щоб наступного разу підставити. */
+export const priceMappingSchema = z.object({
+  sheetName: z.string().max(200, 'Задовга назва аркуша').nullable().default(null),
+  headerRow: z.number().int().min(0).max(1000).nullable().default(null),
+  columns: z.partialRecord(z.enum(PRICE_COLUMN_ROLES), columnRef).default({}),
+  pricesIncludeVat: z.boolean().default(false),
+  currency: z.enum(CURRENCY_CODES, { message: 'Невідома валюта' }).default('UAH'),
+  skipRowsWithoutPrice: z.boolean().default(true),
+  markMissing: z.boolean().default(false),
+});
+
 export type SupplierInputBody = z.infer<typeof supplierInputSchema>;
+export type PriceMappingBody = z.infer<typeof priceMappingSchema>;
 export type LegalEntityInputBody = z.infer<typeof legalEntityInputSchema>;
 export type SupplierContactInputBody = z.infer<typeof supplierContactInputSchema>;
 export type PriceSourceBody = z.infer<typeof priceSourceSchema>;
