@@ -18,8 +18,8 @@ function cookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     sameSite: 'lax',
-    // на сервері працюємо лише через HTTPS (Traefik), локально — звичайний http
-    secure: config.isProduction,
+    // на сервері працюємо лише через HTTPS (Traefik), локально — звичайний http (див. COOKIE_SECURE)
+    secure: config.cookieSecure,
     path: '/',
     signed: true,
   };

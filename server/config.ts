@@ -27,6 +27,11 @@ const schema = z.object({
   UPLOADS_DIR: z.string().optional(),
   /** Довіряти заголовкам X-Forwarded-* (за Traefik — так). */
   TRUST_PROXY: booleanish(true),
+  /**
+   * Cookie сесії лише для HTTPS. За замовчуванням — так у production (сервер за Traefik).
+   * Для перевірки production-збірки на http://localhost — 0: Safari не зберігає захищену cookie без HTTPS.
+   */
+  COOKIE_SECURE: z.enum(['1', '0', 'true', 'false']).optional(),
   /** Обліковий запис адміністратора для першого запуску (створює сід). */
   ADMIN_LOGIN: z.string().trim().min(1).optional(),
   ADMIN_PASSWORD: z.string().min(8, 'мінімум 8 символів').optional(),
@@ -34,8 +39,9 @@ const schema = z.object({
   ADMIN_SHORT_NAME: z.string().trim().min(1).default('Адмін.'),
 });
 
-export type AppConfig = Readonly<z.infer<typeof schema>> & {
+export type AppConfig = Readonly<Omit<z.infer<typeof schema>, 'COOKIE_SECURE'>> & {
   readonly isProduction: boolean;
+  readonly cookieSecure: boolean;
   readonly clientDir: string;
   readonly uploadsDir: string;
   readonly sessionTtlMs: number;
@@ -48,10 +54,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     const lines = parsed.error.issues.map((i) => `  ${i.path.join('.') || '(env)'} — ${i.message}`);
     throw new Error(`Неправильні змінні середовища:\n${lines.join('\n')}`);
   }
-  const value = parsed.data;
+  const { COOKIE_SECURE, ...value } = parsed.data;
+  const isProduction = value.NODE_ENV === 'production';
   return Object.freeze({
     ...value,
-    isProduction: value.NODE_ENV === 'production',
+    isProduction,
+    cookieSecure: COOKIE_SECURE === undefined ? isProduction : COOKIE_SECURE === '1' || COOKIE_SECURE === 'true',
     clientDir: value.CLIENT_DIR ?? path.resolve(process.cwd(), 'dist/client'),
     uploadsDir: path.resolve(value.UPLOADS_DIR ?? path.resolve(process.cwd(), 'data/uploads')),
     sessionTtlMs: value.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
