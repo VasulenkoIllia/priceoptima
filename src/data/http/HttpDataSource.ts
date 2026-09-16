@@ -24,6 +24,8 @@ import type {
   ProductImageUrlInput,
   ProductInput,
   ProductListQuery,
+  ProductPage,
+  ProductPageQuery,
   ProductPickDto,
   ProductPriceUpdateInput,
   ProductPriceUpdateResult,
@@ -181,6 +183,25 @@ export class HttpDataSource {
         archived: query?.archived,
         currency: query?.currency,
         q: query?.search,
+      },
+    });
+  }
+
+  listProductsPage(query: ProductPageQuery): Promise<ProductPage> {
+    return api<ProductPage>('/products/page', {
+      query: {
+        supplierId: query.supplierId,
+        availability: query.availability?.join(','),
+        stale: query.stale,
+        manual: query.manual,
+        missing: query.missing,
+        archived: query.archived,
+        currency: query.currency,
+        q: query.search,
+        offset: query.offset,
+        limit: query.limit,
+        sortField: query.sortField,
+        sortDir: query.sortDir,
       },
     });
   }

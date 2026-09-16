@@ -7,6 +7,7 @@ import {
   availabilityOf,
   likePattern,
   priceChanged,
+  productOrderBy,
   searchTextOf,
   staleBefore,
 } from '../modules/products/products.rules';
@@ -97,5 +98,27 @@ describe('екранування LIKE', () => {
   it('відсоток і підкреслення в артикулі не стають шаблоном', () => {
     expect(likePattern('50%_A')).toBe('50\\%\\_A');
     expect(likePattern('CP100')).toBe('CP100');
+  });
+});
+
+describe('порядок сторінки номенклатури', () => {
+  it('за замовчуванням — як у постачальників, далі назва; останнім id, щоб сторінки не перекривались', () => {
+    expect(productOrderBy(undefined)).toEqual([
+      { supplier: { sortOrder: 'asc' } },
+      { supplier: { name: 'asc' } },
+      { nameWork: 'asc' },
+      { id: 'asc' },
+    ]);
+  });
+
+  it('ціни й дата: порожні значення в кінці в обидва боки', () => {
+    expect(productOrderBy('purchasePrice', 'desc')[0]).toEqual({ purchasePrice: { sort: 'desc', nulls: 'last' } });
+    expect(productOrderBy('priceUpdatedAt', 'asc')[0]).toEqual({ priceUpdatedAt: { sort: 'asc', nulls: 'last' } });
+  });
+
+  it('джерело ціни — за полем бази priceOrigin; постачальник — за назвою', () => {
+    expect(productOrderBy('priceSource', 'desc')[0]).toEqual({ priceOrigin: 'desc' });
+    expect(productOrderBy('supplier', 'desc')[0]).toEqual({ supplier: { name: 'desc' } });
+    expect(productOrderBy('sku', 'asc').at(-1)).toEqual({ id: 'asc' });
   });
 });

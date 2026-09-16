@@ -86,6 +86,37 @@ export interface ProductListQuery extends ListQuery {
   stale?: boolean;
   archived?: boolean;
   currency?: CurrencyCode;
+  /** Лише додані вручну (ціну ведуть вручну). */
+  manual?: boolean;
+  /** Лише позначені «немає у прайсі». */
+  missing?: boolean;
+}
+
+/** Колонки, за якими сортує база (ціну в гривнях рахує сервер — за нею не сортуємо). */
+export type ProductSortField =
+  | 'supplier'
+  | 'sku'
+  | 'nameWork'
+  | 'unitCode'
+  | 'multiplicity'
+  | 'purchasePrice'
+  | 'rrp'
+  | 'availability'
+  | 'priceUpdatedAt'
+  | 'priceSource';
+
+/** Сторінка номенклатури: каталог на десятки тисяч позицій читається шматками. */
+export interface ProductPageQuery extends ProductListQuery {
+  offset: number;
+  limit: number;
+  sortField?: ProductSortField;
+  sortDir?: 'asc' | 'desc';
+}
+
+export interface ProductPage {
+  items: ProductDetail[];
+  /** Скільки всього позицій під фільтрами. */
+  total: number;
 }
 
 export interface ProductSearchQuery {

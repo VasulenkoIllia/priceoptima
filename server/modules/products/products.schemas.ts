@@ -1,6 +1,7 @@
 // Перевірка даних каталогу. Параметри списків приходять рядками, тому їх спершу приводимо до типів.
 import { z } from 'zod';
 import { AVAILABILITY_STATUSES, CURRENCY_CODES } from '@shared/enums';
+import type { ProductSortField } from '@shared/types';
 
 /** Найбільше значення, яке вміщує Decimal(14,4) у базі. */
 const MONEY_MAX = 999_999_999;
@@ -51,6 +52,19 @@ const queryAvailability = z.preprocess((v) => {
     .filter(Boolean);
 }, z.array(availability).optional());
 
+export const PRODUCT_SORT_FIELDS = [
+  'supplier',
+  'sku',
+  'nameWork',
+  'unitCode',
+  'multiplicity',
+  'purchasePrice',
+  'rrp',
+  'availability',
+  'priceUpdatedAt',
+  'priceSource',
+] as const satisfies readonly ProductSortField[];
+
 const queryUuid = (message: string) =>
   z.preprocess((v) => (v === '' || v === null ? undefined : v), z.uuid(message).optional());
 
@@ -69,6 +83,10 @@ export const productListQuerySchema = z
     search: z.string().trim().max(200, 'Задовгий запит').optional(),
     limit: z.coerce.number().int('Ліміт: вкажіть ціле число').min(1, 'Ліміт: не менше 1').max(2000, 'Ліміт: не більше 2000').default(500),
     offset: z.coerce.number().int('Зсув: вкажіть ціле число').min(0, 'Зсув: не менше 0').default(0),
+    manual: queryFlag,
+    missing: queryFlag,
+    sortField: z.preprocess((v) => (v === '' || v === null ? undefined : v), z.enum(PRODUCT_SORT_FIELDS, { message: 'Невідоме поле сортування' }).optional()),
+    sortDir: z.enum(['asc', 'desc'], { message: 'Напрям сортування: asc або desc' }).default('asc'),
   })
   .transform((v) => ({ ...v, q: v.q || v.search || '' }));
 

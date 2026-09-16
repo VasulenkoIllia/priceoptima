@@ -1,7 +1,9 @@
 // Правила каталогу, які не залежать від бази: текст пошуку, межа застарілості,
 // ознака зміни ціни й заборона правити ціну імпортованого товару.
+import type { Prisma } from '@prisma/client';
 import { buildSearchText } from '@shared/parse';
 import type { AvailabilityStatus, CurrencyCode } from '@shared/enums';
+import type { ProductSortField } from '@shared/types';
 import { forbidden } from '../../http/errors';
 
 const DAY_MS = 86_400_000;
@@ -57,4 +59,34 @@ export function assertManualPrice(priceOrigin: 'import' | 'manual'): void {
 /** Екранування % і _ для LIKE (артикул може містити «%»). */
 export function likePattern(value: string): string {
   return value.replace(/[\\%_]/gu, (ch) => `\\${ch}`);
+}
+
+/**
+ * Порядок сторінки номенклатури. Останнім завжди йде id — інакше при однакових значеннях
+ * сусідні сторінки можуть повторювати або губити рядки.
+ */
+export function productOrderBy(field: ProductSortField | undefined, dir: 'asc' | 'desc' = 'asc'): Prisma.ProductOrderByWithRelationInput[] {
+  const byName: Prisma.ProductOrderByWithRelationInput = { nameWork: 'asc' };
+  const tail: Prisma.ProductOrderByWithRelationInput = { id: 'asc' };
+  switch (field) {
+    case 'supplier':
+      return [{ supplier: { name: dir } }, byName, tail];
+    case 'sku':
+      return [{ sku: dir }, tail];
+    case 'nameWork':
+      return [{ nameWork: dir }, tail];
+    case 'unitCode':
+    case 'multiplicity':
+    case 'availability':
+      return [{ [field]: dir }, byName, tail];
+    case 'priceSource':
+      return [{ priceOrigin: dir }, byName, tail];
+    case 'purchasePrice':
+    case 'rrp':
+    case 'priceUpdatedAt':
+      // порожні ціни й дати — завжди в кінці, в який бік не сортуй
+      return [{ [field]: { sort: dir, nulls: 'last' } }, byName, tail];
+    default:
+      return [{ supplier: { sortOrder: 'asc' } }, { supplier: { name: 'asc' } }, byName, tail];
+  }
 }

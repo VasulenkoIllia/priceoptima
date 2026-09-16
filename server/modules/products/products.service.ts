@@ -7,6 +7,7 @@ import { normalizeInputPrice } from '@shared/pricing';
 import type {
   PriceHistoryEntry,
   ProductDetail,
+  ProductPage,
   ProductPickDto,
   ProductPriceUpdateResult,
   RatesPair,
@@ -17,7 +18,7 @@ import { prisma } from '../../db';
 import { duplicate, notFound } from '../../http/errors';
 import { getSettings } from '../settings/settings.service';
 import { toPriceHistoryEntry, toProductDetail, toProductListItem, type CatalogContext } from './products.mapper';
-import { assertManualPrice, availabilityOf, priceChanged, searchTextOf, staleBefore, likePattern } from './products.rules';
+import { assertManualPrice, availabilityOf, priceChanged, productOrderBy, searchTextOf, staleBefore, likePattern } from './products.rules';
 import {
   compareHits,
   isEmptyPlan,
@@ -91,6 +92,8 @@ function listWhere(query: ProductListQueryInput, ctx: CatalogContext): Prisma.Pr
   if (!query.archived) and.push({ isArchived: false });
   if (query.currency) and.push({ currency: query.currency });
   if (query.availability?.length) and.push({ availability: { in: query.availability } });
+  if (query.manual) and.push({ priceOrigin: 'manual' });
+  if (query.missing) and.push({ missingSince: { not: null } });
 
   const plan = searchPlan(query.q);
   if (plan.tokens.length) {
@@ -111,6 +114,22 @@ export async function listProducts(query: ProductListQueryInput): Promise<Produc
     take: query.limit,
   });
   return rows.map((p) => toProductDetail(p, ctx));
+}
+
+/** Сторінка номенклатури разом із загальною кількістю — для гортання великого каталогу. */
+export async function listProductsPage(query: ProductListQueryInput): Promise<ProductPage> {
+  const ctx = await catalogContext();
+  const where = listWhere(query, ctx);
+  const [total, rows] = await prisma.$transaction([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+      where,
+      orderBy: productOrderBy(query.sortField, query.sortDir),
+      skip: query.offset,
+      take: query.limit,
+    }),
+  ]);
+  return { items: rows.map((p) => toProductDetail(p, ctx)), total };
 }
 
 export async function getProduct(id: UUID): Promise<ProductDetail> {

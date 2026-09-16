@@ -130,4 +130,21 @@ describe('КП, історія заявки, прайси (mock)', () => {
     expect((await tab.listProducts({ search: all[0].sku })).some((p) => p.id === all[0].id)).toBe(true);
     expect((await tab.listProducts({ stale: true })).every((p) => p.isStale)).toBe(true);
   });
+
+  it('сторінка номенклатури: загальна кількість, зсув і сортування (порожні ціни — в кінці)', async () => {
+    env = createTestEnv();
+    const tab = await loggedTab();
+    const all = await tab.listProducts();
+    const first = await tab.listProductsPage({ offset: 0, limit: 50 });
+    expect(first.total).toBe(all.length);
+    expect(first.items.map((p) => p.id)).toEqual(all.slice(0, 50).map((p) => p.id));
+    const second = await tab.listProductsPage({ offset: 50, limit: 50 });
+    expect(second.items[0].id).toBe(all[50].id);
+
+    const byPrice = await tab.listProductsPage({ offset: 0, limit: all.length, sortField: 'purchasePrice', sortDir: 'desc' });
+    const prices = byPrice.items.map((p) => p.purchasePrice);
+    const known = prices.filter((v): v is number => v != null);
+    expect(known).toEqual([...known].sort((a, b) => b - a));
+    expect(prices.slice(known.length).every((v) => v == null)).toBe(true);
+  });
 });

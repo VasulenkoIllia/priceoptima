@@ -17,6 +17,8 @@ export const qk = {
   priceMapping: (supplierId: UUID) => ['price-mapping', supplierId] as const,
   products: (query: ProductListQuery) => ['products', query] as const,
   productsAll: ['products'] as const,
+  /** Позначка «каталог змінився» для сторінки номенклатури: інвалідується разом з усім ['products']. */
+  productsVersion: ['products', 'version'] as const,
   product: (id: UUID) => ['product', id] as const,
   productAll: ['product'] as const,
   productImages: (id: UUID) => ['product-images', id] as const,

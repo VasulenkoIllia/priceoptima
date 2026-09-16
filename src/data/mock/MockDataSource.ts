@@ -49,6 +49,8 @@ import type {
   ProductImageUrlInput,
   ProductInput,
   ProductListQuery,
+  ProductPage,
+  ProductPageQuery,
   ProductPickDto,
   ProductPriceUpdateInput,
   ProductPriceUpdateResult,
@@ -730,24 +732,53 @@ export class MockDataSource implements DataSource {
   listProducts(query: ProductListQuery = {}): Promise<ProductDetail[]> {
     return this.call(() => {
       this.requireUser();
-      const ctx = this.productCtx();
-      const tokens = searchTokens(query.search ?? '');
-      const skuKey = normalizeSku(query.search ?? '');
-      const order = new Map(this.db.suppliers.map((s) => [s.id, s.sortOrder]));
-      const items = Object.values(this.db.products)
-        .filter((p) => {
-          if (!query.archived && p.isArchived) return false;
-          if (query.supplierId && p.supplierId !== query.supplierId) return false;
-          if (query.currency && p.currency !== query.currency) return false;
-          if (query.availability?.length && !query.availability.includes(p.availability)) return false;
-          if (tokens.length && !(skuKey.length >= 2 && p.skuKey.includes(skuKey)) && !matchesAllTokens(p.searchText, tokens)) return false;
-          return true;
-        })
-        .map((p) => toProductDetail(p, ctx))
-        .filter((p) => !query.stale || p.isStale)
-        .sort((a, b) => (order.get(a.supplierId) ?? 0) - (order.get(b.supplierId) ?? 0) || a.nameWork.localeCompare(b.nameWork, 'uk'));
-      return clone(items);
+      return clone(this.filterProducts(query));
     });
+  }
+
+  listProductsPage(query: ProductPageQuery): Promise<ProductPage> {
+    return this.call(() => {
+      this.requireUser();
+      const all = this.filterProducts(query);
+      if (query.sortField) {
+        const key = query.sortField;
+        const dir = query.sortDir === 'desc' ? -1 : 1;
+        const valueOf = (p: ProductDetail): string | number | null =>
+          key === 'supplier' ? p.supplierName : key === 'priceSource' ? (p.priceSource ?? '') : (p[key] ?? null);
+        all.sort((a, b) => {
+          const va = valueOf(a);
+          const vb = valueOf(b);
+          // порожні — завжди в кінці
+          if (va == null || vb == null) return va == null ? (vb == null ? 0 : 1) : -1;
+          const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb), 'uk');
+          return cmp * dir || a.nameWork.localeCompare(b.nameWork, 'uk');
+        });
+      }
+      return clone({ items: all.slice(query.offset, query.offset + query.limit), total: all.length });
+    });
+  }
+
+  /** Фільтри номенклатури (спільні для списку й сторінки). */
+  private filterProducts(query: ProductListQuery): ProductDetail[] {
+    const ctx = this.productCtx();
+    const tokens = searchTokens(query.search ?? '');
+    const skuKey = normalizeSku(query.search ?? '');
+    const order = new Map(this.db.suppliers.map((s) => [s.id, s.sortOrder]));
+    const items = Object.values(this.db.products)
+      .filter((p) => {
+        if (!query.archived && p.isArchived) return false;
+        if (query.supplierId && p.supplierId !== query.supplierId) return false;
+        if (query.currency && p.currency !== query.currency) return false;
+        if (query.availability?.length && !query.availability.includes(p.availability)) return false;
+        if (query.manual && p.priceSource !== 'manual') return false;
+        if (query.missing && !p.missingSince) return false;
+        if (tokens.length && !(skuKey.length >= 2 && p.skuKey.includes(skuKey)) && !matchesAllTokens(p.searchText, tokens)) return false;
+        return true;
+      })
+      .map((p) => toProductDetail(p, ctx))
+      .filter((p) => !query.stale || p.isStale)
+      .sort((a, b) => (order.get(a.supplierId) ?? 0) - (order.get(b.supplierId) ?? 0) || a.nameWork.localeCompare(b.nameWork, 'uk'));
+    return items;
   }
 
   searchProducts(query: ProductSearchQuery): Promise<ProductPickDto[]> {

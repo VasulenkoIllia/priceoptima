@@ -1,13 +1,12 @@
 import { DownOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Checkbox, Dropdown, Input, Result, Select, Space, Tag } from 'antd';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { Alert, App, Button, Checkbox, Dropdown, Input, Select, Space, Tag } from 'antd';
+import type { ColDef, GridApi, ICellRendererParams, IDatasource } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AVAILABILITY_LABELS, type AvailabilityStatus } from '@shared/enums';
 import { formatDate, formatMoney, formatQty } from '@shared/format';
-import { buildSearchText, matchesAllTokens, normalizeSku, searchTokens } from '@shared/parse';
-import type { ProductDetail, SupplierListItem, UUID } from '@shared/types';
+import type { ProductDetail, ProductPageQuery, ProductSortField, SupplierListItem, UUID } from '@shared/types';
 import { PageHeader, SupplierLogo } from '@/components';
 import { NewProductDialog } from '@/components/ProductPicker';
 import { ds, errorMessage, qk } from '@/data';
@@ -30,11 +29,22 @@ const AVAILABILITY_OPTIONS: { value: AvailabilityFilter; label: string }[] = [
   { value: 'on_order', label: AVAILABILITY_LABELS.on_order },
 ];
 
-interface Indexed {
-  p: ProductDetail;
-  skuKey: string;
-  text: string;
-}
+/** Скільки рядків підвантажуємо за раз під час гортання. */
+const PAGE_SIZE = 100;
+
+/** Колонка таблиці → поле сортування на сервері. */
+const SORT_FIELDS: Record<string, ProductSortField> = {
+  supplier: 'supplier',
+  sku: 'sku',
+  nameWork: 'nameWork',
+  unitCode: 'unitCode',
+  multiplicity: 'multiplicity',
+  purchasePrice: 'purchasePrice',
+  rrp: 'rrp',
+  availability: 'availability',
+  priceUpdatedAt: 'priceUpdatedAt',
+  priceSource: 'priceSource',
+};
 
 function DateCell({ data }: Cell) {
   if (!data) return null;
@@ -50,7 +60,10 @@ function DateCell({ data }: Cell) {
   );
 }
 
-/** Номенклатура: товари всіх постачальників; ціни — з прайсів (автоматично), у доданих вручну — вручну. */
+/**
+ * Номенклатура: товари всіх постачальників; ціни — з прайсів (автоматично), у доданих вручну — вручну.
+ * Каталог на десятки тисяч позицій: пошук, фільтри й сортування виконує сервер, таблиця підвантажує рядки під час гортання.
+ */
 export default function CatalogPage() {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -60,36 +73,65 @@ export default function CatalogPage() {
   const [availability, setAvailability] = useState<AvailabilityFilter>('all');
   const [staleOnly, setStaleOnly] = useState(false);
   const [manualOnly, setManualOnly] = useState(false);
+  const [missingOnly, setMissingOnly] = useState(false);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const gridApi = useRef<GridApi<ProductDetail> | null>(null);
   const [selected, setSelected] = useState<ProductDetail | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [importFor, setImportFor] = useState<SupplierListItem | null>(null);
-  const q = useDebouncedValue(search.trim(), 200);
+  const q = useDebouncedValue(search.trim(), 300);
 
-  const products = useQuery({ queryKey: qk.products({}), queryFn: () => ds.listProducts() });
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
   const supplierById = useMemo(() => new Map<UUID, SupplierListItem>((suppliers.data ?? []).map((s) => [s.id, s])), [suppliers.data]);
 
-  // ключі пошуку рахуємо один раз на завантаження списку
-  const index = useMemo<Indexed[]>(
-    () => (products.data ?? []).map((p) => ({ p, skuKey: normalizeSku(p.sku), text: buildSearchText(p.sku, p.nameWork, p.brand) })),
-    [products.data],
-  );
+  // нові фільтри — нове джерело рядків: таблиця скидає підвантажене й читає з першої сторінки
+  const datasource = useMemo<IDatasource>(() => {
+    const filters: Omit<ProductPageQuery, 'offset' | 'limit'> = {
+      search: q || undefined,
+      supplierId: supplierId !== 'all' ? supplierId : undefined,
+      availability: availability !== 'all' ? [availability] : undefined,
+      stale: staleOnly || undefined,
+      manual: manualOnly || undefined,
+      missing: missingOnly || undefined,
+    };
+    return {
+      getRows: (params) => {
+        const sort = params.sortModel[0];
+        const sortField = sort ? SORT_FIELDS[sort.colId] : undefined;
+        ds.listProductsPage({
+          ...filters,
+          offset: params.startRow,
+          limit: params.endRow - params.startRow,
+          sortField,
+          sortDir: sortField ? (sort.sort ?? 'asc') : undefined,
+        }).then(
+          (page) => {
+            setTotal(page.total);
+            setLoadError(null);
+            params.successCallback(page.items, page.total);
+            if (page.total === 0) gridApi.current?.showNoRowsOverlay();
+            else gridApi.current?.hideOverlay();
+          },
+          (e: unknown) => {
+            setLoadError(errorMessage(e));
+            params.failCallback();
+          },
+        );
+      },
+    };
+  }, [q, supplierId, availability, staleOnly, manualOnly, missingOnly]);
 
-  const rows = useMemo(() => {
-    const tokens = searchTokens(q);
-    const qSku = normalizeSku(q);
-    return index
-      .filter(({ p, skuKey, text }) => {
-        if (supplierId !== 'all' && p.supplierId !== supplierId) return false;
-        if (availability !== 'all' && p.availability !== availability) return false;
-        if (staleOnly && !p.isStale) return false;
-        if (manualOnly && p.priceSource !== 'manual') return false;
-        if (tokens.length && !(qSku.length >= 2 && skuKey.includes(qSku)) && !matchesAllTokens(text, tokens)) return false;
-        return true;
-      })
-      .map((x) => x.p);
-  }, [index, q, supplierId, availability, staleOnly, manualOnly]);
+  // каталог змінився деінде (прайс, новий товар, ціна) — інвалідується весь ['products'], разом із цією позначкою;
+  // перечитуємо підвантажені сторінки, не скидаючи прокрутку
+  const version = useQuery({ queryKey: qk.productsVersion, queryFn: () => Date.now(), staleTime: Infinity });
+  const seenVersion = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (version.data == null) return;
+    if (seenVersion.current != null && seenVersion.current !== version.data) gridApi.current?.refreshInfiniteCache();
+    seenVersion.current = version.data;
+  }, [version.data]);
 
   const columns = useMemo<ColDef<ProductDetail>[]>(
     () => [
@@ -130,6 +172,7 @@ export default function CatalogPage() {
         headerName: 'Вхід, грн',
         field: 'purchasePriceUah',
         width: 116,
+        sortable: false,
         type: 'rightAligned',
         cellClass: 'po-num',
         valueFormatter: (p) => formatMoney(p.value),
@@ -244,34 +287,52 @@ export default function CatalogPage() {
         <Checkbox checked={manualOnly} onChange={(e) => setManualOnly(e.target.checked)}>
           Додані вручну
         </Checkbox>
+        <Checkbox checked={missingOnly} onChange={(e) => setMissingOnly(e.target.checked)}>
+          Немає у прайсі
+        </Checkbox>
         <span className="po-muted" style={{ marginLeft: 'auto' }}>
-          {products.data ? `Товарів: ${rows.length}` : ''}
+          {total != null ? `Товарів: ${formatQty(total)}` : ''}
         </span>
       </div>
-      {products.isError ? (
-        <Result status="error" title="Не вдалося завантажити номенклатуру" subTitle={errorMessage(products.error)} />
-      ) : (
-        <div className="po-grid-wrap">
-          <AgGridReact<ProductDetail>
-            theme={gridTheme(density)}
-            localeText={GRID_LOCALE}
-            containerStyle={{ height: '100%' }}
-            rowData={rows}
-            columnDefs={columns}
-            defaultColDef={{ sortable: true, resizable: true, suppressMovable: true }}
-            getRowId={(p) => p.data.id}
-            rowClass="po-cat-row"
-            loading={products.isPending}
-            overlayNoRowsTemplate="<span>Товарів не знайдено</span>"
-            onRowClicked={(e) => e.data && openProduct(e.data)}
-            onCellKeyDown={(e) => {
-              const ev = e.event as KeyboardEvent | undefined;
-              if (ev?.key === 'Enter' && e.data) openProduct(e.data);
-            }}
-            tooltipShowDelay={400}
-          />
-        </div>
-      )}
+      {loadError ? (
+        <Alert
+          type="error"
+          showIcon
+          message="Не вдалося завантажити номенклатуру"
+          description={loadError}
+          action={
+            <Button size="small" onClick={() => gridApi.current?.refreshInfiniteCache()}>
+              Спробувати ще
+            </Button>
+          }
+          style={{ marginBottom: 8 }}
+        />
+      ) : null}
+      <div className="po-grid-wrap">
+        <AgGridReact<ProductDetail>
+          theme={gridTheme(density)}
+          localeText={GRID_LOCALE}
+          containerStyle={{ height: '100%' }}
+          rowModelType="infinite"
+          datasource={datasource}
+          cacheBlockSize={PAGE_SIZE}
+          maxBlocksInCache={20}
+          columnDefs={columns}
+          defaultColDef={{ sortable: true, resizable: true, suppressMovable: true }}
+          getRowId={(p) => p.data.id}
+          rowClass="po-cat-row"
+          overlayNoRowsTemplate="<span>Товарів не знайдено</span>"
+          onGridReady={(e) => {
+            gridApi.current = e.api;
+          }}
+          onRowClicked={(e) => e.data && openProduct(e.data)}
+          onCellKeyDown={(e) => {
+            const ev = e.event as KeyboardEvent | undefined;
+            if (ev?.key === 'Enter' && e.data) openProduct(e.data);
+          }}
+          tooltipShowDelay={400}
+        />
+      </div>
       <ProductDrawer
         open={drawerOpen}
         product={selected}

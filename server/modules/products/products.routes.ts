@@ -19,6 +19,7 @@ import {
   getPriceHistory,
   getProduct,
   listProducts,
+  listProductsPage,
   lookupSkus,
   searchProducts,
   updateProduct,
@@ -34,6 +35,13 @@ productsRouter.get(
   '/search',
   asyncHandler(async (req, res) => {
     res.json(await searchProducts(parseQuery(productSearchQuerySchema, req)));
+  }),
+);
+
+productsRouter.get(
+  '/page',
+  asyncHandler(async (req, res) => {
+    res.json(await listProductsPage(parseQuery(productListQuerySchema, req)));
   }),
 );
 

@@ -32,6 +32,8 @@ import type {
   ProductImageUrlInput,
   ProductInput,
   ProductListQuery,
+  ProductPage,
+  ProductPageQuery,
   ProductPickDto,
   ProductPriceUpdateInput,
   ProductPriceUpdateResult,
@@ -126,6 +128,8 @@ export interface DataSource {
   // ── Каталог ─────────────────────────────────────────────────────
   /** Товари каталогу (прототип — усі одразу, фільтрація на клієнті). */
   listProducts(query?: ProductListQuery): Promise<ProductDetail[]>;
+  /** Сторінка номенклатури з загальною кількістю: пошук, фільтри й сортування виконує сервер. */
+  listProductsPage(query: ProductPageQuery): Promise<ProductPage>;
   searchProducts(query: ProductSearchQuery): Promise<ProductPickDto[]>;
   lookupSkus(body: SkuLookupBody): Promise<SkuLookupResult>;
   getProduct(id: UUID): Promise<ProductDetail>;
