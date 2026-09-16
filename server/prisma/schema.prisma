@@ -48,9 +48,11 @@ enum RateSource {
   price_list
 }
 
+/// auto — усе з посилання; manual — усе з файлу; hybrid — асортимент, наявність і описи з посилання, ціни — з файлу.
 enum PriceFeedKind {
   auto
   manual
+  hybrid
 }
 
 enum PriceFeedFormat {
@@ -382,6 +384,9 @@ model Product {
   /// Немає у прайсі з цієї дати (ціна лишається останньою відомою).
   missingSince   DateTime?    @db.Date
   isArchived     Boolean      @default(false)
+  /// Коли товар прибрано в архів автоматично (немає у прайсі понад 30 днів). Архів вручну цю дату не ставить —
+  /// тож повернути з архіву, коли позиція знову з'явиться у прайсі, можна лише такий товар.
+  autoArchivedAt DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -456,6 +461,8 @@ model PriceImportRun {
   status        ImportRunStatus @default(ok)
   fileId        String?
   file          PriceImportFile? @relation(fields: [fileId], references: [id])
+  /// Назва файлу прайсу (рядки з браузера приходять без самого файлу).
+  fileName      String?
   productsTotal Int             @default(0)
   added         Int             @default(0)
   changed       Int             @default(0)
@@ -464,9 +471,19 @@ model PriceImportRun {
   stockChanged  Int             @default(0)
   missing       Int             @default(0)
   skipped       Int             @default(0)
+  /// Знайдено за штрихкодом або артикулом — код товару замінено кодом із прайсу.
+  relinked      Int             @default(0)
+  /// Повернуто з архіву: позиція знову є у прайсі.
+  restored      Int             @default(0)
+  /// Товарів, у яких заповнений опис відрізняється від прайсу (опис не змінено).
+  detailsDiffer Int             @default(0)
   rateUsd       Decimal?        @db.Decimal(12, 4)
   rateEur       Decimal?        @db.Decimal(12, 4)
   errorText     String?
+  /// Попередження розбору прайсу, по одному на рядок (немає цін, пропущені рядки тощо).
+  warnings      String?
+  /// Звіт звірки: приклади відмінностей описів, великих змін цін, перечеплених кодів, ненайдених і пропущених рядків.
+  details       Json?
   userId        String?
   user          User?           @relation(fields: [userId], references: [id])
 

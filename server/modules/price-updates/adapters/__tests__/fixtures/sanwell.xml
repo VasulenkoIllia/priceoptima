@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog version="1.3.1" generator="Demo-Feed-Export/1.0.0">
+  <metadata>
+    <generation-time>2026-09-16T07:00:32.207440269Z</generation-time>
+    <total-root-categories>3</total-root-categories>
+    <total-subcategories>4</total-subcategories>
+    <total-products>5</total-products>
+    <currency>UAH</currency>
+    <language>uk-UA</language>
+    <data-version>20260916</data-version>
+  </metadata>
+  <categories>
+    <category id="1" name="Системи очищення води" code="000004794">
+      <category id="158" name="Картриджі" code="000004800">
+        <product code="67042" name="Комплект картриджів DemoBrand4 для потрійного фільтра">
+          <package-contents>Комплект картриджів - 1 шт.</package-contents>
+          <description>Комплект картриджів DemoBrand4 &quot;CMX510&quot; для потрійних фільтрів. Картриджі забезпечують очищення жорсткої водопровідної води до стану питної. Набір місти…</description>
+          <recommended-retail-price currency="UAH">812.00</recommended-retail-price>
+          <stock>11-100</stock>
+          <measure-unit>штука</measure-unit>
+          <properties>
+            <property name="Штрих-код" value="4820002000011"/>
+            <property name="Фільтруюча суміш" value="поліпропілен 5мкр, Ecomix D37, пресоване вугілля"/>
+            <property name="Вид фільтрації" value="механічний"/>
+            <property name="Країна реєстрації бренду" value="Україна"/>
+            <property name="Бренд" value="DemoBrand4"/>
+            <property name="Тип" value="DemoBrand4"/>
+            <property name="Модель" value="CMX510"/>
+            <property name="Продуктивність" value="1000 л"/>
+            <property name="Тип виробу" value="комплект картриджів"/>
+            <property name="Очищення" value="від механічних домішок"/>
+            <property name="Кількість ступенів очистки" value="1 шт"/>
+            <property name="Призначення" value="для питної води"/>
+          </properties>
+          <media>
+            <media-item type="Фото" url="http://media.supplier-b.example/assets/2/84BF1C9166CDBF58DC1E290DE5276B20/img/303610091FD0D40E92450F5E9953464D/2.jpg" isPhoto="true"/>
+            <media-item type="Фото головне" url="http://media.supplier-b.example/assets/2/84BF1C9166CDBF58DC1E290DE5276B20/img/CD4ADD839E1AF26A317646E6C3F88EC7/1.jpg" isPhoto="true"/>
+            <media-item type="Фото" url="http://media.supplier-b.example/assets/2/84BF1C9166CDBF58DC1E290DE5276B20/img/E01226B41073593B43DF1FED92010F3E/3.jpg" isPhoto="true"/>
+            <media-item type="Фото" url="http://media.supplier-b.example/assets/2/84BF1C9166CDBF58DC1E290DE5276B20/img/D6E5774FDC131A8486D9D75CA625D168/4.jpg" isPhoto="true"/>
+          </media>
+        </product>
+        <product code="67183" name="Картридж поліпропіленова нитка DemoBrand4 5 мкм">
+          <package-contents>Картридж - 1 шт.</package-contents>
+          <description>Картридж DemoBrand4 &quot;CPX205&quot; з поліпропіленової нитки підходить для очищення води від іржі, піску, мулу. Забезпечує захист сантехніки і трубопроводу…</description>
+          <recommended-retail-price currency="UAH">89.90</recommended-retail-price>
+          <stock>&lt;10</stock>
+          <measure-unit>штука</measure-unit>
+          <properties>
+            <property name="Штрих-код" value="4820002000028"/>
+            <property name="Фільтруюча суміш" value="поліпропіленова нитка"/>
+            <property name="Вид фільтрації" value="механічний"/>
+            <property name="Країна реєстрації бренду" value="Україна"/>
+            <property name="Бренд" value="DemoBrand4"/>
+            <property name="Тип" value="DemoBrand4"/>
+            <property name="Модель" value="CPX205"/>
+            <property name="Продуктивність" value="1000 л"/>
+            <property name="Тип виробу" value="картридж"/>
+            <property name="Кількість ступенів очистки" value="1 шт"/>
+            <property name="Очищення" value="від механічних домішок"/>
+            <property name="Призначення" value="для питної води"/>
+          </properties>
+          <media>
+            <media-item type="Фото головне" url="http://media.supplier-b.example/assets/2/17247FFAAF3295D74F5886114C1DF61B/img/DB1D9BF10CFDD98D7B28A3FCE3E144F8/1.jpg" isPhoto="true"/>
+          </media>
+        </product>
+      </category>
+      <category id="175" name="Системи зворотного осмосу" code="000004796">
+        <product code="205419" name="Система зворотного осмосу з помпою DemoBrand4 Neo PRO MX600DEMO">
+          <description></description>
+          <stock>0</stock>
+        </product>
+      </category>
+    </category>
+    <category id="351" name="Електрика" code="000004895">
+      <category id="361" name="Кабель/провід" code="000004902">
+        <product code="205826" name="Провід ПВС  3х1,0 DemoBrand5 (Демоград)100 м">
+          <package-contents>Кабель - 1 м</package-contents>
+          <description></description>
+          <recommended-retail-price currency="UAH">38.90</recommended-retail-price>
+          <stock>0</stock>
+          <measure-unit>метр погонний</measure-unit>
+          <properties>
+            <property name="Бренд" value="DemoBrand5"/>
+            <property name="Країна реєстрації бренду" value="Україна"/>
+            <property name="Гарантія" value="5 років"/>
+            <property name="Термін служби" value="30 років"/>
+            <property name="Колір" value="білий"/>
+            <property name="Вид" value="круглий"/>
+            <property name="Номінальна напруга" value="0.66 кВт"/>
+            <property name="Довжина" value="100 м"/>
+            <property name="Кількість та номінальний переріз жили" value="3х1,0  мм2"/>
+            <property name="Тип" value="багатожила"/>
+          </properties>
+          <media>
+            <media-item type="Фото головне" url="https://media.supplier-b.example/assets/2/8FFD548D94B9E794DB1F689E33AD00D1/img/0B18CD7886DF92945618185DED4D37F7/81e7aeca9e9a4cbb3b4aaf3de6a8ed91-650x650.jpg" isPhoto="true"/>
+          </media>
+        </product>
+      </category>
+    </category>
+    <category id="183" name="Кріплення та ущільнювачі" code="000004811">
+      <category id="225" name="Герметики" code="000004814">
+        <product code="67934" name="Нитка пакувальна фумігаційна DemoBrand6 50 м">
+          <package-contents></package-contents>
+          <description></description>
+          <recommended-retail-price currency="UAH">156.40</recommended-retail-price>
+          <stock>&gt;1000</stock>
+          <measure-unit>штука</measure-unit>
+          <properties>
+            <property name="Країна реєстрації бренду" value="Польща"/>
+            <property name="Бренд" value="DemoBrand6"/>
+          </properties>
+          <media>
+            <media-item type="Фото головне" url="http://media.supplier-b.example/assets/2/31A80CEA8394D155EB919E5ADE7D2830/img/BAEB62A0151B292B456304FDCADB6F73/1.jpg" isPhoto="true"/>
+            <media-item type="Фото" url="http://media.supplier-b.example/assets/2/31A80CEA8394D155EB919E5ADE7D2830/img/EAFEB8AC8857023BA2B01B849F5E433D/2.jpg" isPhoto="true"/>
+            <media-item type="Фото" url="http://media.supplier-b.example/assets/2/31A80CEA8394D155EB919E5ADE7D2830/img/95459EC301EFD456502FB96BA8C2E72B/3.jpg" isPhoto="true"/>
+            <media-item type="Дозвільна документація" url="https://media.supplier-b.example/index.cfm?fa=c.sf&amp;f=1DE7D6D9CBD96142EE705BF437693151&amp;v=o" isPhoto="false"/>
+          </media>
+        </product>
+      </category>
+    </category>
+  </categories>
+</catalog>

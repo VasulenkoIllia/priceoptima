@@ -100,6 +100,10 @@ describe('джерело прайсу', () => {
     expect(Object.keys(toPriceSourceSettings(feed))).not.toContain('secret');
     expect(Object.keys(toPriceSourceSettings(feed))).not.toContain('url');
   });
+
+  it('постачальник без налаштованої вигрузки — файловий прайс без доступу', () => {
+    expect(toPriceSourceSettings(null)).toMatchObject({ kind: 'manual', auth: 'none', hasUrl: false, hasSecret: false, failCount: 0, lastError: null });
+  });
 });
 
 describe('постачальник у списку', () => {

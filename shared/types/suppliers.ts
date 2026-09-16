@@ -44,15 +44,47 @@ export interface SupplierRef {
 /** Формат вигрузки прайсу. */
 export type PriceFeedFormat = 'json' | 'yml' | 'xml' | 'csv' | 'xlsx';
 
-/** Звідки береться прайс: за посиланням (автоматично) чи файлом від менеджера. */
+/**
+ * Звідки береться прайс: 'auto' — усе за посиланням; 'manual' — файлом від менеджера;
+ * 'hybrid' — асортимент, наявність і фото за посиланням, а ціни — файлом.
+ */
+export type PriceSourceKind = 'auto' | 'manual' | 'hybrid';
+
 export interface SupplierPriceSource {
-  kind: 'auto' | 'manual';
+  kind: PriceSourceKind;
   format: PriceFeedFormat | null;
   /** Хост вигрузки — без ключів і токенів. */
   host: string | null;
-  /** Година щоденного оновлення (0–23) для 'auto'. */
+  /** Година щоденного оновлення за посиланням (0–23) для 'auto' і 'hybrid'. */
   scheduleHour: number | null;
   /** У прайсі є закупівельні ціни (інакше — лише РРЦ). */
+  hasPurchasePrice: boolean;
+  note: string | null;
+}
+
+/** Доступ до вигрузки: bearer — токен у заголовку; basic — «логін:пароль»; query — токен параметром посилання. */
+export type PriceFeedAuth = 'none' | 'bearer' | 'basic' | 'query';
+
+/** Налаштування вигрузки для форми: саме посилання й токен назовні не віддаються — лише факт, що вони збережені. */
+export interface SupplierPriceSourceSettings extends SupplierPriceSource {
+  auth: PriceFeedAuth;
+  hasUrl: boolean;
+  hasSecret: boolean;
+  /** Остання помилка автоматичного оновлення (скидається після вдалого). */
+  lastError: string | null;
+  lastErrorAt: ISODateTime | null;
+  failCount: number;
+}
+
+export interface SupplierPriceSourceInput {
+  kind: PriceSourceKind;
+  format: PriceFeedFormat | null;
+  /** Нове посилання; поле не передали — лишається збережене. */
+  url?: string | null;
+  auth: PriceFeedAuth;
+  /** Новий токен або пароль; не передали — лишається збережений; '' — прибрати. */
+  secret?: string | null;
+  scheduleHour: number | null;
   hasPurchasePrice: boolean;
   note: string | null;
 }
@@ -103,8 +135,10 @@ export interface SupplierDetail extends SupplierListItem {
 
 export type SupplierInput = Omit<
   SupplierDetail,
-  'id' | 'productsCount' | 'lastImportAt' | 'priceSource' | 'legalEntities' | 'contacts' | 'importProfiles'
+  'id' | 'productsCount' | 'lastImportAt' | 'priceSource' | 'priceListRates' | 'legalEntities' | 'contacts' | 'importProfiles'
 > & {
+  /** Курси з прайсу веде завантаження прайсу; не передали — лишаються збережені. */
+  priceListRates?: PriceListRates;
   legalEntities?: (Omit<SupplierLegalEntityDto, 'id' | 'supplierId'> & { id?: UUID })[];
   contacts?: (Omit<SupplierContactDto, 'id' | 'supplierId'> & { id?: UUID })[];
 };

@@ -7,7 +7,7 @@ import { numberField, optionalIsoDateString, optionalNumberField, optionalText, 
 /** Формати вигрузок — як у схемі бази (enum PriceFeedFormat). */
 export const PRICE_FEED_FORMATS = ['json', 'yml', 'xml', 'csv', 'xlsx'] as const satisfies readonly PriceFeedFormat[];
 const FEED_AUTH = ['none', 'bearer', 'basic', 'query'] as const;
-const FEED_KINDS = ['auto', 'manual'] as const;
+const FEED_KINDS = ['auto', 'manual', 'hybrid'] as const;
 
 const optionalRate = optionalNumberField(0, 10_000, 'Курс');
 
@@ -84,8 +84,11 @@ export const priceSourceSchema = z
       .enum(PRICE_FEED_FORMATS, { message: 'Невідомий формат вигрузки' })
       .nullish()
       .transform((v) => v ?? null),
-    /** Посилання на вигрузку; назовні не повертається — лише хост. */
-    url: optionalText(2000),
+    /**
+     * Посилання на вигрузку; назовні не повертається — лише хост.
+     * Як і секрет: поле відсутнє — лишається збережене, порожнє або null — прибираємо.
+     */
+    url: z.string().trim().max(2000, 'Задовге посилання (до 2000 символів)').nullish(),
     auth: z.enum(FEED_AUTH, { message: 'Невідомий спосіб доступу' }).default('none'),
     /**
      * Токен або пароль відкритим текстом: поле відсутнє — лишається збережений,
@@ -103,16 +106,12 @@ export const priceSourceSchema = z
     note: optionalText(1000),
   })
   .superRefine((value, ctx) => {
-    if (value.kind !== 'auto') return;
-    if (!value.format) {
-      ctx.addIssue({ code: 'custom', path: ['format'], message: 'Вкажіть формат вигрузки' });
-    }
-    if (!value.url) {
-      ctx.addIssue({ code: 'custom', path: ['url'], message: 'Вкажіть посилання на вигрузку' });
-      return;
-    }
-    if (!isHttpUrl(value.url)) {
+    // чи є посилання взагалі, перевіряє сервіс: воно могло лишитися збереженим з минулого разу
+    if (value.url && !isHttpUrl(value.url)) {
       ctx.addIssue({ code: 'custom', path: ['url'], message: 'Посилання має починатися з http:// або https://' });
+    }
+    if (value.kind !== 'manual' && !value.format) {
+      ctx.addIssue({ code: 'custom', path: ['format'], message: 'Вкажіть формат вигрузки' });
     }
   });
 

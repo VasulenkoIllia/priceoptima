@@ -74,6 +74,7 @@ function product(part: Partial<Product> = {}): Product {
     priceUpdatedAt: new Date(NOW.getTime() - DAY_MS),
     missingSince: null,
     isArchived: false,
+    autoArchivedAt: null,
     createdAt: new Date('2026-08-01T09:00:00.000Z'),
     updatedAt: NOW,
     ...part,

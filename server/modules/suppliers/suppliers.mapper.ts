@@ -8,6 +8,7 @@ import type {
   SupplierLegalEntityDto,
   SupplierListItem,
   SupplierPriceSource,
+  SupplierPriceSourceSettings,
   SupplierRef,
 } from '@shared/types';
 import { isoDate, isoDateTime, num, numOrNull, oneOf } from '../../lib/mapping';
@@ -17,13 +18,6 @@ export type SupplierDetailRow = SupplierRow & {
   legalEntities: SupplierLegalEntity[];
   contacts: SupplierContact[];
 };
-
-/** Налаштування джерела прайсу для відповіді на PUT: те саме, що бачить список, плюс стан доступу. */
-export interface SupplierPriceSourceSettings extends SupplierPriceSource {
-  auth: SupplierPriceFeed['auth'];
-  /** Токен або пароль збережено (саме значення назовні не віддаємо ніколи). */
-  hasSecret: boolean;
-}
 
 /** Постачальник без налаштованої вигрузки: прайс приносить менеджер файлом. */
 const MANUAL_SOURCE: SupplierPriceSource = {
@@ -57,8 +51,17 @@ export function toPriceSource(feed: SupplierPriceFeed | null): SupplierPriceSour
   };
 }
 
-export function toPriceSourceSettings(feed: SupplierPriceFeed): SupplierPriceSourceSettings {
-  return { ...toPriceSource(feed), auth: feed.auth, hasSecret: feed.secret != null };
+/** Налаштування для форми: те саме, що бачить список, плюс стан доступу (посилання й токен — лише «збережено»). */
+export function toPriceSourceSettings(feed: SupplierPriceFeed | null): SupplierPriceSourceSettings {
+  return {
+    ...toPriceSource(feed),
+    auth: feed?.auth ?? 'none',
+    hasUrl: !!feed?.url,
+    hasSecret: feed?.secret != null,
+    lastError: feed?.lastError ?? null,
+    lastErrorAt: feed?.lastErrorAt ? isoDateTime(feed.lastErrorAt) : null,
+    failCount: feed?.failCount ?? 0,
+  };
 }
 
 export function toSupplierRef(row: Supplier): SupplierRef {

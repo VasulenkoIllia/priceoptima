@@ -8,6 +8,7 @@ import { pingDb } from './db';
 import { logger } from './logger';
 import { errorHandler } from './http/errorHandler';
 import { spaRouter } from './http/spa';
+import { priceImportJsonParser } from './modules/price-updates/priceUpdates.routes';
 import { apiRouter } from './routes';
 
 export function createApp(): Express {
@@ -38,6 +39,8 @@ export function createApp(): Express {
     });
   });
 
+  // прайс файлом — десятки тисяч рядків одним JSON, тому цей маршрут має власну, більшу межу розміру
+  app.use('/api/price-updates/import', priceImportJsonParser);
   app.use('/api', express.json({ limit: '1mb' }), cookieParser(config.SESSION_SECRET), apiRouter);
   app.use(spaRouter(config.clientDir));
   app.use(errorHandler);

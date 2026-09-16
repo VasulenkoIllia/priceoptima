@@ -2,14 +2,14 @@
 // Посилання на вигрузку й токен доступу лишаються на сервері — в API йде лише хост і стан доступу.
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
-import type { SupplierDetail, SupplierListItem } from '@shared/types';
+import type { SupplierDetail, SupplierListItem, SupplierPriceSourceSettings } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
 import { ApiError, notFound } from '../../http/errors';
 import { withSingleDefault } from '../../lib/defaults';
 import { dateOnly } from '../../lib/mapping';
 import { createSecretBox } from '../../lib/secretBox';
-import type { SupplierDetailRow, SupplierPriceSourceSettings } from './suppliers.mapper';
+import type { SupplierDetailRow } from './suppliers.mapper';
 import { toPriceSourceSettings, toSupplierDetail, toSupplierListItem } from './suppliers.mapper';
 import type { PriceSourceBody, SupplierInputBody } from './suppliers.schemas';
 
@@ -60,24 +60,39 @@ export async function updateSupplier(id: string, input: SupplierInputBody): Prom
   return getSupplier(id);
 }
 
+export async function getPriceSource(id: string): Promise<SupplierPriceSourceSettings> {
+  const supplier = await prisma.supplier.findUnique({ where: { id }, include: { feed: true } });
+  if (!supplier) throw notFound('Постачальника не знайдено');
+  return toPriceSourceSettings(supplier.feed);
+}
+
 /** Налаштування вигрузки прайсу. Секрет приходить відкритим текстом і лягає в базу зашифрованим. */
 export async function updatePriceSource(id: string, input: PriceSourceBody): Promise<SupplierPriceSourceSettings> {
   const supplier = await prisma.supplier.findUnique({ where: { id }, select: { id: true } });
   if (!supplier) throw notFound('Постачальника не знайдено');
   const feed = await prisma.supplierPriceFeed.findUnique({ where: { supplierId: id } });
+  const url = input.url === undefined ? (feed?.url ?? null) : input.url || null;
   const secret = nextSecret(input.secret, feed?.secret ?? null);
-  if (input.auth !== 'none' && !secret) {
+  const viaLink = input.kind !== 'manual';
+  if (viaLink && !url) {
+    throw new ApiError('VALIDATION_ERROR', 'Вкажіть посилання на вигрузку');
+  }
+  if (viaLink && input.auth !== 'none' && !secret) {
     throw new ApiError('VALIDATION_ERROR', 'Для цього способу доступу потрібен токен або пароль');
   }
+  // змінили доступ — попередні помилки завантаження вже нічого не кажуть
+  const accessChanged =
+    !feed || feed.url !== url || feed.secret !== secret || feed.auth !== input.auth || feed.format !== input.format || feed.kind !== input.kind;
   const data = {
     kind: input.kind,
     format: input.format,
-    url: input.url,
+    url,
     auth: input.auth,
     secret,
     scheduleHour: input.scheduleHour,
     hasPurchasePrice: input.hasPurchasePrice,
     note: input.note,
+    ...(accessChanged ? { lastError: null, lastErrorAt: null, failCount: 0 } : {}),
   };
   const row = await prisma.supplierPriceFeed.upsert({
     where: { supplierId: id },

@@ -107,15 +107,20 @@ describe('постачальник', () => {
 describe('джерело прайсу', () => {
   it('файловий прайс не потребує посилання', () => {
     const out = parse(priceSourceSchema, { kind: 'manual' });
-    expect(out.url).toBeNull();
+    expect(out.url).toBeUndefined();
     expect(out.auth).toBe('none');
     expect(out.hasPurchasePrice).toBe(true);
     expect(out.secret).toBeUndefined();
   });
 
-  it('вигрузка за посиланням потребує формату й адреси', () => {
+  it('вигрузка за посиланням потребує формату', () => {
     expect(messageOf(() => parse(priceSourceSchema, { kind: 'auto' }))).toBe('Вкажіть формат вигрузки');
-    expect(messageOf(() => parse(priceSourceSchema, { kind: 'auto', format: 'yml' }))).toBe('Вкажіть посилання на вигрузку');
+  });
+
+  it('посилання, як і секрет: відсутнє — лишити збережене, порожнє — прибрати', () => {
+    expect(parse(priceSourceSchema, { kind: 'auto', format: 'yml' }).url).toBeUndefined();
+    expect(parse(priceSourceSchema, { kind: 'manual', url: '  ' }).url).toBe('');
+    expect(parse(priceSourceSchema, { kind: 'manual', url: null }).url).toBeNull();
   });
 
   it('посилання приймаємо лише http(s)', () => {

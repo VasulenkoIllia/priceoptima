@@ -1,0 +1,451 @@
+{
+ "date": "2026-09-16 15:20",
+ "balances": {
+  "95": {
+   "ru": "Центральний склад",
+   "uk": "Центральний склад"
+  }
+ },
+ "warehouses": {
+  "57f3fca1-0502-48aa-926e-5166d7b67161": "Центральный Запорная Арматура",
+  "b7bf86db-4138-4dad-b775-47e172c3d88a": "Центральный Водоснабжение и Водоотведение"
+ },
+ "brands": {
+  "79d02c04-9c2f-4945-95c6-87174bc3b408": {
+   "name": "DemoBrand",
+   "image": "https://img.supplier-a.example/imagecache/brands/150x150/79d02c04-9c2f-4945-95c6-87174bc3b408.jpg?v=1"
+  },
+  "d55403eb-885c-4bec-a22a-641215a983b8": {
+   "name": "DemoBrand2",
+   "image": "https://img.supplier-a.example/imagecache/brands/150x150/d55403eb-885c-4bec-a22a-641215a983b8.jpg?v=1"
+  }
+ },
+ "categories": {
+  "af50adb4-682b-486f-9d9f-90153daae168": {
+   "parent_ref": "cb80bcd1-bebe-4e68-a595-25d90f8fe955",
+   "name": {
+    "uk": "Нитка пакувальна",
+    "ru": "Нитка пакувальна"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/af50adb4-682b-486f-9d9f-90153daae168.jpg?v=55"
+  },
+  "cb80bcd1-bebe-4e68-a595-25d90f8fe955": {
+   "parent_ref": null,
+   "name": {
+    "uk": "Ущільнювальні матеріали",
+    "ru": "Ущільнювальні матеріали"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/cb80bcd1-bebe-4e68-a595-25d90f8fe955.jpg?v=55"
+  },
+  "46052297-dfeb-4b75-9f88-ef7fd8a950a7": {
+   "parent_ref": "4df0da40-eacc-445b-8446-5ab8d58fb484",
+   "name": {
+    "uk": "PPR труби",
+    "ru": "PPR труби"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/46052297-dfeb-4b75-9f88-ef7fd8a950a7.jpg?v=55"
+  },
+  "4df0da40-eacc-445b-8446-5ab8d58fb484": {
+   "parent_ref": "06a555dc-c324-42b9-8692-8243a3caf70d",
+   "name": {
+    "uk": "Труби і фітинги PPR",
+    "ru": "Труби і фітинги PPR"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/4df0da40-eacc-445b-8446-5ab8d58fb484.jpg?v=55"
+  },
+  "06a555dc-c324-42b9-8692-8243a3caf70d": {
+   "parent_ref": null,
+   "name": {
+    "uk": "Труби і фітинги",
+    "ru": "Труби і фітинги"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/06a555dc-c324-42b9-8692-8243a3caf70d.jpg?v=55"
+  },
+  "753f7543-3e2d-4ecb-a3ac-0b1c188454ad": {
+   "parent_ref": "b4e9814a-9911-45b1-8529-9ecce37e97ec",
+   "name": {
+    "uk": "Колектори для теплої підлоги",
+    "ru": "Колектори для теплої підлоги"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/753f7543-3e2d-4ecb-a3ac-0b1c188454ad.jpg?v=55"
+  },
+  "b4e9814a-9911-45b1-8529-9ecce37e97ec": {
+   "parent_ref": "eb514b89-7ab2-408f-9db7-945db8acbb62",
+   "name": {
+    "uk": "Водяна тепла підлога",
+    "ru": "Водяна тепла підлога"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/b4e9814a-9911-45b1-8529-9ecce37e97ec.jpg?v=55"
+  },
+  "eb514b89-7ab2-408f-9db7-945db8acbb62": {
+   "parent_ref": null,
+   "name": {
+    "uk": "Тепла підлога",
+    "ru": "Тепла підлога"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/eb514b89-7ab2-408f-9db7-945db8acbb62.jpg?v=55"
+  },
+  "352129fa-3b14-4634-850b-75577f80e165": {
+   "parent_ref": "f739e781-68a4-4fb6-8ad2-36593267c2fa",
+   "name": {
+    "uk": "Згін «Американка»",
+    "ru": "Згін «Американка»"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/352129fa-3b14-4634-850b-75577f80e165.jpg?v=55"
+  },
+  "f739e781-68a4-4fb6-8ad2-36593267c2fa": {
+   "parent_ref": "06a555dc-c324-42b9-8692-8243a3caf70d",
+   "name": {
+    "uk": "Латунний фітинг",
+    "ru": "Латунний фітинг"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/f739e781-68a4-4fb6-8ad2-36593267c2fa.jpg?v=55"
+  },
+  "2915e79f-6022-4882-85b8-58e9ef62260f": {
+   "parent_ref": "21f2fd15-f28f-4a82-b1aa-4ca3742ab9d2",
+   "name": {
+    "uk": "Ущільнювачі та прокладки",
+    "ru": "Ущільнювачі та прокладки"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/2915e79f-6022-4882-85b8-58e9ef62260f.jpg?v=55"
+  },
+  "21f2fd15-f28f-4a82-b1aa-4ca3742ab9d2": {
+   "parent_ref": "eb514b89-7ab2-408f-9db7-945db8acbb62",
+   "name": {
+    "uk": "Запчастини для теплої підлоги",
+    "ru": "Запчастини для теплої підлоги"
+   },
+   "image": "https://img.supplier-a.example/imagecache/categories/250x250/21f2fd15-f28f-4a82-b1aa-4ca3742ab9d2.jpg?v=55"
+  }
+ },
+ "products": {
+  "TS10045201": {
+   "main": {
+    "sku": "TS10045201",
+    "barcode": "4820001000015",
+    "name": {
+     "ru": "DemoBrand Prime Нить PTFE (40 м) TS74001",
+     "uk": "Шнур тефлоновий Prime 40 м для гермет. різьб. з’єднань TS74001 DemoBrand"
+    },
+    "vendorCode": "TS74001",
+    "description": {
+     "ru": "Нить PTFE DemoBrand Prime 40 м TS74001 для герметизации резьбовых соединений.",
+     "uk": "Нитка PTFE DemoBrand Prime 40 м TS74001 — для герметизації різьбових з’єднань."
+    },
+    "brand": "79d02c04-9c2f-4945-95c6-87174bc3b408",
+    "category": "af50adb4-682b-486f-9d9f-90153daae168",
+    "prices": {
+     "retail": {
+      "current": "78",
+      "old": null
+     },
+     "purchase": {
+      "cash": {
+       "current": "41.30",
+       "old": null
+      }
+     }
+    },
+    "balance": 99,
+    "balances": {
+     "95": 99
+    },
+    "warehouse_balances": {
+     "57f3fca1-0502-48aa-926e-5166d7b67161": 172
+    }
+   },
+   "attributes": {
+    "ccaf15e5726fa7f0c648556ddff0140a": {
+     "ru": "TS74001",
+     "uk": "TS74001"
+    },
+    "ef1f0f279b31e09375d1861debcfa6bb": {
+     "ru": "Prime",
+     "uk": "Prime"
+    },
+    "17f6fa84e4424cd0dc8630e157beaf41": {
+     "ru": "Китай",
+     "uk": "Китай"
+    }
+   },
+   "images": {
+    "main": "https://media.supplier-a.example/imagecache/large/2/0/20001.jpg?v=ea69f1511c7804b95dc811c443abac92?hash=ea69f1511c7804b95dc811c443abac92",
+    "additional": {
+     "2": "https://media.supplier-a.example/imagecache/large/2/0/20001/20001_2.jpg?v=ea69f1511c7804b95dc811c443abac92?hash=ea69f1511c7804b95dc811c443abac92",
+     "3": "https://media.supplier-a.example/imagecache/large/2/0/20001/20001_3.jpg?v=ea69f1511c7804b95dc811c443abac92?hash=ea69f1511c7804b95dc811c443abac92"
+    }
+   }
+  },
+  "TS10045302": {
+   "main": {
+    "sku": "TS10045302",
+    "barcode": "4820001000022",
+    "name": {
+     "ru": "DemoBrand Труба PPR FiberX SDR 6, 20х3,4 мм, PN 25",
+     "uk": "Труба поліпропіленова FiberX SDR 6, 20х3,4 мм, PN 25, армована скловолокном DemoBrand"
+    },
+    "vendorCode": "",
+    "description": {
+     "ru": "Стенка такого изделия состоит из внешнего и внутреннего полипропиленовых слоев, между которыми находится слой фиберволокна. За счет такой многослойности труба PPR DemoBrand Fiber FiberX армирова…",
+     "uk": "Стіна такого виробу складається з зовнішнього та внутрішнього поліпропіленових шарів, між якими розташований шар фіброволокна. Завдяки такій багатошаровості труба PPR DemoBrand Fiber FiberX армо…"
+    },
+    "brand": "79d02c04-9c2f-4945-95c6-87174bc3b408",
+    "category": "46052297-dfeb-4b75-9f88-ef7fd8a950a7",
+    "prices": {
+     "retail": {
+      "current": "55",
+      "old": null
+     },
+     "purchase": {
+      "cash": {
+       "current": "19.84",
+       "old": null
+      }
+     }
+    },
+    "balance": 99,
+    "balances": {
+     "95": 99
+    },
+    "warehouse_balances": {
+     "b7bf86db-4138-4dad-b775-47e172c3d88a": 6588
+    }
+   },
+   "attributes": {
+    "e4479177059538c161a73fc78d9d83db": {
+     "ru": "Труба PPR/FiberX/PPR",
+     "uk": "Труба PPR/FiberX/PPR"
+    },
+    "0d0c8ab5d2188d5cc0de62a26903412b": {
+     "ru": "0,173",
+     "uk": "0,173"
+    },
+    "ccaf15e5726fa7f0c648556ddff0140a": {
+     "ru": "TSK522",
+     "uk": "TSK522"
+    }
+   },
+   "images": {
+    "main": "https://media.supplier-a.example/imagecache/large/2/0/20002.jpg?v=0144c08eb9386f6148a8bf601fcd823a?hash=0144c08eb9386f6148a8bf601fcd823a",
+    "additional": []
+   }
+  },
+  "TS10045403": {
+   "main": {
+    "sku": "TS10045403",
+    "barcode": "4820001000039",
+    "name": {
+     "ru": "DemoBrand Prime Коллектор латунный  с расходомерами 1\"х11 TS417W23",
+     "uk": "Колектор Prime лат. з витратомір. і термостат. кранами 1\" х 11 (вих) TS417W2 DemoBrand"
+    },
+    "vendorCode": "TS417W23",
+    "description": {
+     "ru": "Коллектор с расходомерами DemoBrand серии Prime 1\"х11 TS417W23 используется для распределения воды и контроля расхода в системах отопления и водоснабжения. Обеспечивает точное и надежное регу…",
+     "uk": "Колектор з витратомірами DemoBrand серії Prime 1\"х11 TS417W23 використовується для розподілу води та контролю витрат у системах опалення та водопостачання. Забезпечує точне та надійне регулюв…"
+    },
+    "brand": "79d02c04-9c2f-4945-95c6-87174bc3b408",
+    "category": "753f7543-3e2d-4ecb-a3ac-0b1c188454ad",
+    "prices": {
+     "retail": {
+      "current": "6215",
+      "old": null
+     },
+     "purchase": {
+      "cash": {
+       "current": "3594.10",
+       "old": null
+      }
+     }
+    },
+    "balance": 3,
+    "balances": {
+     "95": 3
+    },
+    "warehouse_balances": {
+     "57f3fca1-0502-48aa-926e-5166d7b67161": 3
+    }
+   },
+   "attributes": {
+    "0c490322b57503152171b6896a1c0cb3": {
+     "ru": "25-50",
+     "uk": "25-50"
+    },
+    "6d165aa4628942f1ec74e4ed9884fcc6": {
+     "ru": "0,5-5",
+     "uk": "0,5-5"
+    },
+    "ccaf15e5726fa7f0c648556ddff0140a": {
+     "ru": "TS417W23",
+     "uk": "TS417W23"
+    }
+   },
+   "images": {
+    "main": "https://media.supplier-a.example/imagecache/large/2/0/20003.jpg?v=ddd57742c8517fd0ad8b691f97b9ab94?hash=ddd57742c8517fd0ad8b691f97b9ab94",
+    "additional": {
+     "1": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_1.jpg?v=0b46ccb36a89c47ef22aa7cabba88d65?hash=0b46ccb36a89c47ef22aa7cabba88d65",
+     "2": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_2.jpg?v=202e3548e39e50fc2c7b3bae0755c70a?hash=202e3548e39e50fc2c7b3bae0755c70a",
+     "3": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_3.jpg?v=202e3548e39e50fc2c7b3bae0755c70a?hash=202e3548e39e50fc2c7b3bae0755c70a",
+     "4": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_4.jpg?v=202e3548e39e50fc2c7b3bae0755c70a?hash=202e3548e39e50fc2c7b3bae0755c70a",
+     "5": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_5.jpg?v=202e3548e39e50fc2c7b3bae0755c70a?hash=202e3548e39e50fc2c7b3bae0755c70a",
+     "6": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_6.jpg?v=202e3548e39e50fc2c7b3bae0755c70a?hash=202e3548e39e50fc2c7b3bae0755c70a",
+     "7": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_7.jpg?v=202e3548e39e50fc2c7b3bae0755c70a?hash=202e3548e39e50fc2c7b3bae0755c70a",
+     "8": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_8.jpg?v=202e3548e39e50fc2c7b3bae0755c70a?hash=202e3548e39e50fc2c7b3bae0755c70a",
+     "9": "https://media.supplier-a.example/imagecache/large/2/0/20003/20003_9.jpg?v=202e3548e39e50fc2c7b3bae0755c70a?hash=202e3548e39e50fc2c7b3bae0755c70a"
+    }
+   }
+  },
+  "TS10045504": {
+   "main": {
+    "sku": "TS10045504",
+    "barcode": "4820001000046",
+    "name": {
+     "ru": "DemoBrand2 Сгон-американка 1/2\"ВН угловой №629 62915AD04",
+     "uk": "З'єднання-згін американка №629 1/2\"ВЗ кутове, з трьох частин 62915AD04 DemoBrand2"
+    },
+    "vendorCode": "62915AD04",
+    "description": {
+     "ru": "Сгон \"Американка\" DemoBrand2 Арт. 629 изготавливается из латунного прутка CW617N и имеет никелированное покрытие. В процессе производства скрупулезно отслеживается каждый этап. Каждая деталь DemoBrand2 производит…",
+     "uk": "Згін \"Американка\" DemoBrand2 Арт. 629 виготовляєтся з латунного прутка CW617N і має нікельоване покриття. В процесі виробництва скрупульозно відстежується кожен етап. Кожна деталь DemoBrand2 виробляєтся відповідн…"
+    },
+    "brand": "d55403eb-885c-4bec-a22a-641215a983b8",
+    "category": "352129fa-3b14-4634-850b-75577f80e165",
+    "prices": {
+     "retail": {
+      "current": "312",
+      "old": null
+     },
+     "purchase": {
+      "cash": {
+       "current": "186.20",
+       "old": null
+      }
+     }
+    },
+    "balance": 0,
+    "balances": {
+     "95": 0
+    },
+    "warehouse_balances": []
+   },
+   "attributes": {
+    "8dcff9207c888b7adb447ced2e09b390": {
+     "ru": "Италия",
+     "uk": "Італія"
+    },
+    "c6dab243b022ee2e7792188364e44fa0": {
+     "ru": "24 месяца",
+     "uk": "24 місяця"
+    },
+    "ccaf15e5726fa7f0c648556ddff0140a": {
+     "ru": "62915AD04",
+     "uk": "62915AD04"
+    }
+   },
+   "images": {
+    "main": null,
+    "additional": {
+     "2": "https://media.supplier-a.example/imagecache/large/2/0/20004 /20004 _2.jpg?v=ce41b45ede8f1d4ab100a663595fc058?hash=ce41b45ede8f1d4ab100a663595fc058",
+     "3": "https://media.supplier-a.example/imagecache/large/2/0/20004 /20004 _3.jpg?v=ce41b45ede8f1d4ab100a663595fc058?hash=ce41b45ede8f1d4ab100a663595fc058"
+    }
+   }
+  },
+  "TS10045605": {
+   "main": {
+    "sku": "TS10045605",
+    "barcode": "",
+    "name": {
+     "ru": "DemoBrand Prime Прокладка уплотняющая для насосной \"американки\" 1 1/4\", плоская TST016",
+     "uk": "Прокладка ущільнююча для насосної \"американки\" Prime 1 1/4\", плоска DemoBrand TST016"
+    },
+    "vendorCode": "TST016",
+    "description": {
+     "ru": "Прокладка обеспечивает гидравлическую герметичность при установке насоса",
+     "uk": "Прокладка забезпечує гідравлічну герметичність під час встановлення насоса."
+    },
+    "brand": "79d02c04-9c2f-4945-95c6-87174bc3b408",
+    "category": "2915e79f-6022-4882-85b8-58e9ef62260f",
+    "prices": {
+     "retail": {
+      "current": "1.45",
+      "old": null
+     },
+     "purchase": {
+      "cash": {
+       "current": "0.95",
+       "old": null
+      }
+     }
+    },
+    "balance": 0,
+    "balances": {
+     "95": 0
+    },
+    "warehouse_balances": []
+   },
+   "attributes": {
+    "ccaf15e5726fa7f0c648556ddff0140a": {
+     "ru": "TST016",
+     "uk": "TST016"
+    },
+    "c4666dd6229b9f6cdc544a0b5ab4cb0a": {
+     "ru": "Ремонт смесительной группы",
+     "uk": "Ремонт змішувальної групи"
+    },
+    "41b73b2d3e45a9835aabb032ab454508": {
+     "ru": "0,001",
+     "uk": "0,001"
+    }
+   },
+   "images": {
+    "main": "https://media.supplier-a.example/imagecache/large/2/0/20005.jpg?v=63c28e7be7a861ef75ed8c337f3482a4?hash=63c28e7be7a861ef75ed8c337f3482a4",
+    "additional": []
+   }
+  }
+ },
+ "attributes": {
+  "ccaf15e5726fa7f0c648556ddff0140a": {
+   "ru": "Артикул",
+   "uk": "Артикул"
+  },
+  "ef1f0f279b31e09375d1861debcfa6bb": {
+   "ru": "Серия",
+   "uk": "Серія"
+  },
+  "17f6fa84e4424cd0dc8630e157beaf41": {
+   "ru": "Страна-производитель",
+   "uk": "Країна-виробник"
+  },
+  "e4479177059538c161a73fc78d9d83db": {
+   "ru": "Тип изделия",
+   "uk": "Тип виробу"
+  },
+  "0d0c8ab5d2188d5cc0de62a26903412b": {
+   "ru": "Вес нетто 1 м/п, кг",
+   "uk": "Вага нетто 1 м/п, кг"
+  },
+  "0c490322b57503152171b6896a1c0cb3": {
+   "ru": "Рабочая температура, °C",
+   "uk": "Робоча температура, °C"
+  },
+  "6d165aa4628942f1ec74e4ed9884fcc6": {
+   "ru": "Регулировка расходомеров, л/мин",
+   "uk": "Регулювання витратомірів, л/хв"
+  },
+  "8dcff9207c888b7adb447ced2e09b390": {
+   "ru": "Страна регистрации бренда",
+   "uk": "Країна реєстрації бренду"
+  },
+  "c6dab243b022ee2e7792188364e44fa0": {
+   "ru": "Гарантия",
+   "uk": "Гарантія"
+  },
+  "c4666dd6229b9f6cdc544a0b5ab4cb0a": {
+   "ru": "Назначение",
+   "uk": "Призначення"
+  },
+  "41b73b2d3e45a9835aabb032ab454508": {
+   "ru": "Вес нетто, кг",
+   "uk": "Вага нетто, кг"
+  }
+ }
+}

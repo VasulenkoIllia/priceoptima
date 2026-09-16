@@ -4,7 +4,7 @@ import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseParams } from '../../http/validate';
 import { requireAuth } from '../auth/middleware';
 import { priceSourceSchema, supplierIdSchema, supplierInputSchema } from './suppliers.schemas';
-import { createSupplier, getSupplier, listSuppliers, updatePriceSource, updateSupplier } from './suppliers.service';
+import { createSupplier, getPriceSource, getSupplier, listSuppliers, updatePriceSource, updateSupplier } from './suppliers.service';
 
 export const suppliersRouter = Router();
 
@@ -39,6 +39,15 @@ suppliersRouter.put(
   asyncHandler(async (req, res) => {
     const { id } = parseParams(supplierIdSchema, req);
     res.json(await updateSupplier(id, parseBody(supplierInputSchema, req)));
+  }),
+);
+
+suppliersRouter.get(
+  '/:id/price-source',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { id } = parseParams(supplierIdSchema, req);
+    res.json(await getPriceSource(id));
   }),
 );
 

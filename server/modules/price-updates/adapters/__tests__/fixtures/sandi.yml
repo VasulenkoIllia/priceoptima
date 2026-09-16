@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<yml_catalog date="2026-09-16 15:20">
+	<shop>
+		<currencies>
+			<currency id="USD" rate="41.10"/>
+			<currency id="EUR" rate="47.30"/>
+			<currency id="UAH" rate="1"/>
+		</currencies>
+		<categories>
+			<category id="468">Душові кабіни та бокси</category>
+			<category id="549" parentId="468">Душова кабіна</category>
+			<category id="608" parentId="549">Душова кабіна без піддона</category>
+			<category id="824">Ущільнювальні матеріали</category>
+			<category id="1045" parentId="824">Нитка пакувальна</category>
+			<category id="846">Труби і фітинги</category>
+			<category id="850" parentId="846">Труби і фітинги PPR</category>
+			<category id="869" parentId="850">PPR труби</category>
+			<category id="934" parentId="846">Латунний фітинг</category>
+			<category id="944" parentId="934">Згін «Американка»</category>
+			<category id="999">Тепла підлога</category>
+			<category id="1000" parentId="999">Водяна тепла підлога</category>
+			<category id="1001" parentId="1000">Колектори для теплої підлоги</category>
+		</categories>
+		<delivery-options>
+			<option cost="0" days="1-3"/>
+		</delivery-options>
+		<offers>
+			<offer id="TS10045201" available="true" instock="99">
+				<price>78</price>
+				<currencyId>UAH</currencyId>
+				<categoryId>1045</categoryId>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20001.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20001/20001_2.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20001/20001_3.jpg</picture>
+				<delivery>true</delivery>
+				<name>Шнур тефлоновий Prime 40 м для гермет. різьб. з’єднань TS74001 DemoBrand</name>
+				<model>TS74001</model>
+				<vendor>DemoBrand</vendor>
+				<vendorCode>TS10045201</vendorCode>
+				<description>Нитка PTFE DemoBrand Prime 40 м TS74001 &amp;#8212; для герметизації різьбових з’єднань. </description>
+				<param name="Артикул">TS74001</param>
+				<param name="Бренд">DemoBrand</param>
+				<param name="Країна-виробник">Китай</param>
+				<param name="Серія">Prime</param>
+				<param name="Тип виробу">Фум нитка</param>
+			</offer>
+			<offer id="TS10045302" available="true" instock="99">
+				<price>55</price>
+				<currencyId>UAH</currencyId>
+				<categoryId>869</categoryId>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20002.jpg</picture>
+				<delivery>true</delivery>
+				<name>Труба поліпропіленова FiberX SDR 6, 20х3,4 мм, PN 25, армована скловолокном DemoBrand</name>
+				<model></model>
+				<vendor>DemoBrand</vendor>
+				<vendorCode>TS10045302</vendorCode>
+				<description>Стіна такого виробу складається з зовнішнього та внутрішнього поліпропіленових шарів, між якими розташований шар фіброволокна. Завдяки такій багатошар…</description>
+				<param name="Артикул">TSK522</param>
+				<param name="Бренд">DemoBrand</param>
+				<param name="Гарантія">10 років</param>
+				<param name="Країна-виробник">Україна</param>
+				<param name="Серія">PPR</param>
+				<param name="Тип виробу">Труба PPR/FiberX/PPR</param>
+			</offer>
+			<offer id="TS10045403" available="true" instock="3">
+				<price>6215</price>
+				<currencyId>UAH</currencyId>
+				<categoryId>1001</categoryId>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_1.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_2.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_3.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_4.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_5.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_6.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_7.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_8.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20003/20003_9.jpg</picture>
+				<delivery>true</delivery>
+				<name>Колектор Prime лат. з витратомір. і термостат. кранами 1&quot; х 11 (вих) TS417W2 DemoBrand</name>
+				<model>TS417W23</model>
+				<vendor>DemoBrand</vendor>
+				<vendorCode>TS10045403</vendorCode>
+				<description>Колектор з витратомірами DemoBrand серії Prime 1&quot;х11 TS417W23 використовується для розподілу води та контролю витрат у системах опалення…</description>
+				<param name="Артикул">TS417W23</param>
+				<param name="Бренд">DemoBrand</param>
+				<param name="Гарантія">12 місяців</param>
+				<param name="Країна-виробник">Китай</param>
+				<param name="Серія">Prime</param>
+				<param name="Тип виробу">Колектор</param>
+			</offer>
+			<offer id="TS10045504" available="false" instock="0">
+				<price>312</price>
+				<currencyId>UAH</currencyId>
+				<categoryId>944</categoryId>
+				<picture>https://media.supplier-a.example/img/no_img.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20004 /20004 _2.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20004 /20004 _3.jpg</picture>
+				<delivery>true</delivery>
+				<name>З'єднання-згін американка №629 1/2&quot;ВЗ кутове, з трьох частин 62915AD04 DemoBrand2</name>
+				<model>62915AD04</model>
+				<vendor>DemoBrand2</vendor>
+				<vendorCode>TS10045504</vendorCode>
+				<description>Згін &quot;Американка&quot; DemoBrand2 Арт. 629 виготовляєтся з латунного прутка CW617N і має нікельоване покриття. В процесі виробництва скрупульозно відст…</description>
+				<param name="Артикул">62915AD04</param>
+				<param name="Бренд">DemoBrand2</param>
+				<param name="Гарантія">24 місяця</param>
+				<param name="Країна-виробник">Італія</param>
+				<param name="Серія">629</param>
+				<param name="Тип виробу">Згін &quot;Американка&quot; кутовий</param>
+			</offer>
+			<offer id="TS10045706" available="true" instock="41">
+				<price>8734</price>
+				<oldprice>10310</oldprice>
+				<currencyId>UAH</currencyId>
+				<categoryId>608</categoryId>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_1.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_2.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_3.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_4.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_5.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_6.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_7.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_8.jpg</picture>
+				<picture>https://media.supplier-a.example/imagecache/full/2/0/20006/20006_9.jpg</picture>
+				<delivery>true</delivery>
+				<name>Душова кабіна Neo CRM2054AP3, 80х80 см, напівкругла, скло 5 мм Frost, розсувна, без піддону DemoBrand3</name>
+				<model>NEOCRM2054AP3</model>
+				<vendor>DemoBrand3</vendor>
+				<vendorCode>TS10045706</vendorCode>
+				<description>Душова кабіна DemoBrand3 Neo CRM2054AP3 Frost зробить гігієнічні процедури ще комфортнішими. Вона складається з розсувних скляних дверей із рельєфним покр…</description>
+				<param name="Артикул">NEOCRM2054AP3</param>
+				<param name="Бренд">DemoBrand3</param>
+				<param name="Гарантія">36 місяців</param>
+				<param name="Країна-виробник">Чехія</param>
+				<param name="Модель">CRM2054AP3</param>
+				<param name="Серія">Neo</param>
+				<param name="Тип виробу">Душова кабіна</param>
+			</offer>
+		</offers>
+	</shop>
+</yml_catalog>
