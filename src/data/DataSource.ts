@@ -47,6 +47,8 @@ import type {
   SupplierDetail,
   SupplierInput,
   SupplierListItem,
+  SupplierPriceSourceInput,
+  SupplierPriceSourceSettings,
   UserDto,
   UserInput,
   UUID,
@@ -105,6 +107,9 @@ export interface DataSource {
   listSuppliers(): Promise<SupplierListItem[]>;
   getSupplier(id: UUID): Promise<SupplierDetail>;
   saveSupplier(id: UUID | null, input: SupplierInput): Promise<SupplierDetail>;
+  /** Налаштування вигрузки прайсу: посилання й токен назовні не віддаються — лише «збережено». */
+  getSupplierPriceSource(supplierId: UUID): Promise<SupplierPriceSourceSettings>;
+  saveSupplierPriceSource(supplierId: UUID, input: SupplierPriceSourceInput): Promise<SupplierPriceSourceSettings>;
   /** Оновити прайс постачальника зараз (у робочій системі прайси приходять автоматично; тут — імітація). */
   refreshSupplierPrices(supplierId: UUID): Promise<PriceUpdateDto>;
   /** Журнал оновлень прайсів, від найновішого. */

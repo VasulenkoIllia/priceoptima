@@ -1,6 +1,6 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { DownOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Checkbox, Input, Result, Select, Tag } from 'antd';
+import { App, Button, Checkbox, Dropdown, Input, Result, Select, Space, Tag } from 'antd';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useMemo, useState } from 'react';
@@ -14,6 +14,7 @@ import { ds, errorMessage, qk } from '@/data';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
+import { PriceImportDialog } from '../suppliers/priceImport';
 import { ProductDrawer } from './ProductDrawer';
 import { Availability, PriceSourceTag, priceCur } from './productView';
 import './catalog.css';
@@ -62,6 +63,7 @@ export default function CatalogPage() {
   const [selected, setSelected] = useState<ProductDetail | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importFor, setImportFor] = useState<SupplierListItem | null>(null);
   const q = useDebouncedValue(search.trim(), 200);
 
   const products = useQuery({ queryKey: qk.products({}), queryFn: () => ds.listProducts() });
@@ -198,9 +200,25 @@ export default function CatalogPage() {
         title="Номенклатура"
         subtitle="Товари постачальників. Ціни оновлюються автоматично з прайсів; товари, додані вручну, оновлюються вручну."
         extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-            Створити товар
-          </Button>
+          <Space>
+            <Dropdown
+              trigger={['click']}
+              disabled={!suppliers.data?.length}
+              menu={{
+                items: (suppliers.data ?? [])
+                  .filter((s) => s.isActive)
+                  .map((s) => ({ key: s.id, label: <SupplierLogo name={s.name} logoUrl={s.logoUrl} color={s.color} size={16} showName /> })),
+                onClick: ({ key }) => setImportFor(supplierById.get(key) ?? null),
+              }}
+            >
+              <Button icon={<UploadOutlined />}>
+                Імпортувати прайс <DownOutlined />
+              </Button>
+            </Dropdown>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+              Створити товар
+            </Button>
+          </Space>
         }
       />
       <div className="po-toolbar">
@@ -271,6 +289,9 @@ export default function CatalogPage() {
         onClose={() => setCreateOpen(false)}
         onCreated={onProductCreated}
       />
+      {importFor ? (
+        <PriceImportDialog supplierId={importFor.id} supplierName={importFor.name} open onClose={() => setImportFor(null)} />
+      ) : null}
     </div>
   );
 }

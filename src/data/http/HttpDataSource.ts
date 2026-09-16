@@ -32,6 +32,8 @@ import type {
   SupplierDetail,
   SupplierInput,
   SupplierListItem,
+  SupplierPriceSourceInput,
+  SupplierPriceSourceSettings,
   UserDto,
   UserInput,
   UUID,
@@ -106,6 +108,14 @@ export class HttpDataSource {
 
   saveSupplier(id: UUID | null, input: SupplierInput): Promise<SupplierDetail> {
     return id ? api<SupplierDetail>(`/suppliers/${id}`, { method: 'PUT', body: input }) : api<SupplierDetail>('/suppliers', { body: input });
+  }
+
+  getSupplierPriceSource(supplierId: UUID): Promise<SupplierPriceSourceSettings> {
+    return api<SupplierPriceSourceSettings>(`/suppliers/${supplierId}/price-source`);
+  }
+
+  saveSupplierPriceSource(supplierId: UUID, input: SupplierPriceSourceInput): Promise<SupplierPriceSourceSettings> {
+    return api<SupplierPriceSourceSettings>(`/suppliers/${supplierId}/price-source`, { method: 'PUT', body: input });
   }
 
   listClients(query?: ListQuery): Promise<ClientListItem[]> {

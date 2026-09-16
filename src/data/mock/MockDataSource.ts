@@ -67,6 +67,9 @@ import type {
   SupplierDetail,
   SupplierInput,
   SupplierListItem,
+  SupplierPriceSource,
+  SupplierPriceSourceInput,
+  SupplierPriceSourceSettings,
   UserDto,
   UserInput,
   UserRef,
@@ -430,6 +433,7 @@ export class MockDataSource implements DataSource {
         const next: StoredSupplier = {
           ...data,
           id: supplierId,
+          priceListRates: data.priceListRates ?? prev?.priceListRates ?? { USD: null, EUR: null, date: null },
           lastImportAt: prev?.lastImportAt ?? null,
           // джерело прайсу налаштовується окремо від картки постачальника
           priceSource: prev?.priceSource ?? { kind: 'manual', format: 'xlsx', host: null, scheduleHour: null, hasPurchasePrice: true, note: null },
@@ -445,6 +449,38 @@ export class MockDataSource implements DataSource {
       });
       const saved = this.requireSupplier(supplierId);
       return clone({ ...saved, productsCount: this.productCounts().get(supplierId) ?? 0 });
+    });
+  }
+
+  getSupplierPriceSource(supplierId: UUID): Promise<SupplierPriceSourceSettings> {
+    return this.call(() => {
+      this.requireUser();
+      return demoPriceSourceSettings(this.requireSupplier(supplierId).priceSource);
+    });
+  }
+
+  /** У демо посилання й токен не зберігаються — лише хост і розклад, щоб картки показували стан. */
+  saveSupplierPriceSource(supplierId: UUID, input: SupplierPriceSourceInput): Promise<SupplierPriceSourceSettings> {
+    return this.call(() => {
+      this.requireUser();
+      const prev = this.requireSupplier(supplierId).priceSource;
+      const host = input.url === undefined ? prev.host : input.url ? urlHost(input.url) : null;
+      if (input.url && !host) throw new DataSourceError('VALIDATION_ERROR', 'Посилання має починатися з http:// або https://');
+      if (input.kind !== 'manual' && !input.format) throw new DataSourceError('VALIDATION_ERROR', 'Вкажіть формат вигрузки');
+      if (input.kind !== 'manual' && !host) throw new DataSourceError('VALIDATION_ERROR', 'Вкажіть посилання на вигрузку');
+      const next: SupplierPriceSource = {
+        kind: input.kind,
+        format: input.format,
+        host,
+        scheduleHour: input.scheduleHour,
+        hasPurchasePrice: input.hasPurchasePrice,
+        note: input.note,
+      };
+      this.mutate((db) => {
+        const s = db.suppliers.find((x) => x.id === supplierId);
+        if (s) s.priceSource = next;
+      });
+      return { ...demoPriceSourceSettings(next), auth: input.auth };
     });
   }
 
@@ -1499,4 +1535,17 @@ function copyStoredRequest(
     summary: `Створено копією заявки № ${formatRequestNumber(src.header.number)}: ${COPY_INCLUDE_LABELS[body.include]}, ${prices}`,
   });
   return { id: newReqId, number, report: clone(report) };
+}
+
+function demoPriceSourceSettings(source: SupplierPriceSource): SupplierPriceSourceSettings {
+  return { ...clone(source), auth: 'none', hasUrl: source.host != null, hasSecret: false, lastError: null, lastErrorAt: null, failCount: 0 };
+}
+
+function urlHost(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.host || null : null;
+  } catch {
+    return null;
+  }
 }

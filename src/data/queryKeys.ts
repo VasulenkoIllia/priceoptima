@@ -10,6 +10,7 @@ export const qk = {
   client: (id: UUID) => ['client', id] as const,
   suppliers: ['suppliers'] as const,
   supplier: (id: UUID) => ['supplier', id] as const,
+  supplierPriceSource: (id: UUID) => ['supplier-price-source', id] as const,
   priceUpdates: (supplierId?: UUID) => ['price-updates', supplierId ?? 'all'] as const,
   priceUpdatesAll: ['price-updates'] as const,
   products: (query: ProductListQuery) => ['products', query] as const,

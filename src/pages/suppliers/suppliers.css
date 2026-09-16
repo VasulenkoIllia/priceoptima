@@ -130,3 +130,77 @@
 .po-sup-log .ant-table {
   font-size: 12px;
 }
+
+/* ── форми постачальника ───────────────────────────────────────── */
+.po-sup-grid-form {
+  display: grid;
+  column-gap: 12px;
+}
+.po-sup-grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+.po-sup-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.po-sup-span-2 {
+  grid-column: span 2;
+}
+.po-sup-grid-name {
+  grid-template-columns: 1fr auto auto;
+}
+.po-sup-grid-le {
+  grid-template-columns: 2fr 1fr auto;
+}
+.po-sup-grid-ct {
+  grid-template-columns: 1.3fr 1fr 1fr 1.2fr;
+}
+.po-sup-edit .po-sup-edit-item {
+  position: relative;
+  padding: 10px 44px 0 12px;
+  background: #fafbfd;
+}
+.po-sup-edit .po-sup-edit-item .ant-form-item {
+  margin-bottom: 10px;
+}
+.po-sup-remove.ant-btn {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+}
+.po-sup-source {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: #f7f9fc;
+  border: 1px solid var(--po-border);
+  border-radius: 6px;
+}
+.po-sup-source-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.po-sup-source-head .ant-tag {
+  margin-inline-end: 0;
+}
+.po-sup-source-head .ant-btn {
+  margin-left: auto;
+}
+.po-sup-section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+@media (max-width: 640px) {
+  .po-sup-grid-2,
+  .po-sup-grid-3,
+  .po-sup-grid-le,
+  .po-sup-grid-ct {
+    grid-template-columns: 1fr;
+  }
+  .po-sup-span-2 {
+    grid-column: auto;
+  }
+}

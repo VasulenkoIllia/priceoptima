@@ -1,15 +1,28 @@
 // Підписи для карток постачальників.
 import { formatDate, formatPct, formatRate } from '@shared/format';
-import type { PriceListRates, SupplierPriceSource } from '@shared/types';
+import type { PriceListRates, PriceSourceKind, SupplierPriceSource } from '@shared/types';
 
 const FORMAT_LABELS: Record<string, string> = { json: 'JSON', yml: 'YML', xml: 'XML', csv: 'CSV', xlsx: 'Excel' };
 
-/** «Автоматично · JSON · щодня о 06:00» або «Вручну · Excel · файлом». */
+const KIND_LABELS: Record<PriceSourceKind, string> = { auto: 'Автоматично', manual: 'Вручну', hybrid: 'Гібрид' };
+
+/** Частина прайсу приходить за посиланням (кнопка «Оновити зараз», розклад). */
+export const viaLink = (kind: PriceSourceKind) => kind !== 'manual';
+
+/** Ціни приносить менеджер файлом (кнопка «Завантажити прайс» — основна дія). */
+export const pricesFromFile = (kind: PriceSourceKind) => kind !== 'auto';
+
+export const PRICE_SOURCE_COLORS: Record<PriceSourceKind, string> = { auto: 'green', manual: 'blue', hybrid: 'cyan' };
+
+/** «Автоматично · JSON · щодня о 06:00», «Вручну · файлом» або «Гібрид · XML · щодня о 06:00 · ціни файлом». */
 export function priceSourceLabel(s: SupplierPriceSource): string {
-  const parts = [s.kind === 'auto' ? 'Автоматично' : 'Вручну'];
-  if (s.format) parts.push(FORMAT_LABELS[s.format] ?? s.format.toUpperCase());
-  if (s.kind === 'auto' && s.scheduleHour != null) parts.push(`щодня о ${String(s.scheduleHour).padStart(2, '0')}:00`);
-  else if (s.kind === 'manual') parts.push('файлом');
+  const parts = [KIND_LABELS[s.kind] ?? s.kind];
+  if (viaLink(s.kind)) {
+    if (s.format) parts.push(FORMAT_LABELS[s.format] ?? s.format.toUpperCase());
+    if (s.scheduleHour != null) parts.push(`щодня о ${String(s.scheduleHour).padStart(2, '0')}:00`);
+  }
+  if (s.kind === 'manual') parts.push('файлом');
+  if (s.kind === 'hybrid') parts.push('ціни файлом');
   return parts.join(' · ');
 }
 
