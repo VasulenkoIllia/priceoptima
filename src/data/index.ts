@@ -1,8 +1,9 @@
-// Єдина точка доступу до даних. Зараз — mock у браузері; для REST достатньо замінити реалізацію тут.
+// Єдина точка доступу до даних: модулі, які вже на сервері, ідуть у REST, решта — демо-дані в браузері.
 import type { DataSource } from './DataSource';
-import { MockDataSource } from './mock/MockDataSource';
+import { createDataSource, SERVER_ENABLED } from './hybrid';
 
-export const ds: DataSource = new MockDataSource();
+export const ds: DataSource = createDataSource();
+export { SERVER_ENABLED };
 
 // Один екземпляр джерела даних на вкладку — при зміні модуля в dev повне перезавантаження.
 import.meta.hot?.accept(() => window.location.reload());

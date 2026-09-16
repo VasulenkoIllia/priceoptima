@@ -1,0 +1,132 @@
+// Перевірка даних постачальника, його юросіб, контактів і джерела прайсу.
+import { z } from 'zod';
+import { CURRENCY_CODES, RATE_POLICIES } from '@shared/enums';
+import type { PriceFeedFormat } from '@shared/types';
+import { numberField, optionalIsoDateString, optionalNumberField, optionalText, trimmed } from '../../lib/fields';
+
+/** Формати вигрузок — як у схемі бази (enum PriceFeedFormat). */
+export const PRICE_FEED_FORMATS = ['json', 'yml', 'xml', 'csv', 'xlsx'] as const satisfies readonly PriceFeedFormat[];
+const FEED_AUTH = ['none', 'bearer', 'basic', 'query'] as const;
+const FEED_KINDS = ['auto', 'manual'] as const;
+
+const optionalRate = optionalNumberField(0, 10_000, 'Курс');
+
+export const legalEntityInputSchema = z.object({
+  id: z.uuid('Невірний ідентифікатор юрособи').optional(),
+  nameShort: trimmed(200, 'Вкажіть назву юрособи'),
+  nameFull: optionalText(400),
+  edrpou: optionalText(20),
+  ipn: optionalText(20),
+  isVatPayer: z.boolean().default(true),
+  iban: optionalText(40),
+  bankName: optionalText(160),
+  address: optionalText(400),
+  note: optionalText(1000),
+  isDefault: z.boolean().default(false),
+  isActive: z.boolean().default(true),
+});
+
+export const supplierContactInputSchema = z.object({
+  id: z.uuid('Невірний ідентифікатор контакту').optional(),
+  fullName: trimmed(160, 'Вкажіть ПІБ контакту'),
+  position: optionalText(120),
+  phone: optionalText(40),
+  email: optionalText(160),
+  note: optionalText(1000),
+});
+
+export const supplierInputSchema = z.object({
+  name: trimmed(200, 'Вкажіть назву постачальника'),
+  logoUrl: optionalText(300_000),
+  color: optionalText(20),
+  defaultCurrency: z.enum(CURRENCY_CODES, { message: 'Невідома валюта' }).default('UAH'),
+  pricesIncludeVat: z.boolean().default(false),
+  rrpIncludesVat: z.boolean().default(true),
+  supplierMarkupPct: numberField(-100, 1000, 'Націнка постачальника, %').default(0),
+  ratePolicy: z.enum(RATE_POLICIES, { message: 'Невідома політика курсу' }).default('price_list'),
+  rateAdjustPct: numberField(-100, 100, 'Поправка до курсу, %').default(0),
+  manualRateUsd: optionalRate,
+  manualRateEur: optionalRate,
+  manualRatesDate: optionalIsoDateString('Дата ручних курсів'),
+  /** Курси з прайсу оновлює завантаження прайсу; якщо поле не передали — лишаються збережені. */
+  priceListRates: z
+    .object({
+      USD: optionalRate,
+      EUR: optionalRate,
+      date: optionalIsoDateString('Дата курсів прайсу'),
+    })
+    .optional(),
+  minOrderAmount: optionalNumberField(0, 100_000_000, 'Мінімальне замовлення'),
+  priceStaleDays: z
+    .number({ message: 'Актуальність ціни: вкажіть число' })
+    .int('Актуальність ціни: вкажіть ціле число')
+    .min(1, 'Актуальність ціни: не менше 1')
+    .max(365, 'Актуальність ціни: не більше 365')
+    .nullish()
+    .transform((v) => v ?? null),
+  searchUrlTemplate: optionalText(500),
+  website: optionalText(300),
+  b2bUrl: optionalText(300),
+  notes: optionalText(4000),
+  deliveryInfo: optionalText(2000),
+  isActive: z.boolean().default(true),
+  sortOrder: z.number().int('Порядок: вкажіть ціле число').min(0, 'Порядок: не менше 0').max(9999, 'Порядок: не більше 9999').default(0),
+  legalEntities: z.array(legalEntityInputSchema).max(20, 'Забагато юросіб (до 20)').optional(),
+  contacts: z.array(supplierContactInputSchema).max(50, 'Забагато контактів (до 50)').optional(),
+});
+
+export const supplierIdSchema = z.object({ id: z.uuid('Невірний ідентифікатор постачальника') });
+
+export const priceSourceSchema = z
+  .object({
+    kind: z.enum(FEED_KINDS, { message: 'Невідомий спосіб отримання прайсу' }),
+    format: z
+      .enum(PRICE_FEED_FORMATS, { message: 'Невідомий формат вигрузки' })
+      .nullish()
+      .transform((v) => v ?? null),
+    /** Посилання на вигрузку; назовні не повертається — лише хост. */
+    url: optionalText(2000),
+    auth: z.enum(FEED_AUTH, { message: 'Невідомий спосіб доступу' }).default('none'),
+    /**
+     * Токен або пароль відкритим текстом: поле відсутнє — лишається збережений,
+     * порожнє значення або null — секрет прибираємо.
+     */
+    secret: z.string().max(500, 'Задовгий токен (до 500 символів)').nullish(),
+    scheduleHour: z
+      .number({ message: 'Година оновлення: вкажіть число' })
+      .int('Година оновлення: вкажіть ціле число')
+      .min(0, 'Година оновлення: від 0')
+      .max(23, 'Година оновлення: до 23')
+      .nullish()
+      .transform((v) => v ?? null),
+    hasPurchasePrice: z.boolean().default(true),
+    note: optionalText(1000),
+  })
+  .superRefine((value, ctx) => {
+    if (value.kind !== 'auto') return;
+    if (!value.format) {
+      ctx.addIssue({ code: 'custom', path: ['format'], message: 'Вкажіть формат вигрузки' });
+    }
+    if (!value.url) {
+      ctx.addIssue({ code: 'custom', path: ['url'], message: 'Вкажіть посилання на вигрузку' });
+      return;
+    }
+    if (!isHttpUrl(value.url)) {
+      ctx.addIssue({ code: 'custom', path: ['url'], message: 'Посилання має починатися з http:// або https://' });
+    }
+  });
+
+/** Посилання на вигрузку буває лише http(s): інші схеми — це вже читання файлів сервера. */
+export function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+export type SupplierInputBody = z.infer<typeof supplierInputSchema>;
+export type LegalEntityInputBody = z.infer<typeof legalEntityInputSchema>;
+export type SupplierContactInputBody = z.infer<typeof supplierContactInputSchema>;
+export type PriceSourceBody = z.infer<typeof priceSourceSchema>;

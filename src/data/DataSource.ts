@@ -26,6 +26,9 @@ import type {
   PriceImportBody,
   PriceUpdateDto,
   ProductDetail,
+  ProductImageDto,
+  ProductImagePatch,
+  ProductImageUrlInput,
   ProductInput,
   ProductListQuery,
   ProductPickDto,
@@ -121,6 +124,17 @@ export interface DataSource {
   updateProductPrice(id: UUID, input: ProductPriceUpdateInput): Promise<ProductPriceUpdateResult>;
   /** Від найновішого запису. */
   getPriceHistory(id: UUID): Promise<PriceHistoryEntry[]>;
+
+  // ── Фото товару ─────────────────────────────────────────────────
+  /** Фото товару: посилання з прайсу і завантажені файли; головне — перше. */
+  listProductImages(productId: UUID): Promise<ProductImageDto[]>;
+  /** Завантажити файл (jpeg/png/webp, до 10 МБ). */
+  uploadProductImage(productId: UUID, file: File): Promise<ProductImageDto>;
+  /** Додати фото за посиланням (зазвичай з прайсу постачальника). */
+  addProductImageUrl(productId: UUID, input: ProductImageUrlInput): Promise<ProductImageDto>;
+  /** Зробити головним або змінити порядок. */
+  updateProductImage(productId: UUID, imageId: UUID, patch: ProductImagePatch): Promise<ProductImageDto>;
+  deleteProductImage(productId: UUID, imageId: UUID): Promise<void>;
 
   // ── Заявки ──────────────────────────────────────────────────────
   listRequests(query?: RequestListQuery): Promise<RequestListItem[]>;

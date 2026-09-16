@@ -1,15 +1,46 @@
-import http from "node:http";
-import { handleRoutes } from "./routes/index.js";
+// Один застосунок express: /api — дані, /health — перевірка, решта — зібраний інтерфейс.
+import express, { type Express } from 'express';
+import compression from 'compression';
+import cookieParser from 'cookie-parser';
+import { pinoHttp } from 'pino-http';
+import { config } from './config';
+import { pingDb } from './db';
+import { logger } from './logger';
+import { errorHandler } from './http/errorHandler';
+import { spaRouter } from './http/spa';
+import { apiRouter } from './routes';
 
-export function createApp() {
-  return http.createServer((req, res) => {
-    const handled = handleRoutes(req, res);
+export function createApp(): Express {
+  const app = express();
 
-    if (handled) {
-      return;
-    }
+  if (config.TRUST_PROXY) app.set('trust proxy', 1);
+  app.disable('x-powered-by');
+  app.set('etag', 'strong');
 
-    res.writeHead(404, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Not Found" }));
+  app.use(
+    pinoHttp({
+      logger,
+      // перевірки стану не засмічують лог
+      autoLogging: { ignore: (req) => req.url === '/health' },
+    }),
+  );
+  app.use(compression());
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    next();
   });
+
+  // перевірка стану контейнера: застосунок піднявся і база відповідає
+  app.get('/health', (_req, res) => {
+    void pingDb().then((db) => {
+      res.status(db ? 200 : 503).json({ status: db ? 'ok' : 'error', db });
+    });
+  });
+
+  app.use('/api', express.json({ limit: '1mb' }), cookieParser(config.SESSION_SECRET), apiRouter);
+  app.use(spaRouter(config.clientDir));
+  app.use(errorHandler);
+
+  return app;
 }

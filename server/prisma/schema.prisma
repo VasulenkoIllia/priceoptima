@@ -1,0 +1,492 @@
+// Схема бази для модуля 1 (каркас, довідники, каталог, прайси). Заявки й КП — окремою міграцією в модулі 2.
+// Гроші — Decimal(14,4): ціни зберігаємо у валюті прайсу без округлення до копійок, округлення робить рушій shared/pricing.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  user
+}
+
+enum Currency {
+  UAH
+  USD
+  EUR
+}
+
+enum Availability {
+  in_stock
+  low_stock
+  out_of_stock
+  on_order
+  unknown
+}
+
+/// Звідки востаннє взялася ціна товару.
+enum PriceOrigin {
+  import
+  manual
+}
+
+enum RatePolicy {
+  price_list
+  manual
+  nbu
+  nbu_adjusted
+}
+
+enum RateSource {
+  nbu
+  manual
+  price_list
+}
+
+enum PriceFeedKind {
+  auto
+  manual
+}
+
+enum PriceFeedFormat {
+  json
+  yml
+  xml
+  csv
+  xlsx
+}
+
+enum FeedAuth {
+  none
+  bearer
+  basic
+  query
+}
+
+enum ImportRunSource {
+  auto
+  file
+}
+
+/// Фото з прайсу (посилання) або завантажене нами (лежить у сховищі).
+enum ImageSource {
+  feed
+  upload
+}
+
+enum ImportRunStatus {
+  ok
+  error
+}
+
+// ── користувачі й налаштування ──────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  login        String    @unique
+  passwordHash String?
+  fullName     String
+  shortName    String
+  role         UserRole  @default(user)
+  email        String?
+  phone        String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions     Session[]
+  importRuns   PriceImportRun[]
+  priceHistory PriceHistory[]
+  clients      Client[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+  ip        String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Один рядок на систему. Набір полів — рівно як у типі AppSettings (shared/types/users.ts).
+/// Поля-перелічення тримаємо рядками: значення перевіряє zod на вході в API, міграція при зміні списку не потрібна.
+model AppSettings {
+  id                          Int      @id @default(1)
+  vatRatePct                  Decimal  @default(20) @db.Decimal(5, 2)
+  priceStaleDays              Int      @default(14)
+  lockTtlSeconds              Int      @default(180)
+  lockHeartbeatSeconds        Int      @default(20)
+  autosaveDebounceMs          Int      @default(800)
+  defaultMarkupMethod         String   @default("rrp")
+  defaultMarkupValue          Decimal  @default(0) @db.Decimal(6, 3)
+  priceRounding               String   @default("kopecks")
+  discountFormula             String   @default("percent_off")
+  autoRoundMultiplicity       Boolean  @default(true)
+  excludeUnavailableByDefault Boolean  @default(false)
+  kpDefaultVatMode            String   @default("without_vat")
+  kpNameSource                String   @default("work")
+  kpShowImages                Boolean  @default(false)
+  kpValidityDays              Int      @default(14)
+  fopPriceBasis               String   @default("net")
+  importMissingPolicy         String   @default("keep")
+  nextRequestNumber           Int      @default(1)
+  nextKpNumber                Int      @default(2114)
+  updatedAt                   DateTime @updatedAt
+}
+
+model OwnCompany {
+  id           String   @id @default(uuid())
+  /// Коротка позначка юрособи в інтерфейсі ('ТОВ', 'ФОП').
+  code         String   @default("")
+  nameShort    String
+  nameFull     String?
+  brandName    String?
+  edrpou       String?
+  ipn          String?
+  isVatPayer   Boolean  @default(true)
+  iban         String?
+  bankName     String?
+  addressLegal String?
+  phone        String?
+  email        String?
+  website      String?
+  slogan       String?
+  logoUrl      String?
+  kpFooter     String?
+  isDefault    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ── постачальники ───────────────────────────────────────────────────
+
+model Supplier {
+  id                String     @id @default(uuid())
+  name              String
+  color             String?
+  logoUrl           String?
+  defaultCurrency   Currency   @default(UAH)
+  /// Ціни в прайсі з ПДВ (нормалізуємо до входу без ПДВ при завантаженні).
+  pricesIncludeVat  Boolean    @default(false)
+  rrpIncludesVat    Boolean    @default(true)
+  supplierMarkupPct Decimal    @default(0) @db.Decimal(6, 3)
+  ratePolicy        RatePolicy @default(price_list)
+  rateAdjustPct     Decimal    @default(0) @db.Decimal(6, 3)
+  manualRateUsd     Decimal?   @db.Decimal(12, 4)
+  manualRateEur     Decimal?   @db.Decimal(12, 4)
+  manualRatesDate   DateTime?  @db.Date
+  priceListRateUsd  Decimal?   @db.Decimal(12, 4)
+  priceListRateEur  Decimal?   @db.Decimal(12, 4)
+  priceListRateDate DateTime?  @db.Date
+  minOrderAmount    Decimal?   @db.Decimal(14, 2)
+  priceStaleDays    Int?
+  searchUrlTemplate String?
+  website           String?
+  b2bUrl            String?
+  notes             String?
+  deliveryInfo      String?
+  isActive          Boolean    @default(true)
+  sortOrder         Int        @default(0)
+  lastImportAt      DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  feed          SupplierPriceFeed?
+  legalEntities SupplierLegalEntity[]
+  contacts      SupplierContact[]
+  products      Product[]
+  importRuns    PriceImportRun[]
+
+  @@index([isActive, sortOrder])
+}
+
+/// Джерело прайсу. URL і секрет назовні не віддаємо — в API лише хост і стан.
+model SupplierPriceFeed {
+  supplierId      String           @id
+  supplier        Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  kind            PriceFeedKind    @default(manual)
+  format          PriceFeedFormat?
+  url             String?
+  auth            FeedAuth         @default(none)
+  /// Токен або пароль (шифрується перед записом).
+  secret          String?
+  /// Година щоденного запуску, 0–23.
+  scheduleHour    Int?
+  hasPurchasePrice Boolean         @default(true)
+  /// Зіставлення колонок для файлових прайсів (як у діалозі завантаження).
+  columnMapping   Json?
+  note            String?
+  lastError       String?
+  lastErrorAt     DateTime?
+  failCount       Int              @default(0)
+  updatedAt       DateTime         @updatedAt
+}
+
+model SupplierLegalEntity {
+  id         String   @id @default(uuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  nameShort  String
+  nameFull   String?
+  edrpou     String?
+  ipn        String?
+  isVatPayer Boolean  @default(true)
+  iban       String?
+  bankName   String?
+  address    String?
+  note       String?
+  isDefault  Boolean  @default(false)
+  isActive   Boolean  @default(true)
+
+  @@index([supplierId])
+}
+
+model SupplierContact {
+  id         String   @id @default(uuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  fullName   String
+  position   String?
+  phone      String?
+  email      String?
+  note       String?
+
+  @@index([supplierId])
+}
+
+// ── клієнти ─────────────────────────────────────────────────────────
+
+model Client {
+  id                String         @id @default(uuid())
+  name              String
+  notes             String?
+  responsibleUserId String?
+  responsibleUser   User?          @relation(fields: [responsibleUserId], references: [id])
+  isActive          Boolean        @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  counterparties    Counterparty[]
+  contacts          ClientContact[]
+
+  @@index([name])
+}
+
+model Counterparty {
+  id            String          @id @default(uuid())
+  clientId      String
+  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  nameShort     String
+  nameFull      String?
+  edrpou        String?
+  ipn           String?
+  isVatPayer    Boolean         @default(true)
+  legalAddress  String?
+  actualAddress String?
+  note          String?
+  isDefault     Boolean         @default(false)
+  isActive      Boolean         @default(true)
+  contacts      ClientContact[]
+
+  @@index([clientId])
+  @@index([edrpou])
+}
+
+/// Контакт клієнта. Прив'язка до юрособи необов'язкова: буває спільна для клієнта людина.
+model ClientContact {
+  id             String        @id @default(uuid())
+  clientId       String
+  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  counterpartyId String?
+  counterparty   Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
+  fullName       String
+  position       String?
+  phone          String?
+  email          String?
+  note           String?
+  isDefault      Boolean       @default(false)
+  isActive       Boolean       @default(true)
+
+  @@index([clientId])
+  @@index([counterpartyId])
+}
+
+// ── довідники ───────────────────────────────────────────────────────
+
+model Unit {
+  code      String   @id
+  name      String
+  /// Синоніми для розпізнавання при імпорті позицій клієнта.
+  aliases   String[]
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+}
+
+model CurrencyRate {
+  id        Int        @id @default(autoincrement())
+  currency  Currency
+  rateDate  DateTime   @db.Date
+  rate      Decimal    @db.Decimal(12, 4)
+  source    RateSource
+  fetchedAt DateTime   @default(now())
+  note      String?
+
+  @@unique([currency, rateDate, source])
+  @@index([rateDate])
+}
+
+// ── каталог ─────────────────────────────────────────────────────────
+
+model Product {
+  id             String       @id @default(uuid())
+  supplierId     String
+  supplier       Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  /// Код постачальника як у прайсі.
+  sku            String
+  /// normalizeSku(sku) — за ним звіряємо прайс.
+  skuKey         String
+  nameWork       String
+  /// Назва як у бухгалтерії клієнта (для КП і зіставлення).
+  name1c         String?
+  /// buildSearchText(sku, назви, бренд) — за ним шукає каталог (GIN pg_trgm).
+  searchText     String       @default("")
+  brand          String?
+  unitCode       String       @default("шт")
+  currency       Currency     @default(UAH)
+  /// Вхід без ПДВ у валюті прайсу.
+  purchasePrice  Decimal?     @db.Decimal(14, 4)
+  /// РРЦ з ПДВ у валюті прайсу.
+  rrp            Decimal?     @db.Decimal(14, 4)
+  multiplicity   Decimal      @default(1) @db.Decimal(12, 3)
+  minOrderQty    Decimal?     @db.Decimal(12, 3)
+  stockQty       Decimal?     @db.Decimal(12, 3)
+  availability   Availability @default(unknown)
+  barcode        String?
+  categoryPath   String?
+  imageUrl       String?
+  productUrl     String?
+  notes          String?
+  priceOrigin    PriceOrigin  @default(import)
+  priceUpdatedAt DateTime?
+  /// Немає у прайсі з цієї дати (ціна лишається останньою відомою).
+  missingSince   DateTime?    @db.Date
+  isArchived     Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  priceHistory PriceHistory[]
+  images       ProductImage[]
+
+  @@unique([supplierId, skuKey])
+  @@index([supplierId, isArchived])
+  @@index([brand])
+  @@index([missingSince])
+  /// Точний артикул по всьому каталогу (без фільтра за постачальником).
+  @@index([skuKey])
+  /// Артикул за префіксом: LIKE 'АБВ%' бере індекс незалежно від collation бази.
+  @@index([skuKey(ops: raw("text_pattern_ops"))], map: "Product_skuKey_prefix_idx")
+  /// Пошук за назвою: LIKE '%токен%' по нормалізованому тексту.
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+/// Фото товару: з прайсу — посилання, наші — файл у сховищі. Головне фото йде в КП і в списки.
+model ProductImage {
+  id         String      @id @default(uuid())
+  productId  String
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  source     ImageSource
+  /// Посилання з прайсу (source = feed).
+  url        String?
+  /// Шлях у сховищі (source = upload).
+  storedPath String?
+  fileName   String?
+  mimeType   String?
+  sizeBytes  Int?
+  width      Int?
+  height     Int?
+  isMain     Boolean     @default(false)
+  sortOrder  Int         @default(0)
+  uploadedBy String?
+  createdAt  DateTime    @default(now())
+
+  @@index([productId, sortOrder])
+}
+
+model PriceHistory {
+  id            Int             @id @default(autoincrement())
+  productId     String
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  effectiveAt   DateTime        @default(now())
+  currency      Currency
+  purchasePrice Decimal?        @db.Decimal(14, 4)
+  rrp           Decimal?        @db.Decimal(14, 4)
+  stockQty      Decimal?        @db.Decimal(12, 3)
+  availability  Availability?
+  origin        PriceOrigin
+  importRunId   Int?
+  importRun     PriceImportRun? @relation(fields: [importRunId], references: [id])
+  userId        String?
+  user          User?           @relation(fields: [userId], references: [id])
+  note          String?
+
+  @@index([productId, effectiveAt])
+  @@index([importRunId])
+}
+
+// ── оновлення прайсів ───────────────────────────────────────────────
+
+model PriceImportRun {
+  id            Int             @id @default(autoincrement())
+  supplierId    String
+  supplier      Supplier        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  startedAt     DateTime        @default(now())
+  finishedAt    DateTime?
+  source        ImportRunSource
+  status        ImportRunStatus @default(ok)
+  fileId        String?
+  file          PriceImportFile? @relation(fields: [fileId], references: [id])
+  productsTotal Int             @default(0)
+  added         Int             @default(0)
+  changed       Int             @default(0)
+  priceUp       Int             @default(0)
+  priceDown     Int             @default(0)
+  stockChanged  Int             @default(0)
+  missing       Int             @default(0)
+  skipped       Int             @default(0)
+  rateUsd       Decimal?        @db.Decimal(12, 4)
+  rateEur       Decimal?        @db.Decimal(12, 4)
+  errorText     String?
+  userId        String?
+  user          User?           @relation(fields: [userId], references: [id])
+
+  priceHistory PriceHistory[]
+
+  @@index([supplierId, startedAt])
+}
+
+/// Завантажений файл прайсу — щоб можна було подивитись, з чого взялися ціни.
+model PriceImportFile {
+  id         String   @id @default(uuid())
+  supplierId String
+  fileName   String
+  mimeType   String?
+  sizeBytes  Int
+  storedPath String
+  uploadedAt DateTime @default(now())
+  uploadedBy String?
+
+  runs PriceImportRun[]
+
+  @@index([supplierId, uploadedAt])
+}

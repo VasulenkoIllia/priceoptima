@@ -98,3 +98,51 @@
 .po-cat-history .ant-table {
   font-size: 12px;
 }
+
+/* ── фото товару ───────────────────────────────────────────────── */
+.po-cat-photos-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.po-cat-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.po-cat-photo {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--po-border);
+  border-radius: 6px;
+}
+.po-cat-photo .ant-image,
+.po-cat-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.po-cat-photo-main {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  color: #faad14;
+}
+.po-cat-photo-actions {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.88);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.po-cat-photo:hover .po-cat-photo-actions,
+.po-cat-photo:focus-within .po-cat-photo-actions {
+  opacity: 1;
+}

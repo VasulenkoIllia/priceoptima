@@ -10,6 +10,7 @@ import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { ManualPriceDialog } from './ManualPriceDialog';
 import { PriceHistoryChart } from './PriceHistoryChart';
+import { ProductPhotos } from './ProductPhotos';
 import { Availability, HISTORY_SOURCE_LABELS, PriceSourceTag, priceCur } from './productView';
 
 function historyColumns(): TableColumnsType<PriceHistoryEntry> {
@@ -116,6 +117,8 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
         </Typography.Link>
       ) : null}
       <Descriptions column={2} size="small" bordered items={items} styles={{ label: { width: 128 } }} />
+
+      <ProductPhotos productId={product.id} />
 
       <div className="po-cat-price-action">
         {isManual ? (

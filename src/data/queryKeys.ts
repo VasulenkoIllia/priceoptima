@@ -16,6 +16,8 @@ export const qk = {
   productsAll: ['products'] as const,
   product: (id: UUID) => ['product', id] as const,
   productAll: ['product'] as const,
+  productImages: (id: UUID) => ['product-images', id] as const,
+  productImagesAll: ['product-images'] as const,
   priceHistory: (id: UUID) => ['price-history', id] as const,
   priceHistoryAll: ['price-history'] as const,
   requests: (query: RequestListQuery) => ['requests', query] as const,

@@ -43,6 +43,9 @@ import type {
   PriceImportRow,
   PriceUpdateDto,
   ProductDetail,
+  ProductImageDto,
+  ProductImagePatch,
+  ProductImageUrlInput,
   ProductInput,
   ProductListQuery,
   ProductPickDto,
@@ -193,6 +196,15 @@ export class MockDataSource implements DataSource {
       this.locks.releaseSession(this.sessionId);
       this.authStorage.removeItem(AUTH_USER_KEY);
     });
+  }
+
+  /**
+   * Перехідний режим: вхід уже на сервері, а частина сторінок ще на демо-даних —
+   * беремо демо-користувача з таким логіном (або адміністратора), щоб вони працювали.
+   */
+  adoptDemoSession(login: string): void {
+    const user = this.db.users.find((u) => u.isActive && u.login === login) ?? this.db.users.find((u) => u.role === 'admin');
+    if (user) this.authStorage.setItem(AUTH_USER_KEY, user.id);
   }
 
   listUsers(): Promise<UserDto[]> {
@@ -825,6 +837,49 @@ export class MockDataSource implements DataSource {
       this.requireProduct(id);
       return clone([...(this.db.priceHistory[id] ?? [])].reverse());
     });
+  }
+
+  // ── Фото товару ─────────────────────────────────────────────────
+  // Фото живуть на сервері (файли й посилання з прайсів). У демо-даних є лише головне фото з каталогу.
+
+  listProductImages(productId: UUID): Promise<ProductImageDto[]> {
+    return this.call(() => {
+      const p = this.requireProduct(productId);
+      if (!p.imageUrl) return [];
+      return [
+        {
+          id: `${productId}:main`,
+          productId,
+          source: 'feed' as const,
+          url: p.imageUrl,
+          isMain: true,
+          sortOrder: 0,
+          fileName: null,
+          sizeBytes: null,
+          createdAt: p.updatedAt,
+        },
+      ];
+    });
+  }
+
+  uploadProductImage(_productId: UUID, _file: File): Promise<ProductImageDto> {
+    return this.notOnDemoData();
+  }
+
+  addProductImageUrl(_productId: UUID, _input: ProductImageUrlInput): Promise<ProductImageDto> {
+    return this.notOnDemoData();
+  }
+
+  updateProductImage(_productId: UUID, _imageId: UUID, _patch: ProductImagePatch): Promise<ProductImageDto> {
+    return this.notOnDemoData();
+  }
+
+  deleteProductImage(_productId: UUID, _imageId: UUID): Promise<void> {
+    return this.notOnDemoData();
+  }
+
+  private notOnDemoData<T>(): Promise<T> {
+    return Promise.reject(new DataSourceError('NOT_IMPLEMENTED', 'Фото зберігаються на сервері — у демо-режимі недоступні'));
   }
 
   // ── Заявки ──────────────────────────────────────────────────────

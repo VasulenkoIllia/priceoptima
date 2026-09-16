@@ -38,6 +38,41 @@ export interface ProductDetail extends ProductListItem {
   updatedAt: ISODateTime;
 }
 
+// ── Фото товару ───────────────────────────────────────────────────
+
+/** Звідки фото: посилання з прайсу постачальника чи файл, завантажений нами. */
+export type ProductImageSource = 'feed' | 'upload';
+
+/** Фото товару. Головне (isMain) дублюється в ProductListItem.imageUrl — щоб списки й КП брали одне поле. */
+export interface ProductImageDto {
+  id: UUID;
+  productId: UUID;
+  source: ProductImageSource;
+  /** Готове посилання для показу: адреса з прайсу або '/api/images/<id>' для завантаженого файлу. */
+  url: string;
+  isMain: boolean;
+  sortOrder: number;
+  /** Ім'я файлу (лише для завантажених). */
+  fileName: string | null;
+  /** Розмір файлу в байтах (лише для завантажених). */
+  sizeBytes: number | null;
+  createdAt: ISODateTime;
+}
+
+/** Зміна фото: головне й порядок показу. */
+export interface ProductImagePatch {
+  isMain?: boolean;
+  sortOrder?: number;
+}
+
+/** Додати фото за посиланням із прайсу постачальника. */
+export interface ProductImageUrlInput {
+  url: string;
+  fileName?: string | null;
+  isMain?: boolean;
+  sortOrder?: number;
+}
+
 export type ProductMatchKind = 'sku_exact' | 'sku_prefix' | 'text' | 'fuzzy';
 
 export interface ProductPickDto extends ProductListItem {
@@ -83,7 +118,10 @@ export interface ProductInput {
 
 export type ProductPatch = Partial<
   Omit<ProductInput, 'supplierId' | 'currency' | 'purchasePrice' | 'rrp' | 'stockQty' | 'availability'>
->;
+> & {
+  /** Архівна позиція не пропонується в підборі (товар не видаляємо — на нього посилаються заявки). */
+  isArchived?: boolean;
+};
 
 /** Ручна зміна ціни — лише для товару, доданого вручну (решту оновлюють прайси постачальників). */
 export interface ProductPriceUpdateInput {

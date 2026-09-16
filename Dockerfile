@@ -1,17 +1,49 @@
-# PriceOptima — UI-прототип: статична збірка (демо-дані живуть у браузері), віддає nginx.
-FROM node:22-alpine AS build
-WORKDIR /app
+# PriceOptima: один контейнер — API і зібраний застосунок (поруч контейнер PostgreSQL).
 
+# ── залежності для збірки ───────────────────────────────────────────
+FROM node:22-alpine AS deps
+WORKDIR /app
+RUN apk add --no-cache openssl
+# схема потрібна тут: postinstall генерує клієнт Prisma
 COPY package.json package-lock.json ./
+COPY server/prisma ./server/prisma
 RUN npm ci
 
+# ── збірка інтерфейсу й сервера ─────────────────────────────────────
+FROM node:22-alpine AS build
+WORKDIR /app
+RUN apk add --no-cache openssl
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Вхід у прототип (docker compose передає з .env): логін і SHA-256 пароля
-ARG VITE_AUTH_LOGIN=
-ARG VITE_AUTH_PASSWORD_SHA256=
+# збірка працює з сервером, а не з демо-даними в браузері
+ENV VITE_SERVER=1
 RUN npm run build
 
-FROM nginx:1.27-alpine
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
+# ── лише те, що треба для запуску ───────────────────────────────────
+FROM node:22-alpine AS prod-deps
+WORKDIR /app
+RUN apk add --no-cache openssl
+COPY package.json package-lock.json ./
+COPY server/prisma ./server/prisma
+RUN npm ci --omit=dev
+
+# ── робочий образ ───────────────────────────────────────────────────
+FROM node:22-alpine AS runtime
+WORKDIR /app
+RUN apk add --no-cache openssl
+ENV NODE_ENV=production
+ENV PORT=3000
+
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY package.json ./
+COPY server/prisma ./server/prisma
+
+# файли прайсів і фото (том ./data/uploads)
+RUN mkdir -p /app/data/uploads && chown -R node:node /app/data
+
+USER node
+EXPOSE 3000
+
+# міграції й початкове наповнення виконуються при кожному старті (обидва — ідемпотентні)
+CMD ["sh", "-c", "npx prisma migrate deploy --schema server/prisma/schema.prisma && node dist/server/seed.js && node dist/server/index.js"]
