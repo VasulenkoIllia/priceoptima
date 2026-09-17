@@ -2,7 +2,7 @@
 import { EditOutlined, MailOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Drawer, Result, Spin, Table, Tag, Typography, type TableColumnsType } from 'antd';
-import { useNavigate } from 'react-router';
+import { useOpenTab } from '@/app/AppTabs';
 import { formatDate, formatMoney } from '@shared/format';
 import type { ClientDetail, RequestListItem, UUID } from '@shared/types';
 import { StatusTag } from '@/components';
@@ -16,7 +16,7 @@ const REQUEST_COLUMNS: TableColumnsType<RequestListItem> = [
 ];
 
 function ClientCard({ client }: { client: ClientDetail }) {
-  const navigate = useNavigate();
+  const navigate = useOpenTab();
   const users = useQuery({ queryKey: qk.users, queryFn: () => ds.listUsers() });
   const requestsQuery = { clientId: client.id };
   const requests = useQuery({ queryKey: qk.requests(requestsQuery), queryFn: () => ds.listRequests(requestsQuery) });

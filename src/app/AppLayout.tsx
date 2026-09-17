@@ -11,13 +11,15 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Avatar, Button, Dropdown, Layout, Menu, type MenuProps } from 'antd';
-import { Outlet, useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { USER_ROLE_LABELS } from '@shared/enums';
 import { ds, errorMessage, qk } from '@/data';
 import { initialsOf } from '@/lib/initials';
 import { getRequestDocStore } from '@/stores/requestDocStore';
+import { useTabs } from '@/stores/tabsStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { BRAND_COLOR } from '@/theme';
+import { AppTabBar, AppTabPanes, useOpenTab } from './AppTabs';
 import { useSession } from './session';
 
 const NAV_ITEMS: { key: string; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
@@ -33,6 +35,7 @@ export function AppLayout() {
   const { user } = useSession();
   const { modal, message } = App.useApp();
   const navigate = useNavigate();
+  const openTab = useOpenTab();
   const location = useLocation();
   const queryClient = useQueryClient();
   const siderCollapsed = useUiPrefs((s) => s.siderCollapsed);
@@ -59,6 +62,7 @@ export function AppLayout() {
     }
     queryClient.clear();
     queryClient.setQueryData(qk.me, null);
+    useTabs.getState().reset();
     navigate('/login', { replace: true });
   };
 
@@ -104,7 +108,9 @@ export function AppLayout() {
             </span>
           ) : null}
         </div>
-        <div className="po-header-spacer" />
+        <div className="po-header-tabs">
+          <AppTabBar />
+        </div>
         <Dropdown menu={userMenu} trigger={['click']} placement="bottomRight">
           <Button type="text" style={{ height: 40, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Avatar size={28} style={{ background: BRAND_COLOR, fontSize: 12 }}>
@@ -128,10 +134,10 @@ export function AppLayout() {
           onCollapse={setSiderCollapsed}
           theme="light"
         >
-          <Menu mode="inline" selectedKeys={[selectedKey]} items={menuItems} onClick={({ key }) => navigate(key)} style={{ paddingTop: 8 }} />
+          <Menu mode="inline" selectedKeys={[selectedKey]} items={menuItems} onClick={({ key }) => openTab(key)} style={{ paddingTop: 8 }} />
         </Layout.Sider>
         <Layout.Content className="po-content">
-          <Outlet />
+          <AppTabPanes />
         </Layout.Content>
       </Layout>
     </Layout>

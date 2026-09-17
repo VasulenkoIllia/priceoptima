@@ -1,6 +1,8 @@
 import { Button, Result, Spin, Tabs } from 'antd';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { formatRequestNumber } from '@shared/format';
 import { useNavigate, useParams } from 'react-router';
+import { useTabContext, useTabTitle } from '@/app/AppTabs';
 import { getRequestDocStore, useRequestDoc } from '@/stores/requestDocStore';
 import ApprovalTab from './approval/ApprovalTab';
 import { EditorHeader } from './EditorHeader';
@@ -23,11 +25,14 @@ const EDITOR_TABS = [
 
 export type EditorTabKey = (typeof EDITOR_TABS)[number]['key'];
 
-/** Ctrl/Cmd+Z — скасувати, Ctrl/Cmd+Shift+Z або Ctrl+Y — повторити (не в полях введення). */
+/** Ctrl/Cmd+Z — скасувати, Ctrl/Cmd+Shift+Z або Ctrl+Y — повторити (не в полях введення; лише коли вкладка заявки на екрані). */
 function useUndoShortcuts() {
+  const { active } = useTabContext();
+  const activeRef = useRef(active);
+  activeRef.current = active;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
+      if (!activeRef.current || !(e.ctrlKey || e.metaKey)) return;
       const key = e.key.toLowerCase();
       if (key !== 'z' && key !== 'y') return;
       const target = e.target as HTMLElement | null;
@@ -51,7 +56,9 @@ export default function RequestEditorPage() {
   const loadState = useRequestDoc((s) => s.loadState);
   const loadError = useRequestDoc((s) => s.loadError);
   const requestId = useRequestDoc((s) => s.requestId);
+  const number = useRequestDoc((s) => (s.requestId === id ? s.doc?.header.number : undefined));
   useUndoShortcuts();
+  useTabTitle(number != null ? `Заявка ${formatRequestNumber(number)}` : null);
 
   useEffect(() => {
     if (!id) return;

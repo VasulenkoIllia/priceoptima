@@ -96,7 +96,8 @@ body {
   border-bottom: 1px solid var(--po-border);
   position: sticky;
   top: 0;
-  z-index: 10;
+  /* вище за вікна й бічні панелі вкладок — щоб можна було перейти в іншу вкладку, не закриваючи їх */
+  z-index: 1001;
 }
 .po-header-brand {
   display: flex;
@@ -293,4 +294,59 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* ── вкладки застосунку (як у BAS / 1С) ─────────────────────────── */
+.po-header-tabs {
+  flex: 1;
+  min-width: 0;
+  align-self: flex-end;
+}
+.po-app-tabs.ant-tabs {
+  line-height: normal;
+}
+.po-app-tabs > .ant-tabs-nav {
+  margin: 0;
+}
+.po-app-tabs > .ant-tabs-nav::before {
+  border-bottom: none;
+}
+.po-app-tabs .ant-tabs-tab {
+  max-width: 220px;
+}
+.po-app-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.po-app-tab-label .anticon {
+  margin-inline-end: 0;
+}
+.po-app-tab-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* кожна вкладка прокручується сама — прокрутка однієї не зсуває іншу */
+.po-content.ant-layout-content {
+  overflow: hidden;
+}
+.po-tab-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.po-tab-pane[hidden] {
+  display: none;
+}
+/* вікна й бічні панелі вкладки починаються під шапкою — смуга вкладок лишається доступною */
+.po-tab-pane .ant-drawer,
+.po-tab-pane .ant-modal-mask,
+.po-tab-pane .ant-modal-wrap,
+.po-tab-pane .ant-image-preview-mask,
+.po-tab-pane .ant-image-preview-wrap {
+  top: 52px;
 }

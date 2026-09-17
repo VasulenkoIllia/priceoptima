@@ -15,7 +15,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useOpenTab } from '@/app/AppTabs';
 import { REQUEST_STATUSES } from '@shared/enums';
 import { formatDate, formatMoney, formatTime } from '@shared/format';
 import { requestStageIndicators } from '@shared/status';
@@ -133,7 +133,7 @@ function periodPresets(): { label: string; value: [Dayjs, Dayjs] }[] {
 
 /** Реєстр заявок (§6.2). */
 export default function RegistryPage() {
-  const navigate = useNavigate();
+  const navigate = useOpenTab();
   const density = useUiPrefs((s) => s.density);
   const filters = useRegistryFilters();
   const { search, status, clientId, managerId, dateFrom, dateTo, setFilters, resetFilters } = filters;
