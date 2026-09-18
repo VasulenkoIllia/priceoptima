@@ -11,4 +11,4 @@ export {
   type PreviewRow,
 } from './priceRows';
 export { parseStockText, type ParsedStock } from './stock';
-export { readSpreadsheetFile, SpreadsheetError, type SheetData } from './spreadsheet';
+export { readSpreadsheetFile, SpreadsheetError, type SheetData } from '@/lib/spreadsheet';

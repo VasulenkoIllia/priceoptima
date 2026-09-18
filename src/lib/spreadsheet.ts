@@ -1,4 +1,4 @@
-// Читання файлу прайсу в браузері: xlsx (ExcelJS підвантажується за потреби), csv/tsv/txt (UTF-8 або Windows-1251).
+// Читання таблиці в браузері (прайс постачальника, заявка клієнта): xlsx (ExcelJS підвантажується за потреби), csv/tsv/txt (UTF-8 або Windows-1251).
 // Чисті функції (крім читання File) — покриті тестами.
 import type { CellValue, Worksheet } from 'exceljs';
 import { parseTsv } from '@shared/parse';
@@ -10,7 +10,7 @@ export interface SheetData {
   rows: string[][];
 }
 
-/** Прайс Теплоарматури — ~18 тис. рядків; беремо із запасом. */
+/** Найбільший прайс — ~18 тис. рядків; беремо із запасом. */
 const MAX_ROWS = 60000;
 const MAX_COLS = 60;
 

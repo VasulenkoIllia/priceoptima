@@ -25,7 +25,7 @@ import {
   type PriceColumnRole,
 } from './priceRows';
 import { applySavedMapping, toSavedMapping } from './mappingStore';
-import { readSpreadsheetFile, sheetFromText, SpreadsheetError, type SheetData } from './spreadsheet';
+import { readSpreadsheetFile, sheetFromText, SpreadsheetError, type SheetData } from '@/lib/spreadsheet';
 import { downloadPriceTemplate } from './template';
 import './priceImport.css';
 

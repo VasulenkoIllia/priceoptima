@@ -3,7 +3,7 @@ import { Table, Tag, Tooltip } from 'antd';
 import { useMemo } from 'react';
 import { AVAILABILITY_LABELS, CURRENCY_LABELS } from '@shared/enums';
 import { formatMoney, formatQty } from '@shared/format';
-import { columnLetter } from './spreadsheet';
+import { columnLetter } from '@/lib/spreadsheet';
 import { PRICE_COLUMN_ROLES, ROLE_LABELS, type PreviewRow, type PriceColumnMap } from './priceRows';
 
 const short = (s: string, max = 26) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);

@@ -1,9 +1,11 @@
 // Панель інструментів вкладки «Позиції і підбір» (§6.4). Рядки додаються в самій таблиці (порожній рядок унизу).
-import { BarChartOutlined, CheckOutlined, DeleteOutlined, DownOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { BarChartOutlined, CheckOutlined, DeleteOutlined, DownOutlined, FileExcelOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { App, Button, Dropdown, Input, Segmented, Select, Tooltip } from 'antd';
+import { useState } from 'react';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { useRequestDoc } from '@/stores/requestDocStore';
 import { useUiPrefs, type EditorMode } from '@/stores/uiPrefsStore';
+import { RequestImportDialog } from '../import/RequestImportDialog';
 import { BASE_FILTERS, ROW_FILTER_LABELS, WARNING_FILTERS, type RowFilter } from './rows';
 import { useSourcingUi } from './sourcingUiStore';
 import { useSourcingActions } from './useSourcingActions';
@@ -35,6 +37,7 @@ export function SourcingToolbar({ counts }: SourcingToolbarProps) {
   const setSearch = useSourcingUi((s) => s.setSearch);
   const selected = useSourcingUi((s) => s.selectedLineIds);
   const openDrawer = useSourcingUi((s) => s.openDrawer);
+  const [importOpen, setImportOpen] = useState(false);
 
   const used = new Set((blocks ?? []).map((b) => b.supplierId));
   const supplierItems = suppliers
@@ -80,6 +83,11 @@ export function SourcingToolbar({ counts }: SourcingToolbarProps) {
           Постачальник <DownOutlined />
         </Button>
       </Dropdown>
+      <Tooltip title="Позиції з файлу клієнта або нашого шаблону — у кінець заявки">
+        <Button icon={<FileExcelOutlined />} disabled={readOnly} onClick={() => setImportOpen(true)}>
+          Імпорт з Excel
+        </Button>
+      </Tooltip>
       <Tooltip title="Затвердити мінімальну ціну в рядках без ручного вибору (ручний вибір не змінюється)">
         <Button icon={<CheckOutlined />} disabled={readOnly || counts.unapproved === 0} onClick={onAcceptAll}>
           Прийняти всі рекомендації
@@ -115,6 +123,7 @@ export function SourcingToolbar({ counts }: SourcingToolbarProps) {
       <Button type={scenariosOpen ? 'primary' : 'default'} ghost={scenariosOpen} icon={<BarChartOutlined />} onClick={toggleScenarios}>
         Сценарії закупівлі
       </Button>
+      <RequestImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }

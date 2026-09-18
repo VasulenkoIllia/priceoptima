@@ -612,3 +612,27 @@ body.po-filling * {
   cursor: crosshair !important;
   user-select: none;
 }
+
+/* ── імпорт позицій з Excel ─────────────────────────────────────── */
+.po-ri-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+.po-ri-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+}
+.po-ri-map label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+.po-ri-skip td {
+  color: rgba(0, 0, 0, 0.35);
+}
