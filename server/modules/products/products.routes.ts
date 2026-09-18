@@ -6,6 +6,7 @@ import { parseBody, parseParams, parseQuery } from '../../http/validate';
 import { currentUser, requireAuth } from '../auth/middleware';
 import { productImagesRouter } from '../images/images.routes';
 import {
+  name1cImportSchema,
   productIdSchema,
   productInputSchema,
   productListQuerySchema,
@@ -18,6 +19,7 @@ import {
   createProduct,
   getPriceHistory,
   getProduct,
+  importName1c,
   listProducts,
   listProductsPage,
   lookupSkus,
@@ -49,6 +51,14 @@ productsRouter.post(
   '/lookup',
   asyncHandler(async (req, res) => {
     res.json(await lookupSkus(parseBody(skuLookupSchema, req)));
+  }),
+);
+
+// назви 1С з Excel: «артикул → назва 1С» (частинами; dryRun — лише порахувати)
+productsRouter.post(
+  '/name1c',
+  asyncHandler(async (req, res) => {
+    res.json(await importName1c(parseBody(name1cImportSchema, req)));
   }),
 );
 

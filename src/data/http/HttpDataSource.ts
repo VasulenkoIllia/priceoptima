@@ -23,6 +23,8 @@ import type {
   ProductImageDto,
   ProductImagePatch,
   ProductImageUrlInput,
+  Name1cImportBody,
+  Name1cImportResult,
   ProductInput,
   ProductListQuery,
   ProductPatch,
@@ -228,6 +230,10 @@ export class HttpDataSource {
 
   createProduct(input: ProductInput): Promise<ProductDetail> {
     return api<ProductDetail>('/products', { body: input });
+  }
+
+  importName1c(body: Name1cImportBody): Promise<Name1cImportResult> {
+    return api<Name1cImportResult>('/products/name1c', { body });
   }
 
   updateProduct(id: UUID, patch: ProductPatch): Promise<ProductDetail> {

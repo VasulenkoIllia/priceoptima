@@ -21,6 +21,8 @@ import {
 } from './requestRows';
 import { downloadRequestTemplate } from './requestTemplate';
 
+const NO_ROWS: string[][] = [];
+
 const STORAGE_KEY = 'po-request-import-maps';
 const PREVIEW_LIMIT = 200;
 
@@ -78,7 +80,7 @@ export function RequestImportDialog({ open, onClose }: RequestImportDialogProps)
   const [sheetIndex, setSheetIndex] = useState(0);
   const [map, setMap] = useState<RequestColumnMap | null>(null);
 
-  const rows = sheets[sheetIndex]?.rows ?? [];
+  const rows = sheets[sheetIndex]?.rows ?? NO_ROWS;
   const template = useMemo(() => isRequestTemplate(rows), [rows]);
   const result = useMemo(() => (map ? buildRequestRows(rows, map) : null), [rows, map]);
   const header = map?.headerRow != null ? (rows[map.headerRow] ?? []) : [];

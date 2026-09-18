@@ -2,9 +2,11 @@
 // Важкий відбір робить база (індекси Product_skuKey_prefix_idx і Product_searchText_idx),
 // остаточний порядок і ваги — products.search.
 import { Prisma, type Product, type User } from '@prisma/client';
+import { planName1cImport } from '@shared/catalog/name1c';
 import { normalizeSku } from '@shared/parse';
 import { normalizeInputPrice } from '@shared/pricing';
 import type {
+  Name1cImportResult,
   PriceHistoryEntry,
   ProductDetail,
   ProductPage,
@@ -31,6 +33,7 @@ import {
   type SearchPlan,
 } from './products.search';
 import type {
+  Name1cImportInput,
   ProductInputBody,
   ProductListQueryInput,
   ProductPatchBody,
@@ -418,3 +421,50 @@ export async function productOrFail(id: UUID): Promise<Product> {
 }
 
 const decimalOrNull = (v: Prisma.Decimal | null): number | null => (v === null ? null : v.toNumber());
+
+const NAME1C_BATCH = 1000;
+const NOT_FOUND_LIMIT = 500;
+
+/**
+ * Назви 1С з Excel (п.9.2 правок): «артикул → назва 1С» у товари постачальника.
+ * Оновлення прайсів цю назву не чіпають; пошук каталогу враховує її (searchText).
+ */
+export async function importName1c(input: Name1cImportInput): Promise<Name1cImportResult> {
+  const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true } });
+  if (!supplier) throw notFound('Постачальника не знайдено');
+  // каталог постачальника — до ~20 тис. позицій: беремо весь, а не IN на тисячі артикулів
+  const products = await prisma.product.findMany({
+    where: { supplierId: input.supplierId },
+    select: { id: true, sku: true, skuKey: true, nameWork: true, name1c: true, brand: true },
+  });
+  const plan = planName1cImport(input.rows, products);
+  if (!input.dryRun && plan.updates.length) {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < plan.updates.length; i += NAME1C_BATCH) {
+        const values = plan.updates.slice(i, i + NAME1C_BATCH).map((u) => {
+          const p = byId.get(u.id)!;
+          const searchText = searchTextOf({ sku: p.sku, nameWork: p.nameWork, name1c: u.name1c, brand: p.brand });
+          return Prisma.sql`(${u.id}::text, ${u.name1c}::text, ${searchText}::text)`;
+        });
+        await tx.$executeRaw`
+          UPDATE "Product" AS p SET
+            "name1c" = v.name1c,
+            "searchText" = v.search_text,
+            "updatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+          FROM (VALUES ${Prisma.join(values)}) AS v(id, name1c, search_text)
+          WHERE p.id = v.id`;
+      }
+    });
+  }
+  return {
+    matched: plan.matched,
+    updated: plan.updates.length,
+    unchanged: plan.unchanged,
+    notFound: plan.notFound.slice(0, NOT_FOUND_LIMIT),
+    notFoundCount: plan.notFound.length,
+    skipped: plan.skipped,
+    duplicates: plan.duplicates,
+  };
+}

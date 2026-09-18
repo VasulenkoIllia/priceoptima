@@ -72,6 +72,9 @@ describe('F30–F31 КП (T15)', () => {
     });
     expect(kpRowNames({ ...line, kpName: 'Власна назва' }, offer, 'work').name).toBe('Власна назва');
     expect(kpRowNames(line, null, 'work').name).toBe('Змішувач д/раковини');
+    // назва 1С (п.9.2 правок); якщо в товару її немає — з каталогу
+    expect(kpRowNames(line, offer, 'name1c')).toEqual({ name: 'ЗМІШ. DEANTE BCA', nameSecondary: null });
+    expect(kpRowNames(line, { ...offer, name1c: null }, 'name1c').name).toBe('Змішувач для умивальника Deante');
   });
 
   it('buildKpRows: з рядків заявки, «Код» = артикул; фінальне КП лише з погоджених', () => {

@@ -31,6 +31,8 @@ import type {
   ProductImageDto,
   ProductImagePatch,
   ProductImageUrlInput,
+  Name1cImportBody,
+  Name1cImportResult,
   ProductInput,
   ProductListQuery,
   ProductPatch,
@@ -137,6 +139,8 @@ export interface DataSource {
   getProduct(id: UUID): Promise<ProductDetail>;
   /** Товар, доданий вручну (у номенклатурі або з заявки) — з'являється в каталозі з джерелом «вручну». DUPLICATE — артикул у постачальника вже є. */
   createProduct(input: ProductInput): Promise<ProductDetail>;
+  /** Назви 1С з Excel: «артикул → назва 1С» у товари постачальника (dryRun — лише порахувати). */
+  importName1c(body: Name1cImportBody): Promise<Name1cImportResult>;
   /** Картка товару: назви, бренд, одиниця, кратність тощо (ціни — окремо; прайс ці поля не перезаписує). */
   updateProduct(id: UUID, patch: ProductPatch): Promise<ProductDetail>;
   /** Ціну змінюють вручну лише в товарів, доданих вручну; решта оновлюється з прайсів постачальників. */

@@ -21,7 +21,7 @@ export const IMPORT_MISSING_POLICIES = ['keep', 'mark_out_of_stock', 'archive'] 
 export const KP_VAT_MODES = ['without_vat', 'with_vat', 'no_vat'] as const;
 export const PRODUCT_NAME_KINDS = ['work', 'accounting'] as const;
 /** Назва в КП: з каталогу / як у клієнта / з каталогу + клієнтська дрібним. */
-export const KP_NAME_SOURCES = ['work', 'client', 'work_with_client'] as const;
+export const KP_NAME_SOURCES = ['work', 'name1c', 'client', 'work_with_client'] as const;
 export const PRICE_ROUNDINGS = ['kopecks', 'integer'] as const;
 export const DISCOUNT_FORMULAS = ['percent_off', 'excel_divisor'] as const;
 export const FOP_PRICE_BASES = ['net', 'gross'] as const;
@@ -98,6 +98,7 @@ export const FOP_PRICE_BASIS_LABELS: Record<FopPriceBasis, string> = {
 
 export const KP_NAME_SOURCE_LABELS: Record<KpNameSource, string> = {
   work: 'Назва з каталогу',
+  name1c: 'Назва 1С (якщо немає, з каталогу)',
   client: 'Як у заявці клієнта',
   work_with_client: 'З каталогу + клієнтська дрібним',
 };

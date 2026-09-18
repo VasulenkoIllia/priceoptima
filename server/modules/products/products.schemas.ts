@@ -1,5 +1,6 @@
 // Перевірка даних каталогу. Параметри списків приходять рядками, тому їх спершу приводимо до типів.
 import { z } from 'zod';
+import { NAME1C_MAX_ROWS } from '@shared/catalog/name1c';
 import { AVAILABILITY_STATUSES, CURRENCY_CODES } from '@shared/enums';
 import type { ProductSortField } from '@shared/types';
 
@@ -158,9 +159,19 @@ export const productPriceUpdateSchema = z.object({
   note: optionalText(500),
 });
 
+/** Назви 1С з Excel: частина файлу (клієнт шле частинами до 1 МБ). */
+export const name1cImportSchema = z.object({
+  supplierId: z.uuid('Невірний ідентифікатор постачальника'),
+  rows: z
+    .array(z.object({ sku: z.string().max(100, 'Артикул: не довше 100 символів'), name1c: z.string().max(500, 'Назва 1С: не довше 500 символів') }))
+    .max(NAME1C_MAX_ROWS, `Рядків — не більше ${NAME1C_MAX_ROWS}`),
+  dryRun: z.boolean().optional(),
+});
+
 export type ProductListQueryInput = z.infer<typeof productListQuerySchema>;
 export type ProductSearchQueryInput = z.infer<typeof productSearchQuerySchema>;
 export type SkuLookupInput = z.infer<typeof skuLookupSchema>;
 export type ProductInputBody = z.infer<typeof productInputSchema>;
 export type ProductPatchBody = z.infer<typeof productPatchSchema>;
 export type ProductPriceUpdateBody = z.infer<typeof productPriceUpdateSchema>;
+export type Name1cImportInput = z.infer<typeof name1cImportSchema>;

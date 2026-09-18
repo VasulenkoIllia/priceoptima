@@ -212,3 +212,23 @@ export interface CatalogSnapshot {
   availability: AvailabilityStatus;
   isArchived: boolean;
 }
+
+/** Масове завантаження назв 1С: «артикул → назва 1С» у товари одного постачальника. */
+export interface Name1cImportBody {
+  supplierId: UUID;
+  rows: { sku: string; name1c: string }[];
+  /** Лише порахувати, нічого не змінювати. */
+  dryRun?: boolean;
+}
+
+export interface Name1cImportResult {
+  matched: number;
+  /** Змінено (або буде змінено при dryRun). */
+  updated: number;
+  unchanged: number;
+  /** Артикули, яких немає в каталозі постачальника (до 500). */
+  notFound: string[];
+  notFoundCount: number;
+  skipped: number;
+  duplicates: number;
+}

@@ -93,6 +93,7 @@ export function kpRowNames(
 ): { name: string; nameSecondary: string | null } {
   const client = line.clientName.trim();
   if (source === 'client') return { name: line.kpName ?? client, nameSecondary: null };
+  if (source === 'name1c') return { name: line.kpName ?? offer?.name1c ?? offer?.nameWork ?? client, nameSecondary: null };
   const own = line.kpName ?? offer?.nameWork ?? offer?.name1c ?? client;
   if (source === 'work_with_client') {
     return { name: own, nameSecondary: client !== '' && client !== own ? client : null };

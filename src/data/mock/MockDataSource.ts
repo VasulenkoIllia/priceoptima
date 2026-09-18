@@ -1,4 +1,5 @@
 // MockDataSource: in-memory БД у браузері (IndexedDB, синхронізація вкладок), блокування через localStorage, затримка мережі 50–150 мс.
+import { planName1cImport } from '@shared/catalog/name1c';
 import { formatRequestNumber, toIsoDate } from '@shared/format';
 import { matchesAllTokens, normalizeSku, searchTokens } from '@shared/parse';
 import {
@@ -50,6 +51,8 @@ import type {
   ProductImageDto,
   ProductImagePatch,
   ProductImageUrlInput,
+  Name1cImportBody,
+  Name1cImportResult,
   ProductInput,
   ProductListQuery,
   ProductPatch,
@@ -840,6 +843,35 @@ export class MockDataSource implements DataSource {
         Object.assign(p, productKeys(p));
       });
       return clone(toProductDetail(this.db.products[id], this.productCtx()));
+    });
+  }
+
+  importName1c(body: Name1cImportBody): Promise<Name1cImportResult> {
+    return this.call(() => {
+      this.requireUser();
+      if (!this.db.suppliers.some((x) => x.id === body.supplierId)) throw new DataSourceError('NOT_FOUND', 'Постачальника не знайдено');
+      const products = Object.values(this.db.products).filter((p) => p.supplierId === body.supplierId);
+      const plan = planName1cImport(body.rows, products);
+      if (!body.dryRun && plan.updates.length) {
+        const at = this.nowIso();
+        this.mutate((db) => {
+          for (const u of plan.updates) {
+            const p = db.products[u.id];
+            p.name1c = u.name1c;
+            p.updatedAt = at;
+            Object.assign(p, productKeys(p));
+          }
+        });
+      }
+      return {
+        matched: plan.matched,
+        updated: plan.updates.length,
+        unchanged: plan.unchanged,
+        notFound: plan.notFound.slice(0, 500),
+        notFoundCount: plan.notFound.length,
+        skipped: plan.skipped,
+        duplicates: plan.duplicates,
+      };
     });
   }
 

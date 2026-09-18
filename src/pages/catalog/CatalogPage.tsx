@@ -14,6 +14,7 @@ import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { PriceImportDialog } from '../suppliers/priceImport';
+import { Name1cImportDialog } from './Name1cImportDialog';
 import { ProductDrawer } from './ProductDrawer';
 import { Availability, grossPrice, PriceSourceTag, priceCur, useVatRate } from './productView';
 import './catalog.css';
@@ -82,6 +83,7 @@ export default function CatalogPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [importFor, setImportFor] = useState<SupplierListItem | null>(null);
+  const [name1cFor, setName1cFor] = useState<SupplierListItem | null>(null);
   const q = useDebouncedValue(search.trim(), 300);
 
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
@@ -270,6 +272,20 @@ export default function CatalogPage() {
                 Імпортувати прайс <DownOutlined />
               </Button>
             </Dropdown>
+            <Dropdown
+              trigger={['click']}
+              disabled={!suppliers.data?.length}
+              menu={{
+                items: (suppliers.data ?? [])
+                  .filter((s) => s.isActive)
+                  .map((s) => ({ key: s.id, label: <SupplierLogo name={s.name} logoUrl={s.logoUrl} color={s.color} size={16} showName /> })),
+                onClick: ({ key }) => setName1cFor(supplierById.get(key) ?? null),
+              }}
+            >
+              <Button title="Файл «артикул → назва 1С» для товарів постачальника">
+                Назви 1С з Excel <DownOutlined />
+              </Button>
+            </Dropdown>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
               Створити товар
             </Button>
@@ -362,6 +378,7 @@ export default function CatalogPage() {
         onClose={() => setCreateOpen(false)}
         onCreated={onProductCreated}
       />
+      {name1cFor ? <Name1cImportDialog supplierId={name1cFor.id} supplierName={name1cFor.name} open onClose={() => setName1cFor(null)} /> : null}
       {importFor ? (
         <PriceImportDialog supplierId={importFor.id} supplierName={importFor.name} open onClose={() => setImportFor(null)} />
       ) : null}
