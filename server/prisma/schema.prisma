@@ -142,7 +142,7 @@ model AppSettings {
   kpValidityDays              Int      @default(14)
   /// Типові умови КП [{label, value}]; null — вбудовані типові (Умови поставки, Термін, Оплата, Гарантія).
   kpTerms                     Json?
-  fopPriceBasis               String   @default("net")
+  fopPriceBasis               String   @default("gross")
   importMissingPolicy         String   @default("keep")
   nextRequestNumber           Int      @default(1)
   nextKpNumber                Int      @default(2114)

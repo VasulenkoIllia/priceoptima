@@ -242,9 +242,11 @@ export default function MarkupTab() {
   );
 
   const vatMode: KpVatMode = doc?.header.kpSettings.vatMode ?? 'without_vat';
+  const fopBasis = pricing?.fopPriceBasis ?? 'gross';
   const columns = useMemo<ColDef<MarkupRow>[]>(() => {
     const canEdit = (p: { data?: MarkupRow }) => !latest.current.readOnly && !!p.data?.offer;
-    const sumGross = vatMode === 'with_vat';
+    // сума — як у КП: ТОВ з ПДВ і ФОП «на рівні цін з ПДВ» — з ПДВ
+    const sumGross = vatMode === 'with_vat' || (vatMode === 'no_vat' && fopBasis === 'gross');
     // найважливіше (вхід → спосіб → ціна продажу → сума → прибуток) — без прокрутки на 1366–1440 px; довідкове — праворуч
     const defs: ColDef<MarkupRow>[] = [
       { headerName: '№', colId: 'n', valueGetter: (p) => p.data?.line.position, width: 48, pinned: 'left', cellClass: 'po-num' },
@@ -330,7 +332,7 @@ export default function MarkupTab() {
         cellClassRules: { 'po-mk-anchor': (p) => p.data?.mr.priceBasis === 'gross' && p.data.mr.saleGross != null },
       },
       {
-        headerName: sumGross ? 'Сума з ПДВ' : vatMode === 'no_vat' ? 'Сума' : 'Сума без ПДВ',
+        headerName: vatMode === 'no_vat' ? 'Сума' : sumGross ? 'Сума з ПДВ' : 'Сума без ПДВ',
         colId: 'sum',
         width: 112,
         type: 'rightAligned',
@@ -381,7 +383,7 @@ export default function MarkupTab() {
       { headerName: '', colId: 'warn', width: 48, cellRenderer: WarnCell, pinned: 'right' },
     ];
     return defs;
-  }, [vatMode]);
+  }, [vatMode, fopBasis]);
 
   const onCellEditRequest = (e: CellEditRequestEvent<MarkupRow>) => {
     const row = e.data;
@@ -450,7 +452,9 @@ export default function MarkupTab() {
         <span className="po-mk-divider" />
         <span className="po-muted">Ціни в КП:</span>
         {isFop ? (
-          <Tag bordered={false}>ФОП — без ПДВ</Tag>
+          <Tooltip title="ФОП не платник ПДВ: у КП ПДВ не виділяється. Рівень цін задається в Налаштуваннях">
+            <Tag bordered={false}>{pricing?.fopPriceBasis === 'net' ? 'ФОП, без ПДВ' : 'ФОП, на рівні цін з ПДВ'}</Tag>
+          </Tooltip>
         ) : (
           <Segmented<KpVatMode>
             size="small"

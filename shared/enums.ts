@@ -91,6 +91,11 @@ export const KP_VAT_MODE_LABELS: Record<KpVatMode, string> = {
   no_vat: 'Без ПДВ (ФОП)',
 };
 
+export const FOP_PRICE_BASIS_LABELS: Record<FopPriceBasis, string> = {
+  gross: 'На рівні цін з ПДВ, як у ТОВ',
+  net: 'Без ПДВ (дешевше, ніж у ТОВ)',
+};
+
 export const KP_NAME_SOURCE_LABELS: Record<KpNameSource, string> = {
   work: 'Назва з каталогу',
   client: 'Як у заявці клієнта',

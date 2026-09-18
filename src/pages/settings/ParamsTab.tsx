@@ -4,6 +4,8 @@ import { App, Button, Card, Form, InputNumber, Result, Select, Spin } from 'antd
 import {
   DISCOUNT_FORMULAS,
   DISCOUNT_FORMULA_LABELS,
+  FOP_PRICE_BASES,
+  FOP_PRICE_BASIS_LABELS,
   KP_NAME_SOURCES,
   KP_NAME_SOURCE_LABELS,
   KP_VAT_MODE_LABELS,
@@ -28,6 +30,7 @@ type FormValues = Pick<
   | 'kpValidityDays'
   | 'kpNameSource'
   | 'kpDefaultVatMode'
+  | 'fopPriceBasis'
   | 'kpTerms'
   | 'nextRequestNumber'
   | 'nextKpNumber'
@@ -56,6 +59,7 @@ function pickValues(s: AppSettings): FormValues {
     kpValidityDays: s.kpValidityDays,
     kpNameSource: s.kpNameSource,
     kpDefaultVatMode: s.kpDefaultVatMode,
+    fopPriceBasis: s.fopPriceBasis,
     kpTerms: s.kpTerms,
     nextRequestNumber: s.nextRequestNumber,
     nextKpNumber: s.nextKpNumber,
@@ -125,8 +129,16 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
           <Form.Item name="kpNameSource" label="Назва товару в КП">
             <Select options={options(KP_NAME_SOURCES, KP_NAME_SOURCE_LABELS)} />
           </Form.Item>
-          <Form.Item name="kpDefaultVatMode" label="Ціни в КП за замовчуванням" style={{ marginBottom: 0 }}>
+          <Form.Item name="kpDefaultVatMode" label="Ціни в КП за замовчуванням">
             <Select options={KP_VAT_OPTIONS} />
+          </Form.Item>
+          <Form.Item
+            name="fopPriceBasis"
+            label="Ціни в КП від ФОП"
+            extra="ФОП не платник ПДВ: у КП ПДВ не виділяється, змінюється лише рівень цін"
+            style={{ marginBottom: 0 }}
+          >
+            <Select options={options(FOP_PRICE_BASES, FOP_PRICE_BASIS_LABELS)} />
           </Form.Item>
         </Card>
         <Card title="Нумерація" size="small">

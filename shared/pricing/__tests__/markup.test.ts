@@ -174,6 +174,18 @@ describe('F26–F29 рядки і підсумки націнки', () => {
     const fop = run('no_vat');
     expect(fop.markup.totals).toMatchObject({ saleNet: 0.12, vat: 0, saleGross: 0.12, approvedSaleGross: 0.12 });
     expect(fop.totals.totalSaleGross).toBe(0.12);
+    // ФОП у цінах з ПДВ (п.6 правок, за замовчуванням): «Разом» = Σ round2(G × q′), як «Разом з ПДВ» у ТОВ; ПДВ не виділяється
+    const fopGross = computeRequest(
+      makeDoc({
+        header: makeHeader({ kpSettings: { ...makeHeader().kpSettings, vatMode: 'no_vat' } }),
+        lines,
+        blocks: [makeBlock('A', 0)],
+        offers,
+      }),
+      makeCtx([], { settings: { ...makeCtx().settings, fopPriceBasis: 'gross' } }),
+    );
+    expect(fopGross.markup.totals).toMatchObject({ vat: 0, saleGross: 0.15, approvedSaleGross: 0.15 });
+    expect(fopGross.totals.totalSaleGross).toBe(withVat.totals.totalSaleGross);
   });
 
   it('F32 підсумки заявки для реєстру', () => {

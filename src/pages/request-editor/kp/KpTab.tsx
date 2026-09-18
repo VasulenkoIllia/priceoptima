@@ -67,7 +67,14 @@ function KpSettingsForm() {
           onChange={onOwnCompany}
         />
       </Field>
-      <Field label="Ціни" hint={isVatPayer ? 'Режим цін діє і на вкладці «Націнка»' : 'ФОП — лише без ПДВ'}>
+      <Field
+        label="Ціни"
+        hint={
+          isVatPayer
+            ? 'Режим цін діє і на вкладці «Націнка»'
+            : `ФОП не платник ПДВ: ${settings.data?.fopPriceBasis === 'net' ? 'ціни без ПДВ' : 'ціни на рівні з ПДВ, ПДВ не виділяється'} (змінюється в Налаштуваннях)`
+        }
+      >
         <Radio.Group
           optionType="button"
           buttonStyle="solid"
@@ -81,7 +88,7 @@ function KpSettingsForm() {
                   { value: 'without_vat', label: 'Без ПДВ' },
                   { value: 'with_vat', label: 'З ПДВ' },
                 ]
-              : [{ value: 'no_vat', label: 'Без ПДВ (ФОП)' }]
+              : [{ value: 'no_vat', label: 'ФОП' }]
           }
         />
       </Field>
