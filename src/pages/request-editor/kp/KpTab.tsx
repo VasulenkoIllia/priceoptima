@@ -7,8 +7,9 @@ import { useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { KP_NAME_SOURCE_LABELS, KP_NAME_SOURCES, KP_VAT_MODE_LABELS, type KpNameSource, type KpVatMode } from '@shared/enums';
 import { formatDateTime, formatKpNumber, formatMoney } from '@shared/format';
-import { defaultKpVatMode, latestBaseKp, type KpChecks } from '@shared/pricing';
+import { DEFAULT_KP_TERMS, defaultKpVatMode, latestBaseKp, resolveKpTerms, type KpChecks } from '@shared/pricing';
 import type { KpDocumentDto, KpSettings, UUID } from '@shared/types';
+import { KpTermsEditor } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { getRequestDocStore, useRequestDoc } from '@/stores/requestDocStore';
 import { KpDocumentView } from './KpDocumentView';
@@ -34,8 +35,10 @@ function KpSettingsForm() {
   const appSettings = useRequestDoc((s) => s.settings);
   const setHeader = useRequestDoc((s) => s.setHeader);
   const own = useQuery({ queryKey: qk.ownCompanies, queryFn: () => ds.listOwnCompanies() });
+  const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
   if (!header || !ownRef) return null;
   const k = header.kpSettings;
+  const defaultTerms = settings.data?.kpTerms ?? DEFAULT_KP_TERMS;
   const isVatPayer = own.data?.find((c) => c.id === header.ownCompanyId)?.isVatPayer ?? ownRef.isVatPayer;
   const patch = (p: Partial<KpSettings>) => setHeader({ kpSettings: { ...k, ...p } });
 
@@ -105,13 +108,30 @@ function KpSettingsForm() {
           style={{ width: 120 }}
         />
       </Field>
+      <Field
+        label="Умови"
+        hint={
+          k.terms == null ? (
+            'Типові з Налаштувань; змініть тут, щоб задати для цього клієнта'
+          ) : (
+            <>
+              Свої для цього клієнта ·{' '}
+              <a onClick={() => !readOnly && patch({ terms: null })} aria-disabled={readOnly}>
+                повернути типові
+              </a>
+            </>
+          )
+        }
+      >
+        <KpTermsEditor value={k.terms ?? defaultTerms} disabled={readOnly} compact onChange={(terms) => patch({ terms })} />
+      </Field>
       <Field label="Дод. інформація">
         <Input.TextArea
           key={k.extraInfo ?? ''}
           defaultValue={k.extraInfo ?? ''}
           disabled={readOnly}
           autoSize={{ minRows: 2, maxRows: 5 }}
-          placeholder="Термін поставки, умови оплати, доставка…"
+          placeholder="Будь-що ще для клієнта"
           onBlur={(e) => {
             const next = e.target.value.trim() || null;
             if (next !== k.extraInfo) patch({ extraInfo: next });
@@ -181,7 +201,9 @@ export default function KpTab() {
     mutationFn: async () => {
       // незбережені зміни — спершу на сервер: КП будується зі збереженої заявки
       await getRequestDocStore().getState().flush();
-      const settings = getRequestDocStore().getState().doc!.header.kpSettings;
+      const kpSettings = getRequestDocStore().getState().doc!.header.kpSettings;
+      // умови друкуються такими, як на момент формування: свої в заявці або типові з Налаштувань
+      const settings = { ...kpSettings, terms: resolveKpTerms(kpSettings.terms, appSettings.data?.kpTerms) };
       return ds.createKp(requestId!, { settings, sessionId: ds.sessionId });
     },
     onSuccess: (kp) => {

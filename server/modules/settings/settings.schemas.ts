@@ -9,6 +9,7 @@ import {
   MARKUP_METHODS,
   PRICE_ROUNDINGS,
 } from '@shared/enums';
+import { KP_TERMS_MAX } from '@shared/pricing';
 
 function enumOf<T extends readonly [string, ...string[]]>(values: T, label: string) {
   return z.enum(values, { message: `Невідоме значення: ${label}` });
@@ -34,6 +35,16 @@ export const settingsPatchSchema = z
     kpNameSource: enumOf(KP_NAME_SOURCES, 'назва в КП'),
     kpShowImages: z.boolean(),
     kpValidityDays: int(1, 365, 'Строк дії КП, днів'),
+    /** Типові умови КП: без назви — не зберігаються; порожнє значення — не друкується. */
+    kpTerms: z
+      .array(
+        z.object({
+          label: z.string({ message: 'Умова КП: вкажіть назву' }).trim().max(80, 'Назва умови КП: не довше 80 символів'),
+          value: z.string({ message: 'Умова КП: вкажіть значення' }).trim().max(300, 'Значення умови КП: не довше 300 символів'),
+        }),
+      )
+      .max(KP_TERMS_MAX, `Умов у КП — не більше ${KP_TERMS_MAX}`)
+      .transform((terms) => terms.filter((t) => t.label)),
     fopPriceBasis: enumOf(FOP_PRICE_BASES, 'база ціни ФОП'),
     importMissingPolicy: enumOf(IMPORT_MISSING_POLICIES, 'позиції, яких немає у прайсі'),
     nextRequestNumber: int(1, 9_999_999, 'Наступний номер заявки'),

@@ -10,8 +10,8 @@ import {
   MARKUP_METHODS,
   PRICE_ROUNDINGS,
 } from '@shared/enums';
-import { DEFAULT_APP_SETTINGS } from '@shared/pricing';
-import type { AppSettings } from '@shared/types';
+import { DEFAULT_APP_SETTINGS, DEFAULT_KP_TERMS } from '@shared/pricing';
+import type { AppSettings, KpTerm } from '@shared/types';
 
 /** Єдиний рядок налаштувань. */
 export const SETTINGS_ID = 1;
@@ -22,6 +22,16 @@ function oneOf<T extends string>(allowed: readonly T[], value: string, fallback:
 
 function num(value: Prisma.Decimal): number {
   return value.toNumber();
+}
+
+/** Умови КП з JSON у базі; не список — вбудовані типові, сторонні елементи пропускаємо. */
+function kpTermsOf(value: Prisma.JsonValue | null): KpTerm[] {
+  if (!Array.isArray(value)) return DEFAULT_KP_TERMS.map((t) => ({ ...t }));
+  return value.flatMap((t) =>
+    t && typeof t === 'object' && !Array.isArray(t) && typeof t.label === 'string' && typeof t.value === 'string'
+      ? [{ label: t.label, value: t.value }]
+      : [],
+  );
 }
 
 export function toAppSettings(row: AppSettingsRow): AppSettings {
@@ -41,6 +51,7 @@ export function toAppSettings(row: AppSettingsRow): AppSettings {
     kpNameSource: oneOf(KP_NAME_SOURCES, row.kpNameSource, DEFAULT_APP_SETTINGS.kpNameSource),
     kpShowImages: row.kpShowImages,
     kpValidityDays: row.kpValidityDays,
+    kpTerms: kpTermsOf(row.kpTerms),
     fopPriceBasis: oneOf(FOP_PRICE_BASES, row.fopPriceBasis, DEFAULT_APP_SETTINGS.fopPriceBasis),
     importMissingPolicy: oneOf(IMPORT_MISSING_POLICIES, row.importMissingPolicy, DEFAULT_APP_SETTINGS.importMissingPolicy),
     nextRequestNumber: row.nextRequestNumber,
@@ -66,6 +77,7 @@ export function toSettingsRow(settings: AppSettings) {
     kpNameSource: settings.kpNameSource,
     kpShowImages: settings.kpShowImages,
     kpValidityDays: settings.kpValidityDays,
+    kpTerms: settings.kpTerms.map((t) => ({ label: t.label, value: t.value })),
     fopPriceBasis: settings.fopPriceBasis,
     importMissingPolicy: settings.importMissingPolicy,
     nextRequestNumber: settings.nextRequestNumber,

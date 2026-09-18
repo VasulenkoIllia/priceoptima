@@ -350,3 +350,34 @@ body {
 .po-tab-pane .ant-image-preview-wrap {
   top: 52px;
 }
+
+/* ── умови КП «назва: значення» (Налаштування і бланк КП) ─────────── */
+.po-kp-terms-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.po-kp-term-row {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+.po-kp-terms-compact .po-kp-term-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'label del' 'value value';
+  gap: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}
+.po-kp-terms-compact .po-kp-term-label {
+  grid-area: label;
+}
+.po-kp-terms-compact .po-kp-term-value {
+  grid-area: value;
+}
+.po-kp-term-label {
+  width: 100%;
+}

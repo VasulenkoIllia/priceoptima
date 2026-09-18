@@ -10,11 +10,13 @@ import type {
   KpRow,
   KpSettings,
   KpSnapshot,
+  KpTerm,
   OwnCompanyDto,
   RequestComputed,
   RequestLine,
   UUID,
 } from '../types';
+import { cleanKpTerms } from './defaults';
 import { approvedKpRows, computeKpTotals } from './kp-totals';
 import { isActiveLine } from './lines';
 
@@ -45,6 +47,8 @@ export interface KpSnapshotInput {
   seller: KpSeller;
   buyer: KpBuyer;
   managerName: string;
+  /** Умови внизу КП (resolveKpTerms: свої в заявці або типові). */
+  terms: readonly KpTerm[];
 }
 
 const PRICE_HEADERS: Record<KpVatMode, { priceHeader: string; sumHeader: string }> = {
@@ -131,6 +135,7 @@ export function buildKpSnapshot(input: KpSnapshotInput): KpSnapshot {
     managerName: input.managerName,
     validUntil: settings.validityDays > 0 ? addDaysIso(input.date, settings.validityDays) : null,
     footer: seller.kpFooter,
+    terms: cleanKpTerms(input.terms),
   };
 }
 

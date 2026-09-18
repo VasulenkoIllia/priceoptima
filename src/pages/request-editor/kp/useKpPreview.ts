@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { toIsoDate } from '@shared/format';
-import { buildKpRows, buildKpSnapshot, kpBuyerOf, kpChecks, kpManagerName, type KpChecks } from '@shared/pricing';
+import { buildKpRows, buildKpSnapshot, kpBuyerOf, kpChecks, kpManagerName, resolveKpTerms, type KpChecks } from '@shared/pricing';
 import type { KpSnapshot } from '@shared/types';
 import { ds, qk } from '@/data';
 import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
@@ -34,7 +34,8 @@ export function useKpPreview(): { snapshot: KpSnapshot | null; checks: KpChecks 
       seller,
       buyer: kpBuyerOf(refs.counterparty, refs.client?.name, refs.contact),
       managerName: kpManagerName(users.data?.find((u) => u.id === header.managerId) ?? refs.manager),
+      terms: resolveKpTerms(header.kpSettings.terms, settings.data?.kpTerms),
     });
     return { snapshot, checks };
-  }, [doc, ctx, computed, own.data, users.data, kpNumber]);
+  }, [doc, ctx, computed, own.data, users.data, kpNumber, settings.data?.kpTerms]);
 }

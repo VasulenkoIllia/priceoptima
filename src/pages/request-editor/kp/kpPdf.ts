@@ -3,7 +3,7 @@ import type { Content, CustomTableLayout, TableCell, TDocumentDefinitions } from
 import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
 import { BRAND_COLOR } from '@/theme';
-import { kpAmountLine, kpContactsLine, kpFileName, kpPartyRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
+import { kpAmountLine, kpContactsLine, kpFileName, kpPartyRows, kpTermRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
 
 type PdfMake = typeof import('pdfmake/build/pdfmake');
 
@@ -88,6 +88,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
     { text: formatMoney(t.value), alignment: 'right', bold: !!t.strong },
   ]);
   const valid = kpValidLine(s);
+  const terms: TableCell[][] = kpTermRows(s).map((t) => [{ text: t.label, bold: true, color: '#555555' }, { text: t.value }]);
 
   const doc: TDocumentDefinitions = {
     pageSize: 'A4',
@@ -124,6 +125,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
       },
       { text: kpAmountLine(s), margin: [0, 0, 0, 4] },
       ...(valid ? [{ text: valid } as Content] : []),
+      ...(terms.length ? [{ table: { widths: [120, '*'], body: terms }, layout: 'noBorders', margin: [0, 8, 0, 0] } as Content] : []),
       { text: `Менеджер: ${s.managerName}`, margin: [0, 14, 0, 0] },
       ...(s.footer ? [{ text: s.footer, fontSize: 8, color: '#666666', margin: [0, 8, 0, 0] } as Content] : []),
     ],

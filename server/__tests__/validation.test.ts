@@ -93,4 +93,23 @@ describe('перевірка налаштувань', () => {
       'Невідоме значення: округлення ціни',
     );
   });
+
+  it('умови КП: пробіли прибираються, без назви — не зберігаються, не більше 12', () => {
+    expect(
+      parse(settingsPatchSchema, {
+        kpTerms: [
+          { label: ' Умови оплати ', value: ' Передоплата ' },
+          { label: '  ', value: 'без назви' },
+          { label: 'Гарантійний термін', value: '' },
+        ],
+      }),
+    ).toEqual({
+      kpTerms: [
+        { label: 'Умови оплати', value: 'Передоплата' },
+        { label: 'Гарантійний термін', value: '' },
+      ],
+    });
+    const many = Array.from({ length: 13 }, (_, i) => ({ label: `Умова ${i}`, value: 'x' }));
+    expect(errorOf(() => parse(settingsPatchSchema, { kpTerms: many })).message).toBe('Умов у КП — не більше 12');
+  });
 });

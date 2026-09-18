@@ -9,6 +9,7 @@ import type {
   UserRole,
 } from '../enums';
 import type { ISODateTime, UUID } from './common';
+import type { KpTerm } from './kp';
 
 export interface UserDto {
   id: UUID;
@@ -65,6 +66,8 @@ export interface AppSettings {
   kpShowImages: boolean;
   /** 3 */
   kpValidityDays: number;
+  /** Типові умови в КП (у бланку можна змінити під клієнта). */
+  kpTerms: KpTerm[];
   /** 'net' — базова ціна КП від ФОП */
   fopPriceBasis: FopPriceBasis;
   /** 'keep' */

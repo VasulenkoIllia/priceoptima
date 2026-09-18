@@ -35,6 +35,10 @@ const snapshot = buildKpSnapshot({
   },
   buyer: kpBuyerOf({ nameShort: 'ТОВ «БК БУДІНВЕСТ»', edrpou: '41000011' }, 'БУДІНВЕСТ', { fullName: 'Петренко Андрій', email: 'a.petrenko@budinvest.example', phone: '067-000-12-34' }),
   managerName: 'Коваль О.В., тел. 067 000 11 22',
+  terms: [
+    { label: 'Умови оплати', value: 'Передоплата 100 %' },
+    { label: 'Гарантійний термін', value: '12 місяців' },
+  ],
 });
 
 describe('файли КП з одного знімка', () => {
@@ -58,6 +62,10 @@ describe('файли КП з одного знімка', () => {
     expect(pipe!.slice(5, 8)).toEqual([120, 110, 13200]);
     expect(total).toBe(snapshot.totals.totalGross);
     expect(total).toBe(17487);
+    const cells: unknown[] = [];
+    ws.eachRow((row) => cells.push(row.getCell(1).value, row.getCell(3).value));
+    expect(cells).toContain('Умови оплати:');
+    expect(cells).toContain('Передоплата 100 %');
     expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
   });
 });

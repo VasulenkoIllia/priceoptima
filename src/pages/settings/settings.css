@@ -12,6 +12,9 @@
   align-items: start;
   max-width: 1200px;
 }
+.po-set-wide {
+  grid-column: 1 / -1;
+}
 .po-set-cards .ant-form-item {
   margin-bottom: 14px;
 }

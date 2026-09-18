@@ -11,6 +11,7 @@ import {
   kpSellerBlock,
   latestBaseKp,
 } from '../kp-snapshot';
+import { DEFAULT_KP_TERMS, resolveKpTerms } from '../defaults';
 
 const seller = {
   nameShort: 'ТОВ «ДЕМО»',
@@ -44,6 +45,10 @@ const base = buildKpSnapshot({
   seller,
   buyer: kpBuyerOf({ nameShort: 'ТОВ «КЛІЄНТ»', edrpou: '41000011' }, 'Клієнт', { fullName: 'Петренко Андрій', email: null, phone: '067' }),
   managerName: kpManagerName({ shortName: 'Коваль О.В.', phone: '067 000' }),
+  terms: [
+    { label: ' Умови оплати ', value: ' Передоплата 50 % ' },
+    { label: 'Гарантійний термін', value: '' },
+  ],
 });
 
 describe('знімок КП', () => {
@@ -59,6 +64,18 @@ describe('знімок КП', () => {
     expect(base.buyer).toMatchObject({ title: 'ТОВ «КЛІЄНТ»', lines: ['код ЄДРПОУ 41000011'], contactName: 'Петренко Андрій', phone: '067' });
     expect(base.managerName).toBe('Коваль О.В., тел. 067 000');
     expect(kpNumberLabel(null, 7)).toBe('— / 000007');
+  });
+
+  it('умови КП (п.3 правок): без порожніх; свої в заявці або типові з Налаштувань', () => {
+    expect(base.terms).toEqual([{ label: 'Умови оплати', value: 'Передоплата 50 %' }]);
+    const defaults = [{ label: 'Умови поставки', value: 'Самовивіз' }];
+    expect(resolveKpTerms(null, defaults)).toEqual(defaults);
+    expect(resolveKpTerms(undefined, defaults)).toEqual(defaults);
+    expect(resolveKpTerms([{ label: 'Термін поставки', value: '2 дні' }], defaults)).toEqual([{ label: 'Термін поставки', value: '2 дні' }]);
+    // усі умови прибрали в цьому КП — не друкуються
+    expect(resolveKpTerms([], defaults)).toEqual([]);
+    // у старих налаштуваннях умов немає — вбудовані типові
+    expect(resolveKpTerms(null, undefined).map((t) => t.label)).toEqual(DEFAULT_KP_TERMS.map((t) => t.label));
   });
 
   it('реквізити: ТОВ — ЄДРПОУ й ІПН; ФОП — РНОКПП і «не є платником ПДВ»', () => {

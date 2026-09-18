@@ -140,6 +140,8 @@ model AppSettings {
   kpNameSource                String   @default("work")
   kpShowImages                Boolean  @default(false)
   kpValidityDays              Int      @default(14)
+  /// Типові умови КП [{label, value}]; null — вбудовані типові (Умови поставки, Термін, Оплата, Гарантія).
+  kpTerms                     Json?
   fopPriceBasis               String   @default("net")
   importMissingPolicy         String   @default("keep")
   nextRequestNumber           Int      @default(1)

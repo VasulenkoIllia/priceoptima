@@ -1,5 +1,7 @@
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
+export { KpTermsEditor } from './KpTermsEditor';
+export type { KpTermsEditorProps } from './KpTermsEditor';
 export { LockBanner } from './LockBanner';
 export type { LockBannerProps } from './LockBanner';
 export { MoneyCell } from './MoneyCell';

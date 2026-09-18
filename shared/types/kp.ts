@@ -1,6 +1,12 @@
 import type { KpNameSource, KpVatMode } from '../enums';
 import type { ISODate, ISODateTime, UUID, UserRef } from './common';
 
+/** Умова в КП «назва: значення» (п.3 правок): Умови поставки, Термін поставки, Умови оплати, Гарантійний термін або своя. */
+export interface KpTerm {
+  label: string;
+  value: string;
+}
+
 export interface KpSettings {
   /** d: requests.ownCompanyId */
   ownCompanyId?: UUID;
@@ -17,6 +23,8 @@ export interface KpSettings {
   extraInfo: string | null;
   /** КП лише з погоджених рядків і погоджених к-стей (фінальне КП). */
   onlyApproved: boolean;
+  /** Умови для цього клієнта; null або немає — типові з Налаштувань. */
+  terms?: KpTerm[] | null;
 }
 
 export interface KpPartyBlock {
@@ -72,6 +80,8 @@ export interface KpSnapshot {
   managerName: string;
   validUntil: ISODate | null;
   footer: string | null;
+  /** Умови внизу КП (порожні не друкуються); у старих знімках немає. */
+  terms?: KpTerm[];
 }
 
 export interface KpDocumentDto {

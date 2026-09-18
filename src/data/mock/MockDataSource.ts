@@ -4,8 +4,10 @@ import { matchesAllTokens, normalizeSku, searchTokens } from '@shared/parse';
 import {
   catalogSnapshotOf,
   createSupplierBlock,
+  DEFAULT_KP_TERMS,
   defaultKpSettings,
   defaultMarkupSettings,
+  KP_TERMS_MAX,
   normalizeInputPrice,
   pricingSettingsFrom,
   refreshOfferFromCatalog,
@@ -100,6 +102,11 @@ import { availabilityOf, buildSeedDb, headerRatesOn, productKeys, SEED_VERSION, 
 
 /** Під цим ключем браузер пам'ятає користувача, що увійшов. */
 export const AUTH_USER_KEY = 'po-user-id';
+
+/** Налаштування з БД, збереженої до появи нових полів (умови КП), — із типовими значеннями. */
+function withSettingsDefaults(settings: AppSettings): AppSettings {
+  return clone({ ...settings, kpTerms: settings.kpTerms ?? DEFAULT_KP_TERMS.map((t) => ({ ...t })) });
+}
 /** Імітація оновлення прайсу: частка товарів, у яких змінюється ціна. */
 const PRICE_CHANGE_SHARE = 0.06;
 const COPY_INCLUDE_LABELS: Record<CopyRequestBody['include'], string> = {
@@ -260,7 +267,7 @@ export class MockDataSource implements DataSource {
   getSettings(): Promise<AppSettings> {
     return this.call(() => {
       this.requireUser();
-      return clone(this.db.settings);
+      return withSettingsDefaults(this.db.settings);
     });
   }
 
@@ -277,9 +284,14 @@ export class MockDataSource implements DataSource {
         throw new DataSourceError('VALIDATION_ERROR', 'Номер КП — ціле число, більше нуля');
       }
       const p = clone(patch);
+      if (p.kpTerms) {
+        // умова без назви не зберігається; значення може бути порожнім (тоді в КП не друкується)
+        p.kpTerms = p.kpTerms.map((t) => ({ label: t.label.trim(), value: t.value.trim() })).filter((t) => t.label);
+        if (p.kpTerms.length > KP_TERMS_MAX) throw new DataSourceError('VALIDATION_ERROR', `Умов у КП — не більше ${KP_TERMS_MAX}`);
+      }
       this.mutate((db) => Object.assign(db.settings, p));
       this.locks.setTtl(this.db.settings.lockTtlSeconds * 1000);
-      return clone(this.db.settings);
+      return withSettingsDefaults(this.db.settings);
     });
   }
 
@@ -1213,6 +1225,7 @@ export class MockDataSource implements DataSource {
         settings: clone(body.settings),
         final: !!body.final,
         ctx: { now, settings: pricingSettingsFrom(this.db.settings), suppliers: supplierRefsOf(this.db) },
+        defaultTerms: this.db.settings.kpTerms,
       };
       // перевірка до зміни БД: помилка не витрачає номер КП
       makeKpDocument(this.db, r, { ...input, id: 'check', kpNumber: this.db.settings.nextKpNumber });

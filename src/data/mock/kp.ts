@@ -9,10 +9,11 @@ import {
   computeRequest,
   kpBuyerOf,
   kpManagerName,
+  resolveKpTerms,
   type KpBuyer,
   type KpSeller,
 } from '@shared/pricing';
-import type { ISODate, ISODateTime, KpDocumentDto, KpSettings, KpSnapshot, PricingContext, RequestHeader, UserRef, UUID } from '@shared/types';
+import type { ISODate, ISODateTime, KpDocumentDto, KpSettings, KpSnapshot, KpTerm, PricingContext, RequestHeader, UserRef, UUID } from '@shared/types';
 import { DataSourceError } from '../errors';
 import type { MockDb, StoredRequest } from './db';
 
@@ -47,6 +48,8 @@ export interface MakeKpInput {
   settings: KpSettings;
   final: boolean;
   ctx: PricingContext;
+  /** Типові умови з Налаштувань (якщо в заявці своїх немає). */
+  defaultTerms?: readonly KpTerm[] | null;
 }
 
 /** Нова версія КП (знімок); помилка — якщо КП сформувати не можна. */
@@ -79,6 +82,7 @@ export function makeKpDocument(db: Pick<MockDb, 'ownCompanies' | 'clients' | 'us
       seller: parties.seller,
       buyer: parties.buyer,
       managerName: parties.managerName,
+      terms: resolveKpTerms(input.settings.terms, input.defaultTerms),
     });
     ownCompanyId = parties.ownCompanyId;
   }

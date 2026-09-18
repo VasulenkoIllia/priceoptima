@@ -283,6 +283,11 @@
   margin: 12px 0 14px;
   border-collapse: collapse;
 }
+.po-kp-terms {
+  margin: 8px 0 0;
+  border-collapse: collapse;
+}
+.po-kp-terms th,
 .po-kp-parties th {
   padding: 2px 14px 2px 0;
   text-align: left;
@@ -291,6 +296,7 @@
   color: #555;
   white-space: nowrap;
 }
+.po-kp-terms td,
 .po-kp-parties td {
   padding: 2px 0;
 }

@@ -1,4 +1,4 @@
-// Параметри системи: ціни і націнка, КП, нумерація.
+// Параметри системи: ціни і націнка, КП (разом із типовими умовами), нумерація.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Form, InputNumber, Result, Select, Spin } from 'antd';
 import {
@@ -13,7 +13,8 @@ import {
   PRICE_ROUNDING_LABELS,
   type KpVatMode,
 } from '@shared/enums';
-import type { AppSettings, AppSettingsPatch } from '@shared/types';
+import type { AppSettings, AppSettingsPatch, KpTerm } from '@shared/types';
+import { KpTermsEditor } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 
 type FormValues = Pick<
@@ -27,6 +28,7 @@ type FormValues = Pick<
   | 'kpValidityDays'
   | 'kpNameSource'
   | 'kpDefaultVatMode'
+  | 'kpTerms'
   | 'nextRequestNumber'
   | 'nextKpNumber'
 >;
@@ -35,6 +37,13 @@ const options = <T extends string>(values: readonly T[], labels: Record<T, strin
 /** ФОП-режим «без ПДВ» обирається в заявці автоматично — за замовчуванням лише ці два. */
 const KP_VAT_OPTIONS = options<KpVatMode>(['without_vat', 'with_vat'], KP_VAT_MODE_LABELS);
 const NUM = { style: { width: '100%' }, decimalSeparator: ',' } as const;
+
+const NO_TERMS: KpTerm[] = [];
+
+/** Поле форми для умов КП (Form.Item передає value / onChange). */
+function KpTermsField({ value, onChange }: { value?: KpTerm[]; onChange?: (next: KpTerm[]) => void }) {
+  return <KpTermsEditor value={value ?? NO_TERMS} onChange={(next) => onChange?.(next)} />;
+}
 
 function pickValues(s: AppSettings): FormValues {
   return {
@@ -47,6 +56,7 @@ function pickValues(s: AppSettings): FormValues {
     kpValidityDays: s.kpValidityDays,
     kpNameSource: s.kpNameSource,
     kpDefaultVatMode: s.kpDefaultVatMode,
+    kpTerms: s.kpTerms,
     nextRequestNumber: s.nextRequestNumber,
     nextKpNumber: s.nextKpNumber,
   };
@@ -62,8 +72,9 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
     mutationFn: async (v: FormValues) => {
       // лічильники лише збільшуються: порівнюємо зі свіжими значеннями (заявку могли створити, поки форма відкрита)
       const current = await ds.getSettings();
-      const { nextRequestNumber, nextKpNumber, ...rest } = v;
-      const patch: AppSettingsPatch = { ...rest };
+      const { nextRequestNumber, nextKpNumber, kpTerms, ...rest } = v;
+      // умова без назви не зберігається; без значення — зберігається, але в КП не друкується
+      const patch: AppSettingsPatch = { ...rest, kpTerms: kpTerms.map((t) => ({ label: t.label.trim(), value: t.value.trim() })).filter((t) => t.label) };
       if (nextRequestNumber > current.nextRequestNumber) patch.nextRequestNumber = nextRequestNumber;
       // номер КП — стала частина «2114 / номер заявки», його можна змінити будь-коли
       if (nextKpNumber !== current.nextKpNumber) patch.nextKpNumber = nextKpNumber;
@@ -73,7 +84,7 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
       queryClient.setQueryData(qk.settings, next);
       void queryClient.invalidateQueries({ queryKey: qk.settings });
       void queryClient.invalidateQueries({ queryKey: qk.me });
-      form.setFieldsValue({ nextRequestNumber: next.nextRequestNumber, nextKpNumber: next.nextKpNumber });
+      form.setFieldsValue({ nextRequestNumber: next.nextRequestNumber, nextKpNumber: next.nextKpNumber, kpTerms: next.kpTerms });
       message.success('Налаштування збережено');
     },
     onError: (e) => message.error(errorMessage(e)),
@@ -130,6 +141,15 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
             style={{ marginBottom: 0 }}
           >
             <InputNumber {...NUM} min={1} precision={0} />
+          </Form.Item>
+        </Card>
+        <Card title="Умови в КП (типові)" size="small" className="po-set-wide">
+          <p className="po-muted" style={{ marginTop: 0 }}>
+            Друкуються внизу кожного КП. У бланку КП заявки їх можна змінити під клієнта, прибрати або додати свою. Порожнє значення не
+            друкується.
+          </p>
+          <Form.Item name="kpTerms" style={{ marginBottom: 0 }}>
+            <KpTermsField />
           </Form.Item>
         </Card>
       </div>

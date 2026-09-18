@@ -1,7 +1,7 @@
 // Бланк КП (КП-1) у HTML — попередній перегляд і перегляд сформованих версій. PDF і Excel будуються з того самого знімка.
 import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
-import { kpAmountLine, kpContactsLine, kpPartyRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
+import { kpAmountLine, kpContactsLine, kpPartyRows, kpTermRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
 
 export interface KpDocumentViewProps {
   snapshot: KpSnapshot;
@@ -11,6 +11,7 @@ export interface KpDocumentViewProps {
 
 export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
   const valid = kpValidLine(s);
+  const terms = kpTermRows(s);
   const photos = s.columns.showImages;
   return (
     <article className="po-kp-paper">
@@ -109,6 +110,18 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
 
       <p className="po-kp-words">{kpAmountLine(s)}</p>
       {valid ? <p>{valid}</p> : null}
+      {terms.length ? (
+        <table className="po-kp-terms">
+          <tbody>
+            {terms.map((t, i) => (
+              <tr key={i}>
+                <th>{t.label}</th>
+                <td>{t.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
       <p className="po-kp-manager">Менеджер: {s.managerName}</p>
       {s.footer ? <p className="po-kp-footer">{s.footer}</p> : null}
     </article>

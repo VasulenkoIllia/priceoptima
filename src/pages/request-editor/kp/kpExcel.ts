@@ -2,7 +2,7 @@
 import type { Border, Workbook, Worksheet } from 'exceljs';
 import type { KpSnapshot } from '@shared/types';
 import { loadExcelJs, saveBlob, XLSX_MIME } from '@/lib/files';
-import { kpAmountLine, kpContactsLine, kpFileName, kpPartyRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
+import { kpAmountLine, kpContactsLine, kpFileName, kpPartyRows, kpTermRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
 
 const MONEY = '#,##0.00';
 const QTY = '#,##0.###';
@@ -103,6 +103,20 @@ export async function buildKpWorkbook(s: KpSnapshot): Promise<Workbook> {
   text(kpAmountLine(s));
   const valid = kpValidLine(s);
   if (valid) text(valid);
+  const terms = kpTermRows(s);
+  if (terms.length) r++;
+  for (const t of terms) {
+    ws.mergeCells(r, 1, r, 2);
+    ws.mergeCells(r, 3, r, COLS);
+    const label = ws.getCell(r, 1);
+    label.value = t.label;
+    label.font = { bold: true, color: { argb: 'FF555555' } };
+    label.alignment = { vertical: 'top', wrapText: true };
+    const value = ws.getCell(r, 3);
+    value.value = t.value;
+    value.alignment = { vertical: 'top', wrapText: true };
+    r++;
+  }
   r++;
   text(`Менеджер: ${s.managerName}`);
   if (s.footer) text(s.footer, { size: 9, color: 'FF666666' });

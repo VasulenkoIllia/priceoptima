@@ -1,6 +1,6 @@
 // Спільна розкладка бланка КП для перегляду, PDF і Excel: заголовок, сторони, підсумки — з одного знімка.
 import { formatDate, formatMoney, formatPct, formatRequestNumber } from '@shared/format';
-import type { KpSnapshot } from '@shared/types';
+import type { KpSnapshot, KpTerm } from '@shared/types';
 
 export interface KpTotalLine {
   label: string;
@@ -61,6 +61,11 @@ export function kpAmountLine(s: KpSnapshot): string {
   const t = s.totals;
   const vat = t.vatMode === 'no_vat' ? 'без ПДВ' : `у т.ч. ПДВ ${formatMoney(t.vat)} грн`;
   return `Всього на суму: ${s.amountInWords}, ${vat}.`;
+}
+
+/** Умови внизу КП (п.3 правок): «Умови поставки: …». У старих знімках їх немає. */
+export function kpTermRows(s: KpSnapshot): KpTerm[] {
+  return (s.terms ?? []).map((t) => ({ label: `${t.label}:`, value: t.value }));
 }
 
 export function kpValidLine(s: KpSnapshot): string | null {
