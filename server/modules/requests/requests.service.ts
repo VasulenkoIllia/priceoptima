@@ -397,6 +397,10 @@ export async function saveRequestDocument(id: UUID, patch: DocumentPatch, actor:
         updatedById: actor.id,
       },
     });
+    if (patch.release) {
+      await tx.requestLock.deleteMany({ where: { requestId: id, userId: actor.id, sessionId: patch.sessionId } });
+      return { version: updated.version, status: updated.status, totals, lockExpiresAt: null };
+    }
     const ttl = (env.settings.lockTtlSeconds ?? 180) * 1000;
     const lock = await tx.requestLock.update({ where: { requestId: id }, data: { expiresAt: new Date(now.getTime() + ttl) } });
     return { version: updated.version, status: updated.status, totals, lockExpiresAt: lock.expiresAt.toISOString() };

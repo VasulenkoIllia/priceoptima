@@ -266,6 +266,8 @@ export interface DocumentPatch {
   markup?: Partial<MarkupSettings>;
   upsert?: { lines?: RequestLineInput[]; blocks?: SupplierBlockInput[]; offers?: OfferInput[] };
   delete?: { lineIds?: UUID[]; blockIds?: UUID[]; offerIds?: UUID[] };
+  /** Закриття вкладки: після збереження одразу звільнити заявку (одним запитом — другий після закриття може не піти). */
+  release?: boolean;
 }
 
 export interface RequestTotalsSummary {
@@ -283,7 +285,8 @@ export interface RequestTotalsSummary {
 export interface SaveDocumentResponse {
   version: number;
   updatedAt: ISODateTime;
-  lockExpiresAt: ISODateTime;
+  /** null — заявку звільнено (release). */
+  lockExpiresAt: ISODateTime | null;
   status: RequestStatus;
   totals: RequestTotalsSummary;
 }

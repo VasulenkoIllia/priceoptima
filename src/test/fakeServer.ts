@@ -305,9 +305,14 @@ class FakeTab {
     r.state = after;
     r.version += 1;
     r.updatedAt = at;
+    const totals = requestTotals(after, ctx, []);
+    if (patch.release) {
+      this.srv.locks.delete(id);
+      return { version: r.version, status: after.header.status, totals, lockExpiresAt: null, updatedAt: at };
+    }
     const lock = this.srv.locks.get(id)!;
     lock.expiresAt = this.srv.clock.t + this.srv.ttl();
-    return { version: r.version, status: after.header.status, totals: requestTotals(after, ctx, []), lockExpiresAt: new Date(lock.expiresAt).toISOString(), updatedAt: at };
+    return { version: r.version, status: after.header.status, totals, lockExpiresAt: new Date(lock.expiresAt).toISOString(), updatedAt: at };
   }
 
   async changeStatus(id: UUID, body: StatusChangeBody): Promise<StatusChangeResult> {

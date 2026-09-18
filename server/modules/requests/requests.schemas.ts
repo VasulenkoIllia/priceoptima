@@ -164,6 +164,7 @@ const MAX_ROWS = 5000;
 export const documentPatchSchema = z.object({
   baseVersion: z.number().int().min(1),
   sessionId: id,
+  release: z.boolean().optional(),
   header: headerPatchSchema.optional(),
   markup: markupPatchSchema.optional(),
   upsert: z

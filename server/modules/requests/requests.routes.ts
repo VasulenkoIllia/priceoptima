@@ -164,7 +164,8 @@ requestsRouter.get(
     const file = await attachmentFile(id, fileId);
     res.setHeader('Cache-Control', 'private, no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    // завжди як завантаження: вміст від клієнта в браузері не відкриваємо
+    // завжди як завантаження й без типу за розширенням: вміст від клієнта в браузері не відкриваємо
+    res.setHeader('Content-Type', 'application/octet-stream');
     res.download(file.absolutePath, file.filename, { dotfiles: 'allow' });
   }),
 );

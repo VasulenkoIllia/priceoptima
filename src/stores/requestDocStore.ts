@@ -593,7 +593,8 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       }
     }
 
-    // Закриття вкладки: дельта з keepalive, потім звільнення блокування (після збереження — воно перевіряє блокування).
+    // Закриття вкладки: незбережена дельта й звільнення заявки — одним запитом з keepalive
+    // (другий запит після закриття сторінки може вже не піти).
     function onPageHide(): void {
       const s = get();
       if (!s.requestId || !s.hasLock) return;
@@ -601,25 +602,33 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       clearSaveTimer();
       stopHeartbeat();
       const changes = lastSaved && s.doc && isEditableStatus(s.doc.header.status) ? diffDocuments(lastSaved, s.doc) : null;
-      const release = () => void ds.releaseLock(id, { keepalive: true }).catch(() => undefined);
       if (changes) {
         const sent = s.doc;
-        ds.saveRequestDocument(id, { baseVersion: s.version, sessionId: ds.sessionId, ...changes }, { keepalive: true })
+        ds.saveRequestDocument(id, { baseVersion: s.version, sessionId: ds.sessionId, ...changes, release: true }, { keepalive: true })
           .then((res) => {
             lastSaved = sent;
             set({ version: res.version, dirty: false });
           })
-          .catch(() => undefined)
-          .finally(release);
+          .catch(() => undefined);
       } else {
-        release();
+        void ds.releaseLock(id, { keepalive: true }).catch(() => undefined);
       }
       set({ hasLock: false, ...readOnlyOf(s.doc, false) });
+    }
+
+    // Незбережені зміни (автозбереження ще не встигло) — браузер перепитає, чи закривати вкладку.
+    function onBeforeUnload(e: BeforeUnloadEvent): void {
+      const s = get();
+      if (s.hasLock && (s.dirty || saving)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
     }
 
     const bind = deps.bindPageLifecycle ?? typeof window !== 'undefined';
     if (bind && typeof window !== 'undefined') {
       window.addEventListener('pagehide', onPageHide);
+      window.addEventListener('beforeunload', onBeforeUnload);
       window.addEventListener('pageshow', (e) => {
         if (e.persisted && get().requestId) void retryLock();
       });

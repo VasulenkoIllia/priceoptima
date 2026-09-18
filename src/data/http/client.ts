@@ -8,6 +8,9 @@ const BASE = '/api';
 /** Ідентифікатор вкладки (одне завантаження сторінки): блокування заявки належить саме їй. */
 export const SESSION_ID = newId();
 
+/** Із запасом до ліміту браузера на тіло keepalive-запитів (64 КБ; кирилиця в UTF-8 — 2 байти на символ). */
+const KEEPALIVE_MAX_CHARS = 30_000;
+
 /** Код за статусом, якщо сервер не повернув свій. */
 function codeOfStatus(status: number): ApiErrorCode {
   if (status === 401) return 'UNAUTHORIZED';
@@ -45,9 +48,12 @@ function url(path: string, query?: Record<string, QueryValue>): string {
 
 /** Запит до API; помилка — DataSourceError з кодом і повідомленням сервера. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { method = options.body || options.form ? 'POST' : 'GET', body, form, query, signal, keepalive } = options;
+  const { method = options.body || options.form ? 'POST' : 'GET', body, form, query, signal } = options;
   const headers: Record<string, string> = { 'X-Session-Id': SESSION_ID };
   if (!form && body !== undefined) headers['Content-Type'] = 'application/json';
+  const json = body === undefined ? undefined : JSON.stringify(body);
+  // браузер приймає keepalive-запити лише до ~64 КБ — більший піде звичайним (закриття вкладки перепитує, поки є незбережене)
+  const keepalive = options.keepalive && (json?.length ?? 0) < KEEPALIVE_MAX_CHARS;
   let res: Response;
   try {
     res = await fetch(url(path, query), {
@@ -56,7 +62,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       signal,
       keepalive,
       headers,
-      body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
+      body: form ?? json,
     });
   } catch (e) {
     throw new DataSourceError('INTERNAL', 'Сервер недоступний — перевірте зʼєднання', e);
