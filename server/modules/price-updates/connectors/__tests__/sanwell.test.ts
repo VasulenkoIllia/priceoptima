@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseSanwellStock, parseSanwellXml, sanwellUnit } from '../sanwellXml';
+import { parseSanwellStock, parseSanwellXml, sanwellUnit } from '../sanwell';
 import { NO_PURCHASE_PRICES_WARNING } from '../collect';
 import type { PriceRow } from '../types';
 

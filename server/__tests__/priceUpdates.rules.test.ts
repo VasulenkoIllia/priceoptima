@@ -1,11 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { isFeedConnector } from '@shared/catalog/connectors';
 import { FULL_ROLES } from '../modules/price-updates/plan';
 import {
   archiveCutoff,
   DEFAULT_FEED_HOUR,
   feedHourOf,
-  isLinkFormat,
   lastScheduledAt,
   priceFileStoredPath,
   rolesFor,
@@ -24,11 +24,11 @@ describe('ролі джерела прайсу', () => {
   });
 });
 
-describe('формат і година вигрузки', () => {
-  it('за посиланням розбираємо json, xml і yml', () => {
-    expect(['json', 'xml', 'yml'].every(isLinkFormat)).toBe(true);
-    expect(isLinkFormat('xlsx')).toBe(false);
-    expect(isLinkFormat(null)).toBe(false);
+describe('підключення й година вигрузки', () => {
+  it('за посиланням — лише відомі підключення постачальників', () => {
+    expect(['sandi', 'sanwell', 'yml'].every(isFeedConnector)).toBe(true);
+    expect(isFeedConnector('json')).toBe(false);
+    expect(isFeedConnector(null)).toBe(false);
   });
 
   it('година з налаштувань або 6:00 за замовчуванням', () => {

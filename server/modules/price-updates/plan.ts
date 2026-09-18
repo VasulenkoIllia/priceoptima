@@ -23,7 +23,7 @@ import type {
   UUID,
 } from '@shared/types';
 import { searchTextOf } from '../products/products.rules';
-import { availabilityForQty, imageList, type PriceRow } from './adapters/types';
+import { availabilityForQty, imageList, type PriceRow } from './connectors/types';
 
 /** Прайс, у якому позицій менше за цю частку від каталогу, не застосовуємо. */
 export const MIN_ROWS_SHARE = 0.5;

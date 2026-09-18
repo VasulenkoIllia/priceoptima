@@ -1,6 +1,7 @@
 // Постачальник із бази → типи фронта.
 // Джерело прайсу віддаємо без посилання й без секрету: назовні йдуть лише хост і налаштування розкладу.
 import type { Supplier, SupplierContact, SupplierLegalEntity, SupplierPriceFeed } from '@prisma/client';
+import { isFeedConnector } from '@shared/catalog/connectors';
 import { CURRENCY_CODES, RATE_POLICIES } from '@shared/enums';
 import type {
   SupplierContactDto,
@@ -22,7 +23,7 @@ export type SupplierDetailRow = SupplierRow & {
 /** Постачальник без налаштованої вигрузки: прайс приносить менеджер файлом. */
 const MANUAL_SOURCE: SupplierPriceSource = {
   kind: 'manual',
-  format: null,
+  connector: null,
   host: null,
   scheduleHour: null,
   hasPurchasePrice: true,
@@ -43,7 +44,7 @@ export function toPriceSource(feed: SupplierPriceFeed | null): SupplierPriceSour
   if (!feed) return { ...MANUAL_SOURCE };
   return {
     kind: feed.kind,
-    format: feed.format,
+    connector: isFeedConnector(feed.connector) ? feed.connector : null,
     host: hostOf(feed.url),
     scheduleHour: feed.scheduleHour,
     hasPurchasePrice: feed.hasPurchasePrice,

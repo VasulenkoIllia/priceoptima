@@ -184,7 +184,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       const s = await ds.getSupplierPriceSource(supplierId);
       return ds.saveSupplierPriceSource(supplierId, {
         kind: 'hybrid',
-        format: s.format,
+        connector: s.connector,
         auth: s.auth,
         scheduleHour: s.scheduleHour,
         hasPurchasePrice: s.hasPurchasePrice,

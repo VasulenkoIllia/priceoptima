@@ -2,6 +2,7 @@
 // Усі зміни одного оновлення пишемо однією транзакцією великими пакетами (без запиту на кожен рядок):
 // або прайс застосовано повністю, або не застосовано нічого й у журналі — запис із помилкою.
 import { Prisma, type PriceImportFile, type Supplier, type SupplierPriceFeed, type User } from '@prisma/client';
+import { FEED_CONNECTOR_INFO, isFeedConnector, type FeedConnector } from '@shared/catalog/connectors';
 import type { RatesPair, UUID } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
@@ -13,7 +14,7 @@ import { imageUrlOf } from '../images/images.mapper';
 import { removeImageFile, safeFileName, saveImageFile } from '../images/images.storage';
 import { today } from '../rates/rates.service';
 import { listUnits } from '../units/units.service';
-import { parseFeed, type AdapterResult, type PriceRow } from './adapters';
+import { parseFeed, type AdapterResult, type PriceRow } from './connectors';
 import { importRowsToPriceRows } from './importRows';
 import {
   isRejected,
@@ -37,7 +38,6 @@ import {
 import {
   archiveCutoff,
   feedHourOf,
-  isLinkFormat,
   priceFileStoredPath,
   rolesFor,
 } from './priceUpdates.rules';
@@ -123,9 +123,9 @@ export async function runFeedUpdate(
   if (feed.kind === 'manual') {
     throw validationError('Прайс цього постачальника завантажують файлом — оновлення за посиланням вимкнене');
   }
-  const format = feed.format;
-  if (!isLinkFormat(format)) {
-    throw validationError('За посиланням розбираємо лише JSON, XML або YML — перевірте формат вигрузки');
+  const connector = feed.connector;
+  if (!isFeedConnector(connector)) {
+    throw validationError('Не вибрано, чия це вигрузка — оберіть підключення в налаштуваннях постачальника');
   }
 
   return withSupplierLock(supplierId, async () => {
@@ -139,7 +139,7 @@ export async function runFeedUpdate(
       fileName: null,
     };
     const body = await step(ctx, () => downloadFeed(feed, secrets));
-    const parsed = await step(ctx, async () => parseFeedBody(format, body, supplier, feed));
+    const parsed = await step(ctx, async () => parseFeedBody(connector, body, supplier, feed));
     // без закупівельних цін у вигрузці ціну входу не чіпаємо, хоч би що віддав розбір
     const rows = feed.hasPurchasePrice ? parsed.rows : parsed.rows.map((r) => ({ ...r, purchasePrice: null }));
     return applyPrice(ctx, {
@@ -163,13 +163,13 @@ async function step<T>(ctx: RunContext, task: () => Promise<T>): Promise<T> {
   }
 }
 
-function parseFeedBody(format: 'json' | 'xml' | 'yml', body: string, supplier: Supplier, feed: SupplierPriceFeed): AdapterResult {
+function parseFeedBody(connector: FeedConnector, body: string, supplier: Supplier, feed: SupplierPriceFeed): AdapterResult {
   try {
-    return parseFeed(format, body, { hasPurchasePrice: feed.hasPurchasePrice, defaultCurrency: supplier.defaultCurrency });
+    return parseFeed(connector, body, { hasPurchasePrice: feed.hasPurchasePrice, defaultCurrency: supplier.defaultCurrency });
   } catch (e) {
     // повідомлення адаптерів українською; технічні (JSON.parse тощо) показувати користувачу нема сенсу
     const reason = e instanceof Error && /[а-яіїєґ]/iu.test(e.message) ? `: ${e.message}` : ' — вміст не відповідає формату';
-    throw new Error(`Не вдалося розібрати вигрузку (${format.toUpperCase()})${reason}`);
+    throw new Error(`Не вдалося розібрати вигрузку (${FEED_CONNECTOR_INFO[connector].label})${reason}`);
   }
 }
 

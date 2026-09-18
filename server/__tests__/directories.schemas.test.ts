@@ -113,18 +113,19 @@ describe('джерело прайсу', () => {
     expect(out.secret).toBeUndefined();
   });
 
-  it('вигрузка за посиланням потребує формату', () => {
-    expect(messageOf(() => parse(priceSourceSchema, { kind: 'auto' }))).toBe('Вкажіть формат вигрузки');
+  it('вигрузка за посиланням потребує підключення постачальника', () => {
+    expect(messageOf(() => parse(priceSourceSchema, { kind: 'auto' }))).toBe('Оберіть, чия це вигрузка');
+    expect(messageOf(() => parse(priceSourceSchema, { kind: 'auto', connector: 'json' }))).toBe('Невідоме підключення постачальника');
   });
 
   it('посилання, як і секрет: відсутнє — лишити збережене, порожнє — прибрати', () => {
-    expect(parse(priceSourceSchema, { kind: 'auto', format: 'yml' }).url).toBeUndefined();
+    expect(parse(priceSourceSchema, { kind: 'auto', connector: 'yml' }).url).toBeUndefined();
     expect(parse(priceSourceSchema, { kind: 'manual', url: '  ' }).url).toBe('');
     expect(parse(priceSourceSchema, { kind: 'manual', url: null }).url).toBeNull();
   });
 
   it('посилання приймаємо лише http(s)', () => {
-    expect(messageOf(() => parse(priceSourceSchema, { kind: 'auto', format: 'yml', url: 'file:///etc/passwd' }))).toBe(
+    expect(messageOf(() => parse(priceSourceSchema, { kind: 'auto', connector: 'yml', url: 'file:///etc/passwd' }))).toBe(
       'Посилання має починатися з http:// або https://',
     );
     expect(isHttpUrl('https://feed.example.com/price.yml')).toBe(true);

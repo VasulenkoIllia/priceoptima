@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseYml, parseYmlRates, ymlStock } from '../ymlXml';
+import { parseYml, parseYmlRates, ymlStock } from '../yml';
 import { NO_PURCHASE_PRICES_WARNING } from '../collect';
 import type { PriceRow } from '../types';
 

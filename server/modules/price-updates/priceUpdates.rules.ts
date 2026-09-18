@@ -10,9 +10,6 @@ import { FULL_ROLES, type SourceRoles } from './plan';
 export const ARCHIVE_AFTER_DAYS = 30;
 /** Година щоденного оновлення за київським часом, якщо в постачальнику її не вказано. */
 export const DEFAULT_FEED_HOUR = 6;
-/** Формати, які вміємо розбирати за посиланням (csv і xlsx приносять файлом). */
-export const LINK_FORMATS = ['json', 'xml', 'yml'] as const;
-export type LinkFormat = (typeof LINK_FORMATS)[number];
 
 const DAY_MS = 86_400_000;
 
@@ -27,10 +24,6 @@ export function rolesFor(kind: PriceFeedKind | null | undefined, source: 'link' 
   return source === 'link'
     ? { purchasePrice: false, rrp: 'set', stock: true, assortment: true }
     : { purchasePrice: true, rrp: 'fill', stock: true, assortment: false };
-}
-
-export function isLinkFormat(format: string | null | undefined): format is LinkFormat {
-  return (LINK_FORMATS as readonly string[]).includes(format ?? '');
 }
 
 export function feedHourOf(scheduleHour: number | null | undefined): number {

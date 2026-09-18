@@ -1,11 +1,9 @@
 // Перевірка даних постачальника, його юросіб, контактів і джерела прайсу.
 import { z } from 'zod';
+import { FEED_CONNECTORS } from '@shared/catalog/connectors';
 import { CURRENCY_CODES, PRICE_COLUMN_ROLES, RATE_POLICIES } from '@shared/enums';
-import type { PriceFeedFormat } from '@shared/types';
 import { numberField, optionalIsoDateString, optionalNumberField, optionalText, trimmed } from '../../lib/fields';
 
-/** Формати вигрузок — як у схемі бази (enum PriceFeedFormat). */
-export const PRICE_FEED_FORMATS = ['json', 'yml', 'xml', 'csv', 'xlsx'] as const satisfies readonly PriceFeedFormat[];
 const FEED_AUTH = ['none', 'bearer', 'basic', 'query'] as const;
 const FEED_KINDS = ['auto', 'manual', 'hybrid'] as const;
 
@@ -80,8 +78,8 @@ export const supplierIdSchema = z.object({ id: z.uuid('Невірний іден
 export const priceSourceSchema = z
   .object({
     kind: z.enum(FEED_KINDS, { message: 'Невідомий спосіб отримання прайсу' }),
-    format: z
-      .enum(PRICE_FEED_FORMATS, { message: 'Невідомий формат вигрузки' })
+    connector: z
+      .enum(FEED_CONNECTORS, { message: 'Невідоме підключення постачальника' })
       .nullish()
       .transform((v) => v ?? null),
     /**
@@ -110,8 +108,8 @@ export const priceSourceSchema = z
     if (value.url && !isHttpUrl(value.url)) {
       ctx.addIssue({ code: 'custom', path: ['url'], message: 'Посилання має починатися з http:// або https://' });
     }
-    if (value.kind !== 'manual' && !value.format) {
-      ctx.addIssue({ code: 'custom', path: ['format'], message: 'Вкажіть формат вигрузки' });
+    if (value.kind !== 'manual' && !value.connector) {
+      ctx.addIssue({ code: 'custom', path: ['connector'], message: 'Оберіть, чия це вигрузка' });
     }
   });
 

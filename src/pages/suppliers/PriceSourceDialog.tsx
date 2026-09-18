@@ -1,19 +1,16 @@
-// Налаштування джерела прайсу: вигрузка за посиланням (формат, доступ, година оновлення) або файл від менеджера.
+// Налаштування джерела прайсу: вигрузка за посиланням (підключення постачальника, доступ, година оновлення) або файл від менеджера.
 // Посилання й токен сервер назад не віддає: у формі видно лише, що вони збережені, а порожнє поле означає «лишити як є».
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Form, Input, Modal, Radio, Select, Spin, Switch } from 'antd';
 import { useEffect } from 'react';
 import { formatDateTime } from '@shared/format';
-import type { PriceFeedAuth, PriceFeedFormat, PriceSourceKind, SupplierPriceSourceInput, SupplierPriceSourceSettings, UUID } from '@shared/types';
+import { FEED_CONNECTOR_INFO, FEED_CONNECTORS, isFeedConnector, type FeedConnector } from '@shared/catalog/connectors';
+import type { PriceFeedAuth, PriceSourceKind, SupplierPriceSourceInput, SupplierPriceSourceSettings, UUID } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
 import { viaLink } from './supplierView';
 
-/** Формати, які сервер уміє читати за посиланням. */
-const FEED_FORMATS: { value: PriceFeedFormat; label: string }[] = [
-  { value: 'json', label: 'JSON — вигрузка САНДІ' },
-  { value: 'xml', label: 'XML — вигрузка SANWELL' },
-  { value: 'yml', label: 'YML — формат Prom / Rozetka' },
-];
+/** Підключення, які сервер уміє читати за посиланням (у кожного постачальника своя вигрузка). */
+const CONNECTOR_OPTIONS = FEED_CONNECTORS.map((c) => ({ value: c, label: FEED_CONNECTOR_INFO[c].label }));
 
 const AUTH_OPTIONS: { value: PriceFeedAuth; label: string }[] = [
   { value: 'none', label: 'Без авторизації — ключ уже в посиланні' },
@@ -33,7 +30,7 @@ const KIND_HINTS: Record<PriceSourceKind, string> = {
 
 interface FormValues {
   kind: PriceSourceKind;
-  format: PriceFeedFormat | null;
+  connector: FeedConnector | null;
   url: string;
   auth: PriceFeedAuth;
   login: string;
@@ -46,7 +43,7 @@ interface FormValues {
 function toFormValues(s: SupplierPriceSourceSettings): FormValues {
   return {
     kind: s.kind,
-    format: s.format && FEED_FORMATS.some((f) => f.value === s.format) ? s.format : null,
+    connector: isFeedConnector(s.connector) ? s.connector : null,
     url: '',
     auth: s.auth,
     login: '',
@@ -72,7 +69,7 @@ export function buildPriceSourceInput(v: FormValues, current: SupplierPriceSourc
   }
   return {
     kind: v.kind,
-    format: auto ? v.format : null,
+    connector: auto ? v.connector : null,
     ...(url ? { url } : {}),
     auth: auto ? v.auth : 'none',
     ...(secret !== undefined ? { secret } : {}),
@@ -96,6 +93,7 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
   const [form] = Form.useForm<FormValues>();
   const kind = Form.useWatch('kind', form);
   const auth = Form.useWatch('auth', form);
+  const connector = Form.useWatch('connector', form);
   const settings = useQuery({ queryKey: qk.supplierPriceSource(supplierId), queryFn: () => ds.getSupplierPriceSource(supplierId), enabled: open });
   const current = settings.data;
 
@@ -162,8 +160,18 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
 
           {kind && viaLink(kind) ? (
             <>
-              <Form.Item name="format" label="Формат вигрузки" rules={[{ required: true, message: 'Вкажіть формат вигрузки' }]}>
-                <Select placeholder="Оберіть формат" options={FEED_FORMATS} />
+              <Form.Item
+                name="connector"
+                label="Вигрузка постачальника"
+                extra={connector ? FEED_CONNECTOR_INFO[connector].hint : 'Кожен постачальник вигружає прайс по-своєму — оберіть, чия це вигрузка'}
+                rules={[{ required: true, message: 'Оберіть, чия це вигрузка' }]}
+              >
+                <Select
+                  placeholder="Оберіть підключення"
+                  options={CONNECTOR_OPTIONS}
+                  // типовий доступ і вид ціни для цієї вигрузки; далі їх можна змінити
+                  onChange={(c: FeedConnector) => form.setFieldsValue({ auth: FEED_CONNECTOR_INFO[c].auth, hasPurchasePrice: FEED_CONNECTOR_INFO[c].hasPurchasePrice })}
+                />
               </Form.Item>
               <Form.Item
                 name="url"

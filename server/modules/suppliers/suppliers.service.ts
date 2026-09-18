@@ -85,10 +85,10 @@ export async function updatePriceSource(id: string, input: PriceSourceBody, acto
   }
   // змінили доступ — попередні помилки завантаження вже нічого не кажуть
   const accessChanged =
-    !feed || feed.url !== url || feed.secret !== secret || feed.auth !== input.auth || feed.format !== input.format || feed.kind !== input.kind;
+    !feed || feed.url !== url || feed.secret !== secret || feed.auth !== input.auth || feed.connector !== input.connector || feed.kind !== input.kind;
   const data = {
     kind: input.kind,
-    format: input.format,
+    connector: input.connector,
     url,
     auth: input.auth,
     secret,

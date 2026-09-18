@@ -42,7 +42,7 @@ const supplier: Supplier = {
 const feed: SupplierPriceFeed = {
   supplierId: supplier.id,
   kind: 'auto',
-  format: 'yml',
+  connector: 'yml',
   url: 'https://feed.example.com:8443/price.yml?token=дуже-секретний',
   auth: 'bearer',
   secret: 'v1.aaa.bbb.ccc',
@@ -74,7 +74,7 @@ describe('джерело прайсу', () => {
     const source = toPriceSource(feed);
     expect(source).toEqual({
       kind: 'auto',
-      format: 'yml',
+      connector: 'yml',
       host: 'feed.example.com:8443',
       scheduleHour: 6,
       hasPurchasePrice: true,
@@ -88,7 +88,7 @@ describe('джерело прайсу', () => {
   it('без налаштованої вигрузки прайс вважається файловим', () => {
     expect(toPriceSource(null)).toEqual({
       kind: 'manual',
-      format: null,
+      connector: null,
       host: null,
       scheduleHour: null,
       hasPurchasePrice: true,

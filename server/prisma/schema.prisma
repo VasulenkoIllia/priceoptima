@@ -67,14 +67,6 @@ enum PriceFeedKind {
   hybrid
 }
 
-enum PriceFeedFormat {
-  json
-  yml
-  xml
-  csv
-  xlsx
-}
-
 enum FeedAuth {
   none
   bearer
@@ -244,7 +236,8 @@ model SupplierPriceFeed {
   supplierId       String           @id
   supplier         Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   kind             PriceFeedKind    @default(manual)
-  format           PriceFeedFormat?
+  /// Модуль вигрузки постачальника (shared/catalog/connectors): sandi, sanwell, yml.
+  connector        String?
   url              String?
   auth             FeedAuth         @default(none)
   /// Токен або пароль (шифрується перед записом).

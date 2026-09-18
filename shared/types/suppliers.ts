@@ -42,8 +42,9 @@ export interface SupplierRef {
   b2bUrl: string | null;
 }
 
-/** Формат вигрузки прайсу. */
-export type PriceFeedFormat = 'json' | 'yml' | 'xml' | 'csv' | 'xlsx';
+/** Підключення автооновлення (модуль постачальника), див. shared/catalog/connectors. */
+export type { FeedConnector } from '../catalog/connectors';
+import type { FeedConnector } from '../catalog/connectors';
 
 /**
  * Звідки береться прайс: 'auto' — усе за посиланням; 'manual' — файлом від менеджера;
@@ -53,7 +54,8 @@ export type PriceSourceKind = 'auto' | 'manual' | 'hybrid';
 
 export interface SupplierPriceSource {
   kind: PriceSourceKind;
-  format: PriceFeedFormat | null;
+  /** Чиєю вигрузкою оновлюється за посиланням. */
+  connector: FeedConnector | null;
   /** Хост вигрузки — без ключів і токенів. */
   host: string | null;
   /** Година щоденного оновлення за посиланням (0–23) для 'auto' і 'hybrid'. */
@@ -79,7 +81,7 @@ export interface SupplierPriceSourceSettings extends SupplierPriceSource {
 
 export interface SupplierPriceSourceInput {
   kind: PriceSourceKind;
-  format: PriceFeedFormat | null;
+  connector: FeedConnector | null;
   /** Нове посилання; поле не передали — лишається збережене. */
   url?: string | null;
   auth: PriceFeedAuth;
