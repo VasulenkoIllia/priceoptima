@@ -30,6 +30,20 @@ describe('КП, історія заявки, прайси (mock)', () => {
     expect(checks.noPrice).toBeLessThan(checks.inKp);
   });
 
+  it('КП «Назва 1С»: актуальна назва з каталогу, навіть якщо її завантажили після підбору товару', async () => {
+    env = createTestEnv();
+    const tab = await editorTab();
+    const doc = await tab.getRequestDocument(REQ1);
+    const kpRow = (await tab.createKp(REQ1, { settings: doc.header.kpSettings, sessionId: tab.sessionId })).snapshot.rows[0];
+    const offer = doc.offers.find((o) => o.lineId === kpRow.lineId && o.sku === kpRow.code)!;
+    const block = doc.blocks.find((b) => b.id === offer.blockId)!;
+    expect(offer.name1c ?? null).not.toBe('Назва з 1С для КП');
+    const res = await tab.importName1c({ supplierId: block.supplierId!, rows: [{ sku: offer.sku!, name1c: 'Назва з 1С для КП' }] });
+    expect(res.updated).toBe(1);
+    const kp = await tab.createKp(REQ1, { settings: { ...doc.header.kpSettings, nameSource: 'name1c' }, sessionId: tab.sessionId });
+    expect(kp.snapshot.rows.find((r) => r.lineId === kpRow.lineId)?.name).toBe('Назва з 1С для КП');
+  });
+
   it('КП: номер сталий «2114 / номер заявки», знімок, реєстр, історія; без блокування — помилка', async () => {
     env = createTestEnv();
     const viewer = await loggedTab('b', DEMO_USER_IDS.bondar);

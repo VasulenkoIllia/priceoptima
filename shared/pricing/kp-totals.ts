@@ -88,12 +88,15 @@ export function approvedKpRows(baseRows: readonly KpRow[], lines: readonly Pick<
 /** Назва рядка КП за джерелом; власна kpName рядка перекриває назву товару. */
 export function kpRowNames(
   line: Pick<RequestLine, 'clientName' | 'kpName'>,
-  offer: Pick<Offer, 'nameWork' | 'name1c'> | null,
+  offer: (Pick<Offer, 'nameWork' | 'name1c'> & { catalog?: { name1c?: string | null } | null }) | null,
   source: KpNameSource,
 ): { name: string; nameSecondary: string | null } {
   const client = line.clientName.trim();
   if (source === 'client') return { name: line.kpName ?? client, nameSecondary: null };
-  if (source === 'name1c') return { name: line.kpName ?? offer?.name1c ?? offer?.nameWork ?? client, nameSecondary: null };
+  // назва 1С — актуальна з каталогу (могли завантажити або виправити вже після підбору товару), інакше зі знімка
+  if (source === 'name1c') {
+    return { name: line.kpName ?? offer?.catalog?.name1c ?? offer?.name1c ?? offer?.nameWork ?? client, nameSecondary: null };
+  }
   const own = line.kpName ?? offer?.nameWork ?? offer?.name1c ?? client;
   if (source === 'work_with_client') {
     return { name: own, nameSecondary: client !== '' && client !== own ? client : null };

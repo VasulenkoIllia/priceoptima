@@ -29,6 +29,7 @@ export function catalogSnapshotOf(product: ProductForOffer): CatalogSnapshot {
     stockQty: product.stockQty,
     availability: product.availability,
     isArchived: product.isArchived,
+    name1c: product.name1c,
   };
 }
 

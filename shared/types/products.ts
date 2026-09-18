@@ -211,6 +211,8 @@ export interface CatalogSnapshot {
   stockQty: number | null;
   availability: AvailabilityStatus;
   isArchived: boolean;
+  /** Назва 1С у каталозі зараз: у КП «Назва 1С» — якщо в пропозиції (знімку) її ще немає. */
+  name1c?: string | null;
 }
 
 /** Масове завантаження назв 1С: «артикул → назва 1С» у товари одного постачальника. */

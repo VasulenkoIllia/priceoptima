@@ -98,7 +98,7 @@ export const FOP_PRICE_BASIS_LABELS: Record<FopPriceBasis, string> = {
 
 export const KP_NAME_SOURCE_LABELS: Record<KpNameSource, string> = {
   work: 'Назва з каталогу',
-  name1c: 'Назва 1С (якщо немає, з каталогу)',
+  name1c: 'Назва 1С (якщо немає, робоча)',
   client: 'Як у заявці клієнта',
   work_with_client: 'З каталогу + клієнтська дрібним',
 };

@@ -6,6 +6,7 @@ import {
   buildFinalKpSnapshot,
   buildKpRows,
   buildKpSnapshot,
+  catalogSnapshotOf,
   computeRequest,
   kpBuyerOf,
   kpManagerName,
@@ -53,7 +54,11 @@ export interface MakeKpInput {
 }
 
 /** Нова версія КП (знімок); помилка — якщо КП сформувати не можна. */
-export function makeKpDocument(db: Pick<MockDb, 'ownCompanies' | 'clients' | 'users' | 'kps'>, r: StoredRequest, input: MakeKpInput): KpDocumentDto {
+export function makeKpDocument(
+  db: Pick<MockDb, 'ownCompanies' | 'clients' | 'users' | 'kps' | 'products'>,
+  r: StoredRequest,
+  input: MakeKpInput,
+): KpDocumentDto {
   const prev = db.kps[r.id] ?? [];
   let snapshot: KpSnapshot;
   let ownCompanyId: UUID;
@@ -69,7 +74,12 @@ export function makeKpDocument(db: Pick<MockDb, 'ownCompanies' | 'clients' | 'us
   } else {
     // рядки без ціни продажу в КП не входять (інтерфейс попереджає перед формуванням)
     const computed = computeRequest(r, input.ctx);
-    const rows = buildKpRows(r, computed, { ...input.settings, onlyApproved: false }, input.ctx);
+    // стан каталогу — для «Назва 1С», завантаженої вже після підбору товару
+    const offers = r.offers.map((o) => {
+      const p = o.productId ? db.products[o.productId] : undefined;
+      return p ? { ...o, catalog: catalogSnapshotOf(p) } : o;
+    });
+    const rows = buildKpRows({ lines: r.lines, offers }, computed, { ...input.settings, onlyApproved: false }, input.ctx);
     if (!rows.length) throw new DataSourceError('VALIDATION_ERROR', 'Немає позицій з ціною продажу — підберіть товари й задайте націнку');
     const parties = kpPartiesOf(db, r.header);
     snapshot = buildKpSnapshot({
