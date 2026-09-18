@@ -75,6 +75,22 @@ function profitHelp(p: SupplierProfit): ReactNode {
   );
 }
 
+/**
+ * Підпис дельти (п.5 правок клієнта): «Дорожче за найдешевші +1 016,05» або «найдешевший».
+ * Дельта — переплата проти найдешевших цін по тих самих рядках; null — блок ще нічого не покриває.
+ */
+export function deltaLabel(t: Pick<BlockTotals, 'deltaGross' | 'filledCount'>, short = false): { text: string; cheapest: boolean } | null {
+  if (!t.filledCount) return null;
+  if (t.deltaGross <= 0) return { text: 'найдешевший', cheapest: true };
+  return { text: `${short ? 'дорожче' : 'Дорожче за найдешевші'} +${formatMoney(t.deltaGross)}`, cheapest: false };
+}
+
+function DeltaText({ totals, short }: { totals: BlockTotals; short?: boolean }) {
+  const d = deltaLabel(totals, short);
+  if (!d) return null;
+  return <span className={d.cheapest ? 'po-bh-cheapest' : 'po-bh-delta'}>· {d.text}</span>;
+}
+
 /** Пояснення міні-підсумків (тултип). */
 function totalsHelp(t: BlockTotals): ReactNode {
   return (
@@ -85,10 +101,19 @@ function totalsHelp(t: BlockTotals): ReactNode {
       <div>
         <b>По обраних</b> — рядки, де обрано цього постачальника ({t.selectedCount}): {formatMoney(t.selectedGross)}
       </div>
-      <div>
-        <b>Дельта</b> — переплата відносно мінімальних цін по тих самих рядках: {signedMoney(t.deltaGross)}
-        {t.deltaPct != null ? ` (${formatPct(t.deltaPct)})` : ''}
-      </div>
+      {t.filledCount ? (
+        t.deltaGross > 0 ? (
+          <div>
+            <b>Дорожче за найдешевші</b> — на скільки дорожче взяти в цього постачальника всі його рядки, ніж у найдешевших по тих
+            самих рядках: {signedMoney(t.deltaGross)}
+            {t.deltaPct != null ? ` (${formatPct(t.deltaPct)})` : ''}
+          </div>
+        ) : (
+          <div>
+            <b>Найдешевший</b> — у всіх своїх рядках цей постачальник має мінімальну ціну
+          </div>
+        )
+      ) : null}
       <div>
         <b>Покриття</b> — заповнено {t.filledCount} з {t.totalLines} рядків
       </div>
@@ -283,13 +308,13 @@ export function BlockGroupHeader(p: IHeaderGroupParams & BlockHeaderParams) {
             {collapsed ? (
               <>
                 <span>Σ {formatMoney(totals.totalGross)}</span>
-                <span className={totals.deltaGross > 0 ? 'po-bh-delta' : undefined}>· Δ {signedMoney(totals.deltaGross)}</span>
+                <DeltaText totals={totals} short />
               </>
             ) : (
               <>
                 <span>Всього з ПДВ {formatMoney(totals.totalGross)}</span>
                 <span>· По обраних {formatMoney(totals.selectedGross)}</span>
-                <span className={totals.deltaGross > 0 ? 'po-bh-delta' : undefined}>· Дельта {signedMoney(totals.deltaGross)}</span>
+                <DeltaText totals={totals} />
               </>
             )}
             <span>
@@ -332,8 +357,7 @@ export function CompareColumnHeader(p: IHeaderParams & BlockHeaderParams) {
       </div>
       {totals ? (
         <div className="po-bh-row po-bh-totals po-num">
-          {totals.filledCount}/{totals.totalLines}
-          <span className={totals.deltaGross > 0 ? 'po-bh-delta' : undefined}> · Δ {signedMoney(totals.deltaGross)}</span>
+          {totals.filledCount}/{totals.totalLines} <DeltaText totals={totals} short />
         </div>
       ) : null}
     </div>

@@ -88,6 +88,23 @@ export function ClientNameCell(p: P) {
   );
 }
 
+/** «Од.» / «К-сть» клієнта: значення + куточок для протягування (видно на клітинці з фокусом). */
+export function FillCell(p: P) {
+  const row = p.data;
+  const text = p.valueFormatted ?? (p.value == null ? '' : String(p.value));
+  if (!isLineRow(row) || p.context.isReadOnly()) return <>{text}</>;
+  return (
+    <>
+      {text}
+      <span
+        className="po-fill-handle"
+        title="Потягніть униз, щоб скопіювати в рядки нижче (як в Excel). Ctrl+D — взяти з рядка вище"
+        onMouseDown={(e) => p.context.onFillStart(e, row, p.column?.getColId() ?? '')}
+      />
+    </>
+  );
+}
+
 export function PosCell(p: P) {
   const row = p.data;
   if (!isLineRow(row)) return null;

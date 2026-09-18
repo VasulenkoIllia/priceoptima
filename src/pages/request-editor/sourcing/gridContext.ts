@@ -1,5 +1,6 @@
 // Контекст сітки підбору: доступ рендерів клітинок до поточного стану й дій (стабільний об'єкт, дані читаються «наживо»).
 import type { MenuProps } from 'antd';
+import type { MouseEvent } from 'react';
 import type { SupplierBlock, SupplierRef, UUID } from '@shared/types';
 import type { LineRow } from './rows';
 
@@ -17,4 +18,6 @@ export interface SourcingGridContext {
   onPickerKey(row: LineRow, colId: string, query?: string): void;
   /** Ctrl/Cmd+V у клітинці (синхронно в keydown) — запасний шлях, якщо браузер не надішле подію paste. */
   onPasteKey(): void;
+  /** Натиснули куточок клітинки «Од.» / «К-сть» — почати протягування (як в Excel). */
+  onFillStart(e: MouseEvent<HTMLElement>, row: LineRow, colId: string): void;
 }

@@ -9,6 +9,7 @@ import { openPicker } from '@/components/ProductPicker';
 import { errorMessage } from '@/data/errors';
 import { getRequestDocStore, type AddLinesMode, type NewLineInput } from '@/stores/requestDocStore';
 import { COL, LINE_FIELDS, type LineField } from './colIds';
+import { planFill, type FillField } from './fill';
 import { pasteSkusSummary, type PastePlan } from './paste';
 import { NEW_ROW_ID } from './rows';
 import { useSourcingUi } from './sourcingUiStore';
@@ -238,6 +239,17 @@ export function createSourcingActions(app: AppApi) {
     message.success(`Видалено рядків: ${ids.length}. Скасувати — Ctrl+Z`);
   }
 
+  /** Протягування / Ctrl+D: значення одиниці або кількості рядка-джерела в цільові рядки одним кроком (Ctrl+Z скасовує). */
+  function fillLines(field: FillField, sourceId: UUID, targetIds: readonly UUID[]): void {
+    const source = lineOf(sourceId);
+    if (!source || !targetIds.length || !guard()) return;
+    const targets = targetIds.map(lineOf).filter((l): l is NonNullable<typeof l> => l != null);
+    const patches = planFill(field, source, targets);
+    if (!patches.length) return;
+    doc().updateLines(patches);
+    if (patches.length > 1) message.success(`Заповнено рядків: ${patches.length}. Скасувати — Ctrl+Z`);
+  }
+
   async function applyPastePlan(plan: PastePlan): Promise<void> {
     if (plan.kind === 'empty') return;
     if (plan.kind === 'unsupported') {
@@ -296,6 +308,7 @@ export function createSourcingActions(app: AppApi) {
     addLine,
     removeLines,
     applyPastePlan,
+    fillLines,
   };
 }
 

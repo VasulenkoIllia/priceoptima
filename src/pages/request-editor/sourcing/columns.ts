@@ -13,6 +13,7 @@ import {
   CompareChosenCell,
   EXCLUDE_HINT,
   ExcludeCell,
+  FillCell,
   OfferNameCell,
   PickCell,
   PosCell,
@@ -47,6 +48,8 @@ const canEditClient = (p: EditableCallbackParams<SourcingRow> & Ctx) =>
 const cellOf = (data: SourcingRow | undefined, blockId: UUID): BlockCell | undefined =>
   isLineRow(data) ? data.cells[blockId] : undefined;
 
+const FILL_HINT = 'Щоб скопіювати значення в рядки нижче, потягніть за куточок клітинки (як в Excel). Ctrl+D — взяти з рядка вище';
+
 // ── колонки клієнта ─────────────────────────────────────────────────
 function clientColumns(mode: EditorMode): SourcingColDef[] {
   return [
@@ -76,23 +79,28 @@ function clientColumns(mode: EditorMode): SourcingColDef[] {
     {
       colId: COL.line('clientUnit'),
       headerName: 'Од.',
+      headerTooltip: FILL_HINT,
       width: 58,
       pinned: 'left',
       editable: canEditClient,
       cellEditor: 'agTextCellEditor',
+      cellClass: 'po-fill-cell',
       valueGetter: (p) => (isLineRow(p.data) ? (p.data.line.clientUnit ?? '') : ''),
+      cellRenderer: FillCell,
     },
     {
       colId: COL.line('qty'),
       headerName: 'К-сть',
+      headerTooltip: FILL_HINT,
       width: 72,
       pinned: 'left',
       type: 'rightAligned',
-      cellClass: 'po-num',
+      cellClass: 'po-num po-fill-cell',
       editable: canEditClient,
       cellEditor: 'agTextCellEditor',
       valueGetter: (p) => (isLineRow(p.data) ? p.data.line.qty : null),
       valueFormatter: (p) => (p.value == null ? '' : formatQty(p.value as number)),
+      cellRenderer: FillCell,
     },
   ];
 }
