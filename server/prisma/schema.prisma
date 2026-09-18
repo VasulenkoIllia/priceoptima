@@ -426,7 +426,8 @@ model Product {
   images       ProductImage[]
 
   @@unique([supplierId, skuKey])
-  @@index([supplierId, isArchived])
+  /// Каталог одного постачальника за назвою: сторінка береться прямо з індексу, без сортування всіх позицій.
+  @@index([supplierId, isArchived, nameWork, id])
   @@index([brand])
   @@index([missingSince])
   /// Точний артикул по всьому каталогу (без фільтра за постачальником).
@@ -435,6 +436,8 @@ model Product {
   @@index([skuKey(ops: raw("text_pattern_ops"))], map: "Product_skuKey_prefix_idx")
   /// Пошук за назвою: LIKE '%токен%' по нормалізованому тексту.
   @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
+  /// Артикул «містить» у номенклатурі: без цього індексу пошук за кодом переглядав увесь каталог.
+  @@index([skuKey(ops: raw("gin_trgm_ops"))], type: Gin, map: "Product_skuKey_trgm_idx")
 }
 
 /// Фото товару: з прайсу — посилання, наші — файл у сховищі. Головне фото йде в КП і в списки.

@@ -286,62 +286,36 @@ async function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpd
   return getPriceUpdate(runId);
 }
 
+/** Скільки товарів постачальника читаємо за раз: без цього великий прайс (100+ тис.) тримав би в пам'яті ще й сирий результат Prisma. */
+const EXISTING_BATCH = 10_000;
+
+type ExistingRow = Omit<ExistingProduct, 'hasImages'>;
+
+/**
+ * Товари постачальника для звірки — легким SQL порціями за кодом (унікальний індекс постачальник + код): числа одразу як double (не Decimal),
+ * дата — текстом. На 140 тис. позицій це ~4 рази менше пам'яті й часу, ніж findMany.
+ */
 async function loadExisting(supplierId: UUID): Promise<ExistingProduct[]> {
-  const [rows, withImages] = await Promise.all([
-    prisma.product.findMany({
-      where: { supplierId },
-      select: {
-        id: true,
-        skuKey: true,
-        sku: true,
-        nameWork: true,
-        name1c: true,
-        brand: true,
-        unitCode: true,
-        currency: true,
-        purchasePrice: true,
-        rrp: true,
-        stockQty: true,
-        availability: true,
-        multiplicity: true,
-        minOrderQty: true,
-        barcode: true,
-        categoryPath: true,
-        searchText: true,
-        priceOrigin: true,
-        missingSince: true,
-        isArchived: true,
-        autoArchivedAt: true,
-      },
-    }),
-    prisma.productImage.groupBy({ by: ['productId'], where: { product: { supplierId } } }),
-  ]);
+  const withImages = await prisma.productImage.groupBy({ by: ['productId'], where: { product: { supplierId } } });
   const hasImages = new Set(withImages.map((g) => g.productId));
-  const num = (v: Prisma.Decimal | null) => (v === null ? null : v.toNumber());
-  return rows.map((p) => ({
-    id: p.id,
-    skuKey: p.skuKey,
-    sku: p.sku,
-    nameWork: p.nameWork,
-    name1c: p.name1c,
-    brand: p.brand,
-    unitCode: p.unitCode,
-    currency: p.currency,
-    purchasePrice: num(p.purchasePrice),
-    rrp: num(p.rrp),
-    stockQty: num(p.stockQty),
-    availability: p.availability,
-    multiplicity: p.multiplicity.toNumber(),
-    minOrderQty: num(p.minOrderQty),
-    barcode: p.barcode,
-    categoryPath: p.categoryPath,
-    searchText: p.searchText,
-    priceOrigin: p.priceOrigin,
-    missingSince: p.missingSince ? p.missingSince.toISOString().slice(0, 10) : null,
-    isArchived: p.isArchived,
-    autoArchived: p.isArchived && p.autoArchivedAt != null,
-    hasImages: hasImages.has(p.id),
-  }));
+  const out: ExistingProduct[] = [];
+  let after = '';
+  for (;;) {
+    const rows = await prisma.$queryRaw<ExistingRow[]>`
+      SELECT id, "skuKey", sku, "nameWork", "name1c", brand, "unitCode", currency::text AS currency,
+             "purchasePrice"::float8 AS "purchasePrice", rrp::float8 AS rrp, "stockQty"::float8 AS "stockQty",
+             availability::text AS availability, multiplicity::float8 AS multiplicity, "minOrderQty"::float8 AS "minOrderQty",
+             barcode, "categoryPath", "searchText", "priceOrigin"::text AS "priceOrigin",
+             to_char("missingSince", 'YYYY-MM-DD') AS "missingSince", "isArchived",
+             ("isArchived" AND "autoArchivedAt" IS NOT NULL) AS "autoArchived"
+      FROM "Product"
+      WHERE "supplierId" = ${supplierId} AND "skuKey" > ${after}
+      ORDER BY "skuKey"
+      LIMIT ${EXISTING_BATCH}`;
+    for (const r of rows) out.push({ ...r, hasImages: hasImages.has(r.id) });
+    if (rows.length < EXISTING_BATCH) return out;
+    after = rows[rows.length - 1].skuKey;
+  }
 }
 
 function chunks<T>(items: readonly T[], size: number): T[][] {

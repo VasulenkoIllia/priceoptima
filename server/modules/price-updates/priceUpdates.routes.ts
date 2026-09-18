@@ -18,7 +18,7 @@ import { getPriceUpdate, importPriceRows, listPriceUpdates, runFeedUpdate } from
 
 export const MAX_PRICE_FILE_MB = 25;
 /** Рядки прайсу JSON-ом: 20 тис. позицій — кілька мегабайт, межа із запасом. */
-export const MAX_PRICE_ROWS_MB = 50;
+export const MAX_PRICE_ROWS_MB = 100;
 
 /**
  * JSON-парсер із більшою межею саме для завантаження прайсу: загальний парсер /api обмежений 1 МБ.

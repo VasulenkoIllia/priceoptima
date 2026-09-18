@@ -31,6 +31,8 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 ENV NODE_ENV=production
 ENV PORT=3000
+# розбір великої вигрузки (до 200 МБ) потребує до ~1,5 ГБ; на сервері 4 ГБ задайте в .env NODE_OPTIONS=--max-old-space-size=1536
+ENV NODE_OPTIONS=--max-old-space-size=3072
 
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

@@ -8,7 +8,7 @@ import { optionalNumberField, optionalText, trimmed } from '../../lib/fields';
 /** Найбільше значення, яке вміщує Decimal(14,4) у базі. */
 const MONEY_MAX = 999_999_999;
 /** Скільки рядків приймаємо за раз (найбільший відомий прайс — близько 20 тис.). */
-export const MAX_IMPORT_ROWS = 100_000;
+export const MAX_IMPORT_ROWS = 200_000;
 
 const supplierId = z.uuid('Невірний ідентифікатор постачальника');
 

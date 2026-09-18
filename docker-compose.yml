@@ -10,6 +10,23 @@ services:
       TZ: ${TZ:-Europe/Kyiv}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
+    # паралельні запити по великому каталогу беруть спільну пам'ять; типових для Docker 64 МБ замало
+    shm_size: 512mb
+    # розраховано на сервер 8 ГБ (застосунок поруч); на 16 ГБ — PG_SHARED_BUFFERS=4GB, PG_EFFECTIVE_CACHE=10GB
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-2GB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE:-5GB}
+      - -c
+      - work_mem=${PG_WORK_MEM:-16MB}
+      - -c
+      - maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-256MB}
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - max_wal_size=2GB
     # порт відкритий лише на самому сервері (для дампів і ручних запитів)
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"

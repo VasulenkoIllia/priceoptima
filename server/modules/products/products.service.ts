@@ -109,15 +109,74 @@ function listWhere(query: ProductListQueryInput, ctx: CatalogContext): Prisma.Pr
   return and.length ? { AND: and } : {};
 }
 
+/** Весь каталог у порядку за замовчуванням (без пошуку й фільтрів) — найчастіший і найважчий на мільйоні позицій список. */
+function isPlainListing(q: ProductListQueryInput): boolean {
+  return !q.sortField && !q.supplierId && !q.q && !q.currency && !q.availability?.length && !q.manual && !q.missing && !q.stale;
+}
+
+/**
+ * Скільки товарів у кожного постачальника. Перша сторінка рахує заново; наступні (гортання) 30 с беруть порахане,
+ * щоб не рахувати мільйон на кожен блок.
+ */
+const PLAIN_COUNTS_TTL_MS = 30_000;
+const plainCounts = new Map<string, { at: number; counts: Map<UUID, number> }>();
+
+async function supplierCounts(archived: boolean, fresh: boolean): Promise<Map<UUID, number>> {
+  const key = archived ? 'all' : 'active';
+  const cached = plainCounts.get(key);
+  if (!fresh && cached && Date.now() - cached.at < PLAIN_COUNTS_TTL_MS) return cached.counts;
+  const rows = await prisma.product.groupBy({ by: ['supplierId'], where: archived ? {} : { isArchived: false }, _count: { _all: true } });
+  const counts = new Map(rows.map((r) => [r.supplierId, r._count._all]));
+  plainCounts.set(key, { at: Date.now(), counts });
+  return counts;
+}
+
+/**
+ * Той самий порядок, що й productOrderBy за замовчуванням (постачальник → назва), але постачальник за постачальником:
+ * сторінка береться з індексу (постачальник, архів, назва) замість сортування всього каталогу.
+ */
+async function plainPage(query: ProductListQueryInput, ctx: CatalogContext): Promise<ProductPage> {
+  const counts = await supplierCounts(!!query.archived, query.offset === 0);
+  const suppliers = [...ctx.suppliers.values()].sort(
+    (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+  );
+  const items: ProductDetail[] = [];
+  let skip = query.offset;
+  let total = 0;
+  for (const s of suppliers) {
+    const n = counts.get(s.id) ?? 0;
+    total += n;
+    if (items.length >= query.limit) continue;
+    if (skip >= n) {
+      skip -= n;
+      continue;
+    }
+    // спершу лише id з індексу (пропущені позиції не читаються з таблиці), потім самі рядки
+    const archivedFilter = query.archived ? Prisma.empty : Prisma.sql`AND "isArchived" = false`;
+    const ids = await prisma.$queryRaw<{ id: UUID }[]>`
+      SELECT id FROM "Product" WHERE "supplierId" = ${s.id} ${archivedFilter}
+      ORDER BY "nameWork", id OFFSET ${skip} LIMIT ${query.limit - items.length}`;
+    const rows = await prisma.product.findMany({ where: { id: { in: ids.map((r) => r.id) } } });
+    const byId = new Map(rows.map((p) => [p.id, p]));
+    for (const { id } of ids) {
+      const p = byId.get(id);
+      if (p) items.push(toProductDetail(p, ctx));
+    }
+    skip = 0;
+  }
+  return { items, total };
+}
+
 /** Сторінка номенклатури разом із загальною кількістю — для гортання великого каталогу. */
 export async function listProductsPage(query: ProductListQueryInput): Promise<ProductPage> {
   const ctx = await catalogContext();
+  if (isPlainListing(query)) return plainPage(query, ctx);
   const where = listWhere(query, ctx);
   const [total, rows] = await prisma.$transaction([
     prisma.product.count({ where }),
     prisma.product.findMany({
       where,
-      orderBy: productOrderBy(query.sortField, query.sortDir),
+      orderBy: productOrderBy(query.sortField, query.sortDir, !!query.supplierId),
       skip: query.offset,
       take: query.limit,
     }),

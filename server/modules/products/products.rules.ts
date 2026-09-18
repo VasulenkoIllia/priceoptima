@@ -65,7 +65,12 @@ export function likePattern(value: string): string {
  * Порядок сторінки номенклатури. Останнім завжди йде id — інакше при однакових значеннях
  * сусідні сторінки можуть повторювати або губити рядки.
  */
-export function productOrderBy(field: ProductSortField | undefined, dir: 'asc' | 'desc' = 'asc'): Prisma.ProductOrderByWithRelationInput[] {
+/** singleSupplier — у вибірці один постачальник: сортувати за ним нема чого, порядок за назвою бере індекс. */
+export function productOrderBy(
+  field: ProductSortField | undefined,
+  dir: 'asc' | 'desc' = 'asc',
+  singleSupplier = false,
+): Prisma.ProductOrderByWithRelationInput[] {
   const byName: Prisma.ProductOrderByWithRelationInput = { nameWork: 'asc' };
   const tail: Prisma.ProductOrderByWithRelationInput = { id: 'asc' };
   switch (field) {
@@ -88,6 +93,6 @@ export function productOrderBy(field: ProductSortField | undefined, dir: 'asc' |
       // порожні значення (назва 1С, ціни, дата) — завжди в кінці, в який бік не сортуй
       return [{ [field]: { sort: dir, nulls: 'last' } }, byName, tail];
     default:
-      return [{ supplier: { sortOrder: 'asc' } }, { supplier: { name: 'asc' } }, byName, tail];
+      return singleSupplier ? [byName, tail] : [{ supplier: { sortOrder: 'asc' } }, { supplier: { name: 'asc' } }, byName, tail];
   }
 }
