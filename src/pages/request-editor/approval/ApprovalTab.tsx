@@ -1,6 +1,6 @@
 // Вкладка «Погодження» (ПОГ-1…ПОГ-3): які позиції і в якій к-сті погодив клієнт — за цінами КП-основи (останнє звичайне КП).
 // Погоджена сума — у заявці й реєстрі; «Сформувати фінальне КП» — лише погоджені позиції. Зберігається автоматично.
-import { CheckOutlined, CloseOutlined, FileDoneOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, FileDoneOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Checkbox, InputNumber, Result, Select, Space, Spin, Table, Tag, type TableColumnsType } from 'antd';
 import { useNavigate } from 'react-router';
@@ -12,6 +12,7 @@ import type { KpRow, RequestLine, UUID } from '@shared/types';
 import { EmptyState } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
+import { buildSupplierOrders, downloadSupplierOrders } from './supplierOrders';
 
 interface ApprovalRow {
   key: UUID;
@@ -142,6 +143,22 @@ export default function ApprovalTab() {
   const finalKp = kps.data.find((k) => k.onlyApproved && k.version > base.version) ?? null;
   const finalOutdated = !!finalKp && !sameRows(approvedKpRows(base.snapshot.rows, doc.lines), finalKp.snapshot.rows);
 
+  const exportOrders = async () => {
+    const { orders, skipped } = buildSupplierOrders(doc, computed, base.snapshot.rows);
+    if (!orders.length) {
+      message.warning('Немає погоджених позицій з обраним постачальником');
+      return;
+    }
+    try {
+      await downloadSupplierOrders(orders, { requestNumber: doc.header.number, requestDate: doc.header.requestDate, clientName: doc.refs.client?.name ?? null });
+      const parts = [`постачальників: ${orders.length}`, `позицій: ${orders.reduce((n, o) => n + o.rows.length, 0)}`];
+      if (skipped) parts.push(`без обраного постачальника (не увійшли): ${skipped}`);
+      message[skipped ? 'warning' : 'success'](`Замовлення сформовано: ${parts.join(', ')}`);
+    } catch (e) {
+      message.error(errorMessage(e));
+    }
+  };
+
   const setAll = (value: boolean) =>
     setApprovals(
       rows.flatMap((r) =>
@@ -249,6 +266,14 @@ export default function ApprovalTab() {
           </Button>
           <Button icon={<CloseOutlined />} disabled={readOnly || !approvedCount} onClick={() => setAll(false)}>
             Зняти все
+          </Button>
+          <Button
+            icon={<FileExcelOutlined />}
+            disabled={!approvedCount}
+            title="Один Excel, аркуш на кожного постачальника: артикул, найменування, од., погоджена кількість (кратно)"
+            onClick={() => void exportOrders()}
+          >
+            Замовлення постачальникам
           </Button>
           <Button
             type="primary"
