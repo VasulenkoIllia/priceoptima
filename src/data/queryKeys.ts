@@ -28,6 +28,7 @@ export const qk = {
   requests: (query: RequestListQuery) => ['requests', query] as const,
   requestsAll: ['requests'] as const,
   kps: (requestId: UUID) => ['kps', requestId] as const,
+  attachments: (requestId: UUID) => ['attachments', requestId] as const,
   history: (requestId: UUID) => ['history', requestId] as const,
   rates: (date: string) => ['rates', date] as const,
   ratesList: ['rates-list'] as const,

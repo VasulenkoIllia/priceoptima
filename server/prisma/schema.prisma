@@ -15,6 +15,12 @@ enum UserRole {
   user
 }
 
+enum RequestStatus {
+  in_progress
+  done
+  cancelled
+}
+
 /// Разове посилання: запрошення нового користувача або скидання пароля.
 enum AccessLinkKind {
   invite
@@ -570,4 +576,204 @@ model AuditEvent {
   @@index([at])
   @@index([entityType, entityId, at])
   @@index([userId, at])
+}
+
+// ── заявки (модуль 2) ────────────────────────────────────────────────
+// Числа документа заявки — double precision: розрахунок (shared/pricing) іде в JS-числах, обмін із базою без перетворень.
+
+/// Заявка: шапка, спосіб націнки, підсумки для реєстру. Рядки, блоки й пропозиції — окремими таблицями (зміни пишуться частинами).
+model Request {
+  id                 String        @id @default(uuid())
+  number             Int           @unique
+  requestDate        DateTime      @db.Date
+  status             RequestStatus @default(in_progress)
+  title              String?
+  clientId           String?
+  counterpartyId     String?
+  contactId          String?
+  ownCompanyId       String
+  /// Відповідальний: той, хто створив або скопіював (можна змінити).
+  managerId          String
+  notes              String?
+  purchaseNote       String?
+  rateUsd            Float?
+  rateEur            Float?
+  ratesDate          DateTime?     @db.Date
+  vatRatePct         Float
+  kpSettings         Json
+  approvalKpId       String?
+  cancelReason       String?
+  /// MarkupSettings заявки.
+  markup             Json
+  /// Зростає з кожним збереженням (захист від застарілих змін).
+  version            Int           @default(1)
+  linesCount         Int           @default(0)
+  suppliersCount     Int           @default(0)
+  totalPurchaseGross Float         @default(0)
+  totalSaleNet       Float         @default(0)
+  totalSaleGross     Float         @default(0)
+  profitNet          Float         @default(0)
+  approvedSaleGross  Float?
+  kpCount            Int           @default(0)
+  lastKpNumber       Int?
+  lastKpFinal        Boolean?
+  /// Завантажені файли (КП рахуються окремо).
+  filesCount         Int           @default(0)
+  sourceRequestId    String?
+  copyInfo           Json?
+  /// Номер, клієнт, контрагент, ЄДРПОУ, назва — для пошуку в реєстрі.
+  searchText         String        @default("")
+  createdAt          DateTime      @default(now())
+  createdById        String?
+  updatedAt          DateTime      @default(now())
+  updatedById        String?
+
+  lines       RequestLine[]
+  blocks      RequestBlock[]
+  offers      RequestOffer[]
+  kps         KpDocument[]
+  events      RequestEvent[]
+  attachments RequestAttachment[]
+  lock        RequestLock?
+
+  @@index([status, number])
+  @@index([managerId])
+  @@index([clientId])
+  @@index([requestDate])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "Request_searchText_trgm_idx")
+}
+
+model RequestLine {
+  id               String  @id
+  requestId        String
+  request          Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  position         Int
+  clientName       String
+  clientUnit       String?
+  qty              Float
+  clientNote       String?
+  selectionBlockId String?
+  /// LineMarkupOverride.
+  markup           Json
+  approved         Boolean @default(false)
+  approvedQty      Float?
+  kpName           String?
+
+  @@index([requestId])
+}
+
+model RequestBlock {
+  id                String     @id
+  requestId         String
+  request           Request    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  position          Int
+  supplierId        String?
+  legalEntityId     String?
+  defaultCurrency   Currency
+  rateUsd           Float?
+  rateEur           Float?
+  rateSource        RatePolicy
+  ratesDate         DateTime?  @db.Date
+  supplierMarkupPct Float      @default(0)
+  pricesIncludeVat  Boolean    @default(false)
+  note              String?
+
+  @@index([requestId])
+}
+
+/// Пропозиція (рядок × блок): знімок товару на момент підбору.
+model RequestOffer {
+  id               String       @id
+  requestId        String
+  request          Request      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  lineId           String
+  blockId          String
+  productId        String?
+  sku              String?
+  nameWork         String?
+  name1c           String?
+  nameKind         String       @default("work")
+  unitCode         String?
+  currency         Currency
+  purchasePriceCur Float?
+  rrpCur           Float?
+  qty              Float?
+  multiplicity     Float?
+  noRounding       Boolean      @default(false)
+  stockQty         Float?
+  availability     Availability
+  priceDate        DateTime?
+  excluded         Boolean      @default(false)
+  excludeReason    String?
+  note             String?
+  priceChange      Json?
+
+  @@index([requestId])
+  @@index([productId])
+}
+
+/// Сформоване КП: незмінний знімок (PDF і Excel будуються з нього).
+model KpDocument {
+  id           String    @id @default(uuid())
+  requestId    String
+  request      Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  kpNumber     Int
+  version      Int
+  vatMode      String
+  ownCompanyId String
+  onlyApproved Boolean
+  settings     Json
+  totalNet     Float
+  totalVat     Float
+  totalGross   Float
+  snapshot     Json
+  sentAt       DateTime?
+  createdAt    DateTime  @default(now())
+  createdById  String?
+
+  @@unique([requestId, version])
+}
+
+/// Історія заявки: хто, коли, що (сусідні дрібні зміни зливаються).
+model RequestEvent {
+  id        Int      @id @default(autoincrement())
+  requestId String
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  at        DateTime @default(now())
+  userId    String?
+  kind      String
+  summary   String
+  group     String?
+  counts    Json?
+
+  @@index([requestId, id])
+}
+
+/// Файли заявки (лист клієнта, його Excel тощо) — на диску в томі uploads, до 20 МБ.
+model RequestAttachment {
+  id               String   @id @default(uuid())
+  requestId        String
+  request          Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  kind             String   @default("client_request")
+  originalFilename String
+  mimeType         String
+  sizeBytes        Int
+  storagePath      String
+  note             String?
+  uploadedById     String?
+  createdAt        DateTime @default(now())
+
+  @@index([requestId])
+}
+
+/// Хто зараз редагує заявку (одна вкладка одного користувача); живе, поки приходить сигнал вкладки.
+model RequestLock {
+  requestId String   @id
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    String
+  sessionId String
+  lockedAt  DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
 }

@@ -18,6 +18,7 @@ import {
 import { applyStatusChange, isEditableStatus, validateTransition } from '@shared/status';
 import { REQUEST_STATUS_LABELS } from '@shared/enums';
 import type {
+  AttachmentDto,
   AppSettings,
   AppSettingsPatch,
   ClientDetail,
@@ -1296,6 +1297,18 @@ export class MockDataSource implements DataSource {
       this.requireRequest(requestId);
       return { events: clone([...(this.db.events[requestId] ?? [])].reverse()) };
     });
+  }
+
+  listAttachments(): Promise<AttachmentDto[]> {
+    return this.call(() => this.serverOnly());
+  }
+
+  uploadAttachment(): Promise<AttachmentDto> {
+    return this.call(() => this.serverOnly());
+  }
+
+  deleteAttachment(): Promise<void> {
+    return this.call(() => this.serverOnly());
   }
 
   // ── Блокування ──────────────────────────────────────────────────

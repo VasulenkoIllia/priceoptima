@@ -287,7 +287,12 @@ export interface RequestDocStoreDeps {
   ds: DataSource;
   /** Слухати pagehide/pageshow/visibilitychange (за замовчуванням — у браузері). */
   bindPageLifecycle?: boolean;
+  /** Як часто режим перегляду перевіряє, чи заявку змінили або звільнили (мс; 0 — не перевіряти). */
+  watchIntervalMs?: number;
 }
+
+/** Режим перегляду: перевірка змін і блокування заявки. */
+const WATCH_INTERVAL_MS = 5000;
 
 export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStoreApi {
   const { ds } = deps;
@@ -299,6 +304,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
     let future: RequestDocument[] = [];
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    let watchTimer: ReturnType<typeof setInterval> | null = null;
     let saving: Promise<void> | null = null;
     let unsubscribe: (() => void) | null = null;
     let loadToken = 0;
@@ -360,8 +366,8 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
     function onSaveError(e: unknown): void {
       const prev = get().save;
       if (isDataSourceError(e, 'LOCK_LOST') || isDataSourceError(e, 'LOCKED')) {
-        const holder = (e.details as { lock?: { userShortName?: string } } | undefined)?.lock;
-        loseLock('lost', holder?.userShortName ?? null);
+        const holder = (e.details as { lock?: LockInfo | null } | undefined)?.lock ?? null;
+        loseLock(holder && !holder.isMySession ? 'forced' : 'lost', holder?.userShortName ?? null);
         set({ save: { state: 'error', savedAt: prev.savedAt, error: `${e.message}` } });
         void refresh();
         return;
@@ -392,9 +398,42 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         if (get().requestId === requestId) set({ lock });
       } catch (e) {
         if (isDataSourceError(e, 'LOCK_LOST') && get().requestId === requestId && get().hasLock) {
-          loseLock('lost', null);
+          // блокування тримає інший — його забрав адміністратор; нікого — вийшов строк (сон комп'ютера, зв'язок)
+          const holder = (e.details as { lock?: LockInfo | null } | undefined)?.lock ?? null;
+          loseLock(holder ? 'forced' : 'lost', holder?.userShortName ?? null);
+          set({ lock: holder });
           void refresh();
         }
+      }
+    }
+
+    // Режим перегляду: хтось зберіг зміни, змінив статус чи звільнив заявку — показуємо свіже.
+    function stopWatch(): void {
+      if (watchTimer) {
+        clearInterval(watchTimer);
+        watchTimer = null;
+      }
+    }
+
+    function startWatch(): void {
+      stopWatch();
+      const ms = deps.watchIntervalMs ?? WATCH_INTERVAL_MS;
+      if (ms > 0) watchTimer = setInterval(() => void watch(), ms);
+    }
+
+    async function watch(): Promise<void> {
+      const s = get();
+      if (!s.requestId || s.loadState !== 'ready' || s.hasLock || !s.doc) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      const id = s.requestId;
+      try {
+        const st = await ds.getLockStatus(id);
+        const cur = get();
+        if (cur.requestId !== id || cur.hasLock || !cur.doc) return;
+        if (JSON.stringify(st.lock) !== JSON.stringify(cur.lock)) set({ lock: st.lock });
+        if (st.version !== cur.version || st.status !== cur.doc.header.status || st.updatedAt !== cur.doc.meta.updatedAt) await refresh();
+      } catch {
+        // мережа чи сервер — перевіримо наступного разу
       }
     }
 
@@ -493,6 +532,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         unsubscribe?.();
         unsubscribe = ds.subscribe(onDsEvent);
         if (hasLock) startHeartbeat();
+        startWatch();
       } catch (e) {
         if (token === loadToken) set({ loadState: 'error', loadError: errorMessage(e) });
       }
@@ -506,6 +546,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       const run = (async () => {
         loadToken++;
         stopHeartbeat();
+        stopWatch();
         unsubscribe?.();
         unsubscribe = null;
         clearSaveTimer();

@@ -10,6 +10,7 @@ import { ownCompaniesRouter } from './modules/own-companies/ownCompanies.routes'
 import { priceUpdatesRouter } from './modules/price-updates/priceUpdates.routes';
 import { productsRouter } from './modules/products/products.routes';
 import { ratesRouter } from './modules/rates/rates.routes';
+import { requestsRouter } from './modules/requests/requests.routes';
 import { settingsRouter } from './modules/settings/settings.routes';
 import { suppliersRouter } from './modules/suppliers/suppliers.routes';
 import { unitsRouter } from './modules/units/units.routes';
@@ -31,4 +32,5 @@ apiRouter.use('/rates', ratesRouter);
 apiRouter.use('/products', productsRouter);
 apiRouter.use('/price-updates', priceUpdatesRouter);
 apiRouter.use('/images', imagesRouter);
+apiRouter.use('/requests', requestsRouter);
 apiRouter.use(apiNotFound);

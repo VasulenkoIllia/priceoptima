@@ -1,5 +1,4 @@
-// Реалізація джерела даних поверх REST. Покриває вхід, користувачів, налаштування й довідники —
-// решта методів лишається на демо-даних (див. createDataSource), і переїжджає модулями.
+// Реалізація джерела даних поверх REST: вхід, користувачі, налаштування, довідники, номенклатура, заявки, КП, файли, блокування.
 import type {
   AppSettings,
   AppSettingsPatch,
@@ -44,6 +43,23 @@ import type {
   UserDto,
   UserUpdateInput,
   UUID,
+  AttachmentDto,
+  CopyRequestBody,
+  CopyRequestResult,
+  CreateRequestBody,
+  CreateRequestResult,
+  DocumentPatch,
+  KpCreateBody,
+  KpDocumentDto,
+  LockInfo,
+  LockStatusResponse,
+  RequestDocument,
+  RequestHistoryResponse,
+  RequestListItem,
+  RequestListQuery,
+  SaveDocumentResponse,
+  StatusChangeBody,
+  StatusChangeResult,
   AccessLinkCreated,
   AccessLinkDto,
   AccessLinkInfo,
@@ -55,22 +71,17 @@ import type {
   RegisterInput,
 } from '@shared/types';
 import type { UserRole } from '@shared/enums';
+import type { CallOptions, DataSource, LockAcquireResult } from '../DataSource';
 import { isDataSourceError } from '../errors';
-import { api } from './client';
+import { api, SESSION_ID } from './client';
 
-export interface HttpDataSourceOptions {
-  /** Вхід удався — щоб демо-частина застосунку теж вважала користувача авторизованим. */
-  onLogin?(me: MeResponse): void;
-  onLogout?(): void | Promise<void>;
-}
-
-export class HttpDataSource {
-  constructor(private readonly options: HttpDataSourceOptions = {}) {}
+export class HttpDataSource implements DataSource {
+  /** Ідентифікатор вкладки — той самий, що в заголовку X-Session-Id. */
+  readonly sessionId = SESSION_ID;
 
   async me(): Promise<MeResponse | null> {
     try {
       const me = await api<MeResponse>('/auth/me');
-      this.options.onLogin?.(me);
       return me;
     } catch (e) {
       if (isDataSourceError(e, 'UNAUTHORIZED')) return null;
@@ -80,13 +91,11 @@ export class HttpDataSource {
 
   async login(login: string, password: string): Promise<MeResponse> {
     const me = await api<MeResponse>('/auth/login', { body: { login: login.trim(), password } });
-    this.options.onLogin?.(me);
     return me;
   }
 
   async logout(): Promise<void> {
     await api<void>('/auth/logout', { method: 'POST' });
-    await this.options.onLogout?.();
   }
 
   listUsers(): Promise<UserDto[]> {
@@ -131,13 +140,11 @@ export class HttpDataSource {
 
   async registerByInvite(token: string, input: RegisterInput): Promise<MeResponse> {
     const me = await api<MeResponse>(`/auth/links/${encodeURIComponent(token)}/register`, { body: input });
-    this.options.onLogin?.(me);
     return me;
   }
 
   async resetPasswordByLink(token: string, password: string): Promise<MeResponse> {
     const me = await api<MeResponse>(`/auth/links/${encodeURIComponent(token)}/reset`, { body: { password } });
-    this.options.onLogin?.(me);
     return me;
   }
 
@@ -339,5 +346,95 @@ export class HttpDataSource {
 
   deleteProductImage(productId: UUID, imageId: UUID): Promise<void> {
     return api<void>(`/products/${productId}/images/${imageId}`, { method: 'DELETE' });
+  }
+
+  // ── заявки ────────────────────────────────────────────────────────
+
+  /** Змін від сервера вкладка не слухає: реєстр перечитується за таймером, заявку перевіряє сама сторінка. */
+  subscribe(): () => void {
+    return () => undefined;
+  }
+
+  listRequests(query: RequestListQuery = {}): Promise<RequestListItem[]> {
+    return api<RequestListItem[]>('/requests', {
+      query: {
+        search: query.search,
+        status: query.status?.length ? query.status.join(',') : undefined,
+        clientId: query.clientId,
+        managerId: query.managerId,
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
+        mine: query.mine || undefined,
+        sort: query.sort,
+      },
+    });
+  }
+
+  createRequest(body: CreateRequestBody): Promise<CreateRequestResult> {
+    return api<CreateRequestResult>('/requests', { body });
+  }
+
+  getRequestDocument(id: UUID): Promise<RequestDocument> {
+    return api<RequestDocument>(`/requests/${id}`);
+  }
+
+  saveRequestDocument(id: UUID, patch: DocumentPatch, options?: CallOptions): Promise<SaveDocumentResponse> {
+    return api<SaveDocumentResponse>(`/requests/${id}`, { method: 'PATCH', body: patch, keepalive: options?.keepalive });
+  }
+
+  changeStatus(id: UUID, body: StatusChangeBody): Promise<StatusChangeResult> {
+    return api<StatusChangeResult>(`/requests/${id}/status`, { body });
+  }
+
+  copyRequest(id: UUID, body: CopyRequestBody): Promise<CopyRequestResult> {
+    return api<CopyRequestResult>(`/requests/${id}/copy`, { body });
+  }
+
+  listKps(requestId: UUID): Promise<KpDocumentDto[]> {
+    return api<KpDocumentDto[]>(`/requests/${requestId}/kps`);
+  }
+
+  createKp(requestId: UUID, body: KpCreateBody): Promise<KpDocumentDto> {
+    return api<KpDocumentDto>(`/requests/${requestId}/kps`, { body });
+  }
+
+  getRequestHistory(requestId: UUID): Promise<RequestHistoryResponse> {
+    return api<RequestHistoryResponse>(`/requests/${requestId}/history`);
+  }
+
+  listAttachments(requestId: UUID): Promise<AttachmentDto[]> {
+    return api<AttachmentDto[]>(`/requests/${requestId}/files`);
+  }
+
+  uploadAttachment(requestId: UUID, file: File): Promise<AttachmentDto> {
+    const form = new FormData();
+    form.append('file', file);
+    return api<AttachmentDto>(`/requests/${requestId}/files`, { form });
+  }
+
+  deleteAttachment(requestId: UUID, fileId: UUID): Promise<void> {
+    return api<void>(`/requests/${requestId}/files/${fileId}`, { method: 'DELETE' });
+  }
+
+  // ── блокування ────────────────────────────────────────────────────
+
+  acquireLock(id: UUID): Promise<LockAcquireResult> {
+    return api<LockAcquireResult>(`/requests/${id}/lock`, { method: 'POST' });
+  }
+
+  heartbeat(id: UUID): Promise<LockInfo> {
+    return api<LockInfo>(`/requests/${id}/lock/heartbeat`, { method: 'POST' });
+  }
+
+  releaseLock(id: UUID, options?: CallOptions): Promise<void> {
+    return api<void>(`/requests/${id}/lock`, { method: 'DELETE', keepalive: options?.keepalive });
+  }
+
+  forceLock(id: UUID): Promise<LockInfo> {
+    return api<LockInfo>(`/requests/${id}/lock/force`, { method: 'POST' });
+  }
+
+  getLockStatus(id: UUID): Promise<LockStatusResponse> {
+    return api<LockStatusResponse>(`/requests/${id}/lock`);
   }
 }

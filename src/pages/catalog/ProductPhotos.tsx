@@ -3,7 +3,7 @@ import { DeleteOutlined, StarFilled, StarOutlined, UploadOutlined } from '@ant-d
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Alert, Button, Image, Popconfirm, Spin, Tooltip, Upload } from 'antd';
 import type { ProductImageDto, UUID } from '@shared/types';
-import { ds, errorMessage, qk, SERVER_ENABLED } from '@/data';
+import { ds, errorMessage, qk } from '@/data';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp';
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -47,21 +47,19 @@ export function ProductPhotos({ productId }: { productId: UUID }) {
     <>
       <div className="po-cat-section po-cat-photos-head">
         <span>Фото</span>
-        {SERVER_ENABLED ? (
-          <Upload
-            accept={ACCEPT}
-            showUploadList={false}
-            beforeUpload={(file) => {
-              if (file.size > MAX_BYTES) message.error('Фото більше за 10 МБ — стисніть або виберіть менше');
-              else upload.mutate(file as unknown as File);
-              return Upload.LIST_IGNORE;
-            }}
-          >
-            <Button size="small" icon={<UploadOutlined />} loading={upload.isPending}>
-              Додати фото
-            </Button>
-          </Upload>
-        ) : null}
+        <Upload
+          accept={ACCEPT}
+          showUploadList={false}
+          beforeUpload={(file) => {
+            if (file.size > MAX_BYTES) message.error('Фото більше за 10 МБ — стисніть або виберіть менше');
+            else upload.mutate(file as unknown as File);
+            return Upload.LIST_IGNORE;
+          }}
+        >
+          <Button size="small" icon={<UploadOutlined />} loading={upload.isPending}>
+            Додати фото
+          </Button>
+        </Upload>
       </div>
 
       {images.isPending ? (
@@ -69,7 +67,7 @@ export function ProductPhotos({ productId }: { productId: UUID }) {
       ) : images.isError ? (
         <Alert type="error" showIcon message="Не вдалося завантажити фото" description={errorMessage(images.error)} />
       ) : list.length === 0 ? (
-        <span className="po-muted">Фото немає{SERVER_ENABLED ? ' — додайте файл або воно зʼявиться з прайсу постачальника' : ''}</span>
+        <span className="po-muted">Фото немає — додайте файл або воно зʼявиться з прайсу постачальника</span>
       ) : (
         <Image.PreviewGroup>
           <div className="po-cat-photos">
@@ -81,22 +79,20 @@ export function ProductPhotos({ productId }: { productId: UUID }) {
                     <StarFilled className="po-cat-photo-main" />
                   </Tooltip>
                 ) : null}
-                {SERVER_ENABLED ? (
-                  <div className="po-cat-photo-actions">
-                    <Tooltip title={img.isMain ? 'Уже головне' : 'Зробити головним'}>
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={img.isMain ? <StarFilled /> : <StarOutlined />}
-                        disabled={img.isMain || setMain.isPending}
-                        onClick={() => setMain.mutate(img.id)}
-                      />
-                    </Tooltip>
-                    <Popconfirm title="Видалити фото?" okText="Видалити" cancelText="Скасувати" onConfirm={() => remove.mutate(img.id)}>
-                      <Button type="text" size="small" danger icon={<DeleteOutlined />} disabled={remove.isPending} />
-                    </Popconfirm>
-                  </div>
-                ) : null}
+                <div className="po-cat-photo-actions">
+                  <Tooltip title={img.isMain ? 'Уже головне' : 'Зробити головним'}>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={img.isMain ? <StarFilled /> : <StarOutlined />}
+                      disabled={img.isMain || setMain.isPending}
+                      onClick={() => setMain.mutate(img.id)}
+                    />
+                  </Tooltip>
+                  <Popconfirm title="Видалити фото?" okText="Видалити" cancelText="Скасувати" onConfirm={() => remove.mutate(img.id)}>
+                    <Button type="text" size="small" danger icon={<DeleteOutlined />} disabled={remove.isPending} />
+                  </Popconfirm>
+                </div>
               </div>
             ))}
           </div>

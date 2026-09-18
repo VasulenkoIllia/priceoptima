@@ -1,10 +1,11 @@
-// Вкладка «Історія»: журнал подій заявки — створення, статус, КП, погодження, зміни цін у заявці, копія, передача редагування.
+// Вкладка «Історія»: журнал подій заявки — створення, статус, КП, погодження, зміни цін у заявці, копія, файли, передача редагування.
 import {
   CheckCircleOutlined,
   CopyOutlined,
   DollarOutlined,
   FileTextOutlined,
   LockOutlined,
+  PaperClipOutlined,
   PercentageOutlined,
   PlusCircleOutlined,
   ShopOutlined,
@@ -31,6 +32,7 @@ const KIND: Record<RequestEventDto['kind'], { icon: ReactNode; color: string; la
   approval: { icon: <CheckCircleOutlined />, color: SEMANTIC_COLORS.min, label: 'Погодження' },
   copy: { icon: <CopyOutlined />, color: '#607D8B', label: 'Копія' },
   lock_force: { icon: <LockOutlined />, color: SEMANTIC_COLORS.error, label: 'Редагування' },
+  files: { icon: <PaperClipOutlined />, color: '#607D8B', label: 'Файли' },
 };
 
 export default function HistoryTab() {

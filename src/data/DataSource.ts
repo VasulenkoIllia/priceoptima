@@ -1,6 +1,7 @@
 // Контракт джерела даних (§8 ui-prototype). Методи 1:1 з REST.
 import type { UserRole } from '@shared/enums';
 import type {
+  AttachmentDto,
   AppSettings,
   AppSettingsPatch,
   ClientDetail,
@@ -202,6 +203,11 @@ export interface DataSource {
   /** Сформувати КП (номер — з лічильника). Потрібне блокування цієї вкладки; незбережені зміни зберегти заздалегідь. */
   createKp(requestId: UUID, body: KpCreateBody): Promise<KpDocumentDto>;
   getRequestHistory(requestId: UUID): Promise<RequestHistoryResponse>;
+  /** Файли заявки (від клієнта тощо), від найновішого. */
+  listAttachments(requestId: UUID): Promise<AttachmentDto[]>;
+  /** До 20 МБ; потрібне блокування цієї вкладки. */
+  uploadAttachment(requestId: UUID, file: File): Promise<AttachmentDto>;
+  deleteAttachment(requestId: UUID, fileId: UUID): Promise<void>;
 
   // ── Блокування (§6.11) ──────────────────────────────────────────
   acquireLock(id: UUID): Promise<LockAcquireResult>;
@@ -212,13 +218,11 @@ export interface DataSource {
   forceLock(id: UUID): Promise<LockInfo>;
   getLockStatus(id: UUID): Promise<LockStatusResponse>;
 
-  // ── Курси, демо ─────────────────────────────────────────────────
+  // ── Курси ───────────────────────────────────────────────────────
   /** Курси НБУ на дату (останні відомі ≤ дати). */
   getRates(date: ISODate): Promise<EffectiveRates>;
   /** Уся історія курсів (від найстарішої дати). */
   listRates(): Promise<CurrencyRateDto[]>;
   /** Загальний ручний курс на дату: за ту саму дату переважає курс НБУ (діє для постачальників без курсу в прайсі й без ручного). */
   addManualRate(input: ManualRateInput): Promise<CurrencyRateDto>;
-  /** Лише адміністратор. */
-  resetDemoData(): Promise<void>;
 }

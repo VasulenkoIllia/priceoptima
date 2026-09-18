@@ -361,7 +361,8 @@ export interface RequestEventDto {
     | 'kp_created'
     | 'approval'
     | 'copy'
-    | 'lock_force';
+    | 'lock_force'
+    | 'files';
   /** Короткий опис українською. */
   summary: string;
   /** Службове: сусідні зміни однієї групи (галочки, позиції) зливаються в одну подію з лічильниками. */

@@ -1,8 +1,12 @@
 // REST-клієнт продуктового бекенду: сесія в cookie, помилки — з тими самими кодами, що й у демо-джерелі.
 import type { ApiErrorBody, ApiErrorCode } from '@shared/types';
+import { newId } from '@/lib/ids';
 import { DataSourceError } from '../errors';
 
 const BASE = '/api';
+
+/** Ідентифікатор вкладки (одне завантаження сторінки): блокування заявки належить саме їй. */
+export const SESSION_ID = newId();
 
 /** Код за статусом, якщо сервер не повернув свій. */
 function codeOfStatus(status: number): ApiErrorCode {
@@ -26,6 +30,8 @@ export interface ApiOptions {
   signal?: AbortSignal;
   /** Надіслати як є (FormData для файлів) — Content-Type ставить браузер. */
   form?: FormData;
+  /** Запит під час закриття сторінки (браузер доставить його й після закриття). */
+  keepalive?: boolean;
 }
 
 function url(path: string, query?: Record<string, QueryValue>): string {
@@ -39,14 +45,17 @@ function url(path: string, query?: Record<string, QueryValue>): string {
 
 /** Запит до API; кидає DataSourceError, як і демо-джерело. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const { method = options.body || options.form ? 'POST' : 'GET', body, form, query, signal } = options;
+  const { method = options.body || options.form ? 'POST' : 'GET', body, form, query, signal, keepalive } = options;
+  const headers: Record<string, string> = { 'X-Session-Id': SESSION_ID };
+  if (!form && body !== undefined) headers['Content-Type'] = 'application/json';
   let res: Response;
   try {
     res = await fetch(url(path, query), {
       method,
       credentials: 'include',
       signal,
-      headers: form || body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      keepalive,
+      headers,
       body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
     });
   } catch (e) {
