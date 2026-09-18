@@ -39,7 +39,6 @@ function QtyInput({ row, disabled, onCommit }: { row: ApprovalRow; disabled: boo
       key={`${row.key}:${current}`}
       size="small"
       min={0}
-      max={row.kp.qty}
       decimalSeparator=","
       defaultValue={current}
       disabled={disabled}
@@ -47,6 +46,23 @@ function QtyInput({ row, disabled, onCommit }: { row: ApprovalRow; disabled: boo
       onBlur={(e) => commit(e.target.value)}
       onPressEnter={(e) => commit((e.target as HTMLInputElement).value)}
     />
+  );
+}
+
+/** Відхилення погодженої к-сті від КП: «+2» (дозамовили) або «−2». */
+function QtyDiff({ kpQty, approvedQty }: { kpQty: number; approvedQty: number }) {
+  const d = round2(approvedQty - kpQty);
+  if (!d) return null;
+  return (
+    <Tag
+      bordered={false}
+      color={d > 0 ? 'orange' : 'default'}
+      className="po-num"
+      title={d > 0 ? `Більше, ніж у КП (${formatQty(kpQty)})` : `Менше, ніж у КП (${formatQty(kpQty)})`}
+    >
+      {d > 0 ? '+' : '−'}
+      {formatQty(Math.abs(d))}
+    </Tag>
   );
 }
 
@@ -133,18 +149,14 @@ export default function ApprovalTab() {
       ),
     );
 
-  // погоджена к-сть — не більша за к-сть у КП; кратність — за поточною пропозицією, але округлення не виходить за к-сть у КП
+  // погоджена к-сть може бути й більшою, ніж у КП (клієнт дозамовив, п.4.1 правок); кратність — за поточною пропозицією (округлення вгору)
   const commitQty = (row: ApprovalRow, raw: number | null) => {
     if (!row.line?.approval.approved) return;
-    let qty = raw == null || !(raw > 0) ? row.kp.qty : Math.min(raw, row.kp.qty);
+    let qty = raw == null || !(raw > 0) ? row.kp.qty : raw;
     const check = checkMultiplicity(qty, row.multiplicity);
     if (!check.isMultiple && check.suggestedQty != null) {
-      if (check.suggestedQty <= row.kp.qty) {
-        message.info(`К-сть округлено з ${formatQty(qty)} до ${formatQty(check.suggestedQty)}, кратно ${formatQty(row.multiplicity)}`);
-        qty = check.suggestedQty;
-      } else {
-        message.warning(`${formatQty(qty)} не кратно ${formatQty(row.multiplicity)} — уточніть к-сть у постачальника`);
-      }
+      message.info(`К-сть округлено з ${formatQty(qty)} до ${formatQty(check.suggestedQty)}, кратно ${formatQty(row.multiplicity)}`);
+      qty = check.suggestedQty;
     }
     if (qty !== (row.line.approval.approvedQty ?? row.kp.qty)) setApproval(row.line.id, true, qty);
   };
@@ -185,9 +197,16 @@ export default function ApprovalTab() {
     {
       key: 'approvedQty',
       title: 'Погоджена к-сть',
-      width: 136,
+      width: 176,
       render: (_, r) =>
-        r.line?.approval.approved ? <QtyInput row={r} disabled={readOnly} onCommit={(v) => commitQty(r, v)} /> : <span className="po-muted">—</span>,
+        r.line?.approval.approved ? (
+          <Space size={4}>
+            <QtyInput row={r} disabled={readOnly} onCommit={(v) => commitQty(r, v)} />
+            <QtyDiff kpQty={r.kp.qty} approvedQty={r.line.approval.approvedQty ?? r.kp.qty} />
+          </Space>
+        ) : (
+          <span className="po-muted">—</span>
+        ),
     },
     { key: 'price', title: base.snapshot.columns.priceHeader, width: 132, align: 'right', render: (_, r) => <span className="po-num">{formatMoney(r.kp.price)}</span> },
     {
