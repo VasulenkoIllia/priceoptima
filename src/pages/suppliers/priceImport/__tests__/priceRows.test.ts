@@ -10,7 +10,7 @@ import {
   type PriceColumnMap,
 } from '../priceRows';
 
-/** Реальний заголовок прайсу «Теплоарматури». */
+/** Заголовок типового прайсу з 1С: код, дві колонки наявності, ціна з ПДВ. */
 const TA_HEADER = [
   'Код 1С',
   'Кількість',
@@ -29,7 +29,7 @@ const TA_ROWS = [
   ['ТА-100987', '', 'Труба ППР PN20 D20', 'PPR-20', 'Blue Ocean', '29,88', '45', '30+', ''],
 ];
 
-describe('detectColumns — прайс Теплоарматури', () => {
+describe('detectColumns — типовий прайс з 1С', () => {
   it('усі колонки за заголовком; «Ціна РРЦ» не плутається з ціною закупівлі', () => {
     expect(detectColumns(TA_ROWS)).toEqual({
       headerRow: 0,
