@@ -51,10 +51,10 @@ cp .env.example .env
 openssl rand -base64 32          # SESSION_SECRET
 ```
 
-Теки для даних (том бази й файли) мають належати користувачу контейнера:
+Теки для даних (том бази, файли, резервні копії) — файли мають належати користувачу контейнера:
 
 ```bash
-mkdir -p data/postgres data/uploads
+mkdir -p data/postgres data/uploads data/backups data/rclone
 sudo chown -R 1000:1000 data/uploads
 ```
 
@@ -71,6 +71,37 @@ git pull && docker compose up -d --build
 
 - Пароль адміністратора з `.env` враховується лише при створенні облікового запису; при першому вході застосунок
   попросить його змінити. Далі користувачів запрошують і блокують у самому застосунку (розділ «Налаштування»).
-- Дані бази — у `./data/postgres`, завантажені файли (фото товарів, файли заявок, прайси) — у `./data/uploads`;
-  бекап робиться з цих тек (`pg_dump` для бази) і зберігається поза сервером.
+- Дані бази — у `./data/postgres`, завантажені файли (фото товарів, файли заявок, прайси) — у `./data/uploads`.
 - Реквізити наших юросіб, логотипи й типові умови КП заповнюють у застосунку (Налаштування).
+
+## Резервні копії
+
+Контейнер `backup` піднімається разом з іншими:
+
+- щодня о 02:30 — копія бази в `data/backups/daily` (зберігаються 14 останніх);
+- щонеділі — ще копія бази й архів файлів у `data/backups/weekly` (4 останні);
+- 1-го числа — пробне відновлення найсвіжішої копії в тимчасову базу; результат у `data/backups/last-restore-check`;
+- якщо копія не вдалася, контейнер стає `unhealthy`, причина — у `data/backups/last-error`.
+
+Копії мають лежати й поза сервером. Для цього налаштуйте сховище (Hetzner Storage Box, Backblaze B2, Cloudflare R2 тощо)
+через rclone і вкажіть його в `.env`:
+
+```bash
+docker compose run --rm --entrypoint rclone backup config
+```
+
+```bash
+# .env: BACKUP_REMOTE=<назва сховища з rclone config>:priceoptima
+docker compose up -d backup
+```
+
+Перевірка вручну: `docker compose exec backup backup.sh` і `docker compose exec backup restore-check.sh`.
+
+Відновлення з копії (застосунок на час відновлення зупиняють; `<користувач>` — `POSTGRES_USER` з `.env`):
+
+```bash
+docker compose stop app
+docker compose exec -T db pg_restore --clean --if-exists --no-owner -U <користувач> -d priceoptima < data/backups/daily/db-<дата>.dump
+tar -xzf data/backups/weekly/uploads-<дата>.tar.gz -C data/uploads
+docker compose start app
+```

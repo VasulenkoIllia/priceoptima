@@ -40,6 +40,38 @@ services:
     networks:
       - internal
 
+  # резервні копії: база щодня, файли щотижня, 14 + 4 копії в ./data/backups і (якщо задано BACKUP_REMOTE) поза сервер
+  backup:
+    build:
+      context: ./backup
+    image: ${APP_NAME:-priceoptima}-backup
+    container_name: ${APP_NAME:-priceoptima}-backup
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-priceoptima}
+      TZ: ${TZ:-Europe/Kyiv}
+      BACKUP_CRON: ${BACKUP_CRON:-30 2 * * *}
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-}
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+    volumes:
+      - ./data/backups:/backups
+      - ./data/uploads:/uploads:ro
+      - ./data/rclone:/config/rclone
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # остання копія не вдалася — контейнер «unhealthy», причина в data/backups/last-error
+      test: ["CMD-SHELL", "test ! -f /backups/last-error"]
+      interval: 1h
+      timeout: 5s
+      retries: 1
+    restart: unless-stopped
+    networks:
+      - internal
+
   app:
     build:
       context: .
