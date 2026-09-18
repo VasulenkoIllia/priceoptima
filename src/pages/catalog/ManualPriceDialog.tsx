@@ -4,6 +4,7 @@ import { App, Col, Form, InputNumber, Modal, Row, Select, Typography } from 'ant
 import { CURRENCY_CODES, CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
 import type { ProductDetail } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
+import { grossPrice, useVatRate } from './productView';
 
 interface FormValues {
   currency: CurrencyCode;
@@ -24,16 +25,23 @@ export function ManualPriceDialog({ open, product, onClose }: ManualPriceDialogP
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<FormValues>();
+  const vatRatePct = useVatRate();
+  // вхід вводиться з ПДВ (п.7 правок); сервер зводить його до ціни без ПДВ за ставкою з Налаштувань
+  const initialGross = grossPrice(product.purchasePrice, vatRatePct);
 
   const save = useMutation({
-    mutationFn: (v: FormValues) =>
-      ds.updateProductPrice(product.id, {
+    mutationFn: (v: FormValues) => {
+      const unchanged = v.purchasePrice === initialGross && v.currency === product.currency;
+      return ds.updateProductPrice(product.id, {
         currency: v.currency,
-        purchasePrice: v.purchasePrice ?? null,
+        // ціну не чіпали — лишаємо збережену без ПДВ (без округлення туди-назад)
+        purchasePrice: unchanged ? product.purchasePrice : (v.purchasePrice ?? null),
+        priceIncludesVat: !unchanged,
         rrp: v.rrp ?? null,
         stockQty: v.stockQty ?? null,
         source: 'manual',
-      }),
+      });
+    },
     onSuccess: (res) => {
       void queryClient.invalidateQueries({ queryKey: qk.productsAll });
       void queryClient.invalidateQueries({ queryKey: qk.product(product.id) });
@@ -67,7 +75,7 @@ export function ManualPriceDialog({ open, product, onClose }: ManualPriceDialogP
         preserve={false}
         initialValues={{
           currency: product.currency,
-          purchasePrice: product.purchasePrice,
+          purchasePrice: initialGross,
           rrp: product.rrp,
           stockQty: product.stockQty,
         }}
@@ -80,7 +88,7 @@ export function ManualPriceDialog({ open, product, onClose }: ManualPriceDialogP
             </Form.Item>
           </Col>
           <Col span={9}>
-            <Form.Item name="purchasePrice" label="Вхід без ПДВ" rules={[{ required: true, message: 'Вкажіть ціну' }]}>
+            <Form.Item name="purchasePrice" label="Вхід з ПДВ" rules={[{ required: true, message: 'Вкажіть ціну' }]}>
               <InputNumber min={0} step={0.01} decimalSeparator="," style={{ width: '100%' }} autoFocus />
             </Form.Item>
           </Col>

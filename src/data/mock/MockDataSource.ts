@@ -920,7 +920,9 @@ export class MockDataSource implements DataSource {
         throw new DataSourceError('INVALID_STATE', 'Ціну цього товару оновлює прайс постачальника. Скоригувати ціну для клієнта можна в заявці');
       }
       const at = this.nowIso();
-      const data = clone(input);
+      const { priceIncludesVat, ...data } = clone(input);
+      // вхід, введений з ПДВ, зберігається без ПДВ (Ф1)
+      if (priceIncludesVat && data.purchasePrice != null) data.purchasePrice = normalizeInputPrice(data.purchasePrice, true, this.db.settings.vatRatePct);
       const userRef: UserRef = { id: user.id, shortName: user.shortName };
       const entry = this.mutate((db): PriceHistoryEntry | null => {
         const p = db.products[id];

@@ -92,7 +92,7 @@ describe('detectColumns — прайс Теплоарматури', () => {
         'Назва*',
         'Бренд',
         'Одиниця',
-        'Ціна закупівлі без ПДВ*',
+        'Ціна закупівлі з ПДВ*',
         'Валюта',
         'РРЦ з ПДВ',
         'Наявність',
@@ -121,6 +121,8 @@ describe('detectColumns — прайс Теплоарматури', () => {
   it('ПДВ і валюта із заголовка ціни', () => {
     expect(detectPriceIncludesVat('Ціна опт з ПДВ')).toBe(true);
     expect(detectPriceIncludesVat('Ціна закупівлі без ПДВ')).toBe(false);
+    // наш шаблон — ціни з ПДВ (п.7 правок): прапорець ставиться сам
+    expect(detectPriceIncludesVat('Ціна закупівлі з ПДВ*')).toBe(true);
     expect(detectPriceIncludesVat('Ціна')).toBeNull();
     expect(detectHeaderCurrency('Ціна, USD')).toBe('USD');
     expect(detectHeaderCurrency('Ціна опт з ПДВ')).toBeNull();

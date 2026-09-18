@@ -12,12 +12,17 @@ import { ManualPriceDialog } from './ManualPriceDialog';
 import { ProductEditDialog } from './ProductEditDialog';
 import { PriceHistoryChart } from './PriceHistoryChart';
 import { ProductPhotos } from './ProductPhotos';
-import { Availability, HISTORY_SOURCE_LABELS, PriceSourceTag, priceCur } from './productView';
+import { Availability, grossPrice, HISTORY_SOURCE_LABELS, PriceSourceTag, priceCur, useVatRate } from './productView';
 
-function historyColumns(): TableColumnsType<PriceHistoryEntry> {
+function historyColumns(vatRatePct: number): TableColumnsType<PriceHistoryEntry> {
   return [
     { title: 'Дата і час', dataIndex: 'effectiveAt', width: 118, render: (v: string) => <span className="po-num">{formatDateTime(v)}</span> },
-    { title: 'Вхід', key: 'price', align: 'right', render: (_, h) => <span className="po-num">{priceCur(h.purchasePrice, h.currency)}</span> },
+    {
+      title: 'Вхід з ПДВ',
+      key: 'price',
+      align: 'right',
+      render: (_, h) => <span className="po-num">{priceCur(grossPrice(h.purchasePrice, vatRatePct), h.currency)}</span>,
+    },
     { title: 'РРЦ', key: 'rrp', align: 'right', render: (_, h) => <span className="po-num">{priceCur(h.rrp, h.currency)}</span> },
     { title: 'Наявність', key: 'stock', render: (_, h) => (h.availability ? <Availability status={h.availability} qty={h.stockQty} /> : '—') },
     {
@@ -46,6 +51,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
   const [editOpen, setEditOpen] = useState(false);
   const history = useQuery({ queryKey: qk.priceHistory(product.id), queryFn: () => ds.getPriceHistory(product.id) });
   const isManual = product.priceSource === 'manual';
+  const vatRatePct = useVatRate();
   // НОМ-5: «Ціну перевірено» — дата ціни зараз, ціна без змін (лише в доданих вручну; решту оновлює прайс)
   const checked = useMutation({
     mutationFn: () =>
@@ -73,15 +79,23 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
     { key: 'mult', label: 'Кратність', children: <span className="po-num">{formatQty(product.multiplicity)}</span> },
     { key: 'currency', label: 'Валюта', children: CURRENCY_LABELS[product.currency] },
     { key: 'minQty', label: 'Мін. замовлення', children: <span className="po-num">{formatQty(product.minOrderQty)}</span> },
-    { key: 'price', label: 'Вхід без ПДВ', children: <b className="po-num">{priceCur(product.purchasePrice, product.currency)}</b> },
+    {
+      key: 'price',
+      label: (
+        <Tooltip title={`У підборі, порівнянні й КП ціна рахується без ПДВ: ${priceCur(product.purchasePrice, product.currency)}`}>
+          <span>Вхід з ПДВ</span>
+        </Tooltip>
+      ),
+      children: <b className="po-num">{priceCur(grossPrice(product.purchasePrice, vatRatePct), product.currency)}</b>,
+    },
     {
       key: 'priceUah',
       label: (
         <Tooltip title="За курсом з прайсу постачальника. Націнку постачальника й курс блоку застосовують лише в заявці">
-          <span>Вхід, грн</span>
+          <span>Вхід з ПДВ, грн</span>
         </Tooltip>
       ),
-      children: <span className="po-num">{formatMoneyUah(product.purchasePriceUah)}</span>,
+      children: <span className="po-num">{formatMoneyUah(grossPrice(product.purchasePriceUah, vatRatePct))}</span>,
     },
     { key: 'rrp', label: 'РРЦ з ПДВ', children: <span className="po-num">{priceCur(product.rrp, product.currency)}</span> },
     { key: 'stock', label: 'Наявність', children: <Availability status={product.availability} qty={product.stockQty} /> },
@@ -159,12 +173,12 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
         <Alert type="error" showIcon message="Не вдалося завантажити історію цін" description={errorMessage(history.error)} />
       ) : (
         <>
-          <PriceHistoryChart history={history.data} currency={product.currency} />
+          <PriceHistoryChart history={history.data} currency={product.currency} vatRatePct={vatRatePct} />
           <Table<PriceHistoryEntry>
             className="po-cat-history"
             size="small"
             rowKey="id"
-            columns={historyColumns()}
+            columns={historyColumns(vatRatePct)}
             dataSource={history.data}
             pagination={{ pageSize: 8, size: 'small', hideOnSinglePage: true }}
             locale={{ emptyText: 'Історія цін порожня' }}

@@ -1,11 +1,25 @@
 // Відображення товару: наявність, джерело ціни, ціна у валюті (сітка і картка).
+import { useQuery } from '@tanstack/react-query';
 import { Tag } from 'antd';
 import { AVAILABILITY_LABELS, CURRENCY_LABELS, type AvailabilityStatus, type CurrencyCode, type PriceSource } from '@shared/enums';
 import { formatQty, formatRate } from '@shared/format';
+import { DEFAULT_APP_SETTINGS, netToGross } from '@shared/pricing';
+import { ds, qk } from '@/data';
 
 /** '8,602 USD'; null → '—'. */
 export function priceCur(v: number | null | undefined, currency: CurrencyCode): string {
   return v == null ? '—' : `${formatRate(v)} ${CURRENCY_LABELS[currency]}`;
+}
+
+/** Каталог показує вхід з ПДВ (п.7 правок клієнта); зберігається без ПДВ — для підбору, порівняння й КП. */
+export function grossPrice(net: number | null | undefined, vatRatePct: number): number | null {
+  return net == null ? null : netToGross(net, vatRatePct);
+}
+
+/** Ставка ПДВ з Налаштувань (для показу цін з ПДВ). */
+export function useVatRate(): number {
+  const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
+  return settings.data?.vatRatePct ?? DEFAULT_APP_SETTINGS.vatRatePct;
 }
 
 /** Джерело запису історії цін. */

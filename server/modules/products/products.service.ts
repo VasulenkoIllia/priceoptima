@@ -348,6 +348,11 @@ export async function updateProductPrice(
 ): Promise<ProductPriceUpdateResult> {
   const current = await productOrFail(id);
   assertManualPrice(current.priceOrigin);
+  // вхід, введений з ПДВ, зберігається без ПДВ (Ф1)
+  const purchasePrice =
+    input.priceIncludesVat && input.purchasePrice != null
+      ? normalizeInputPrice(input.purchasePrice, true, (await getSettings()).vatRatePct)
+      : input.purchasePrice;
 
   const stockQty = input.stockQty !== undefined ? input.stockQty : decimalOrNull(current.stockQty);
   const availability =
@@ -359,7 +364,7 @@ export async function updateProductPrice(
     stockQty: decimalOrNull(current.stockQty),
     availability: current.availability,
   };
-  const after = { currency: input.currency, purchasePrice: input.purchasePrice, rrp: input.rrp, stockQty, availability };
+  const after = { currency: input.currency, purchasePrice, rrp: input.rrp, stockQty, availability };
   const changed = priceChanged(before, after);
   const now = new Date();
 
@@ -374,7 +379,7 @@ export async function updateProductPrice(
         productId: id,
         effectiveAt: now,
         currency: input.currency,
-        purchasePrice: input.purchasePrice,
+        purchasePrice,
         rrp: input.rrp,
         stockQty,
         availability,

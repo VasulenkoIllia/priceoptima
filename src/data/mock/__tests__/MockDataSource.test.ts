@@ -107,6 +107,11 @@ describe('MockDataSource — сесія і дані', () => {
     expect(historyAfter[0].id).toBe(res.historyEntry!.id);
     const same = await tab.updateProductPrice(product.id, { currency: 'UAH', purchasePrice: 110, rrp: 160, source: 'manual' });
     expect(same.historyEntry).toBeNull();
+    // вхід, введений з ПДВ (п.7 правок), зберігається без ПДВ
+    const gross = await tab.updateProductPrice(product.id, { currency: 'UAH', purchasePrice: 144, priceIncludesVat: true, rrp: 160, source: 'manual' });
+    expect(gross.product.purchasePrice).toBe(120);
+    const created = await tab.createProduct({ supplierId: 'sup-s1', sku: 'ТЕСТ-3', nameWork: 'З ПДВ', unitCode: 'шт', currency: 'UAH', purchasePrice: 60, priceIncludesVat: true });
+    expect(created.purchasePrice).toBe(50);
   });
 
   it('лічильники номерів можна лише збільшити; у демо є товари, додані вручну', async () => {

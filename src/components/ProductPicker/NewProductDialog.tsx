@@ -79,6 +79,8 @@ export function NewProductDialog({
         unitCode: v.unitCode,
         currency: v.currency,
         purchasePrice: v.purchasePrice ?? null,
+        // вхід вводиться з ПДВ (п.7 правок); зберігається без ПДВ за ставкою з Налаштувань
+        priceIncludesVat: true,
         rrp: v.rrp ?? null,
         multiplicity: v.multiplicity && v.multiplicity > 0 ? v.multiplicity : 1,
         stockQty: v.stockQty ?? null,
@@ -154,7 +156,7 @@ export function NewProductDialog({
             </Form.Item>
           </Col>
           <Col span={7}>
-            <Form.Item name="purchasePrice" label="Ціна вх. без ПДВ" rules={requirePrice ? [{ required: true, message: 'Вкажіть ціну' }] : undefined}>
+            <Form.Item name="purchasePrice" label="Вхід з ПДВ" rules={requirePrice ? [{ required: true, message: 'Вкажіть ціну' }] : undefined}>
               <InputNumber min={0} step={0.01} style={{ width: '100%' }} decimalSeparator="," />
             </Form.Item>
           </Col>

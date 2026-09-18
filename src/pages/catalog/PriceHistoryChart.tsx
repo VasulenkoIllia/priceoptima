@@ -1,6 +1,7 @@
 // Ступінчастий графік вхідної ціни за часом (inline SVG, без бібліотек).
 import { CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
 import { formatDate, formatDateTime, formatPct, formatRate } from '@shared/format';
+import { netToGross } from '@shared/pricing';
 import type { PriceHistoryEntry } from '@shared/types';
 import { BRAND_COLOR, SEMANTIC_COLORS } from '@/theme';
 
@@ -20,14 +21,18 @@ export interface PriceHistoryChartProps {
   /** Від найновішого запису (як повертає getPriceHistory). */
   history: PriceHistoryEntry[];
   currency: CurrencyCode;
+  /** Графік — у цінах з ПДВ, як каталог. */
+  vatRatePct: number;
 }
 
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
-export function PriceHistoryChart({ history, currency }: PriceHistoryChartProps) {
+export function PriceHistoryChart({ history, currency, vatRatePct }: PriceHistoryChartProps) {
   const cur = CURRENCY_LABELS[currency];
   const points: Point[] = history
-    .flatMap((h) => (h.purchasePrice != null && h.currency === currency ? [{ t: Date.parse(h.effectiveAt), v: h.purchasePrice, at: h.effectiveAt }] : []))
+    .flatMap((h) =>
+      h.purchasePrice != null && h.currency === currency ? [{ t: Date.parse(h.effectiveAt), v: netToGross(h.purchasePrice, vatRatePct), at: h.effectiveAt }] : [],
+    )
     .sort((a, b) => a.t - b.t);
 
   if (!points.length) {
@@ -66,7 +71,7 @@ export function PriceHistoryChart({ history, currency }: PriceHistoryChartProps)
   return (
     <div className="po-cat-chart">
       <div className="po-cat-chart-head">
-        <span>Вхід без ПДВ, {cur}</span>
+        <span>Вхід з ПДВ, {cur}</span>
         {points.length > 1 && Math.abs(changePct) >= 0.01 ? (
           <span className="po-num" style={{ color: changeColor }}>
             {changePct > 0 ? '▲' : '▼'} {formatPct(Math.abs(changePct), 1)} за період

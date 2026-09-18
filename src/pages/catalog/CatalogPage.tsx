@@ -15,7 +15,7 @@ import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { PriceImportDialog } from '../suppliers/priceImport';
 import { ProductDrawer } from './ProductDrawer';
-import { Availability, PriceSourceTag, priceCur } from './productView';
+import { Availability, grossPrice, PriceSourceTag, priceCur, useVatRate } from './productView';
 import './catalog.css';
 
 type Cell = ICellRendererParams<ProductDetail>;
@@ -134,6 +134,7 @@ export default function CatalogPage() {
     seenVersion.current = version.data;
   }, [version.data]);
 
+  const vatRatePct = useVatRate();
   const columns = useMemo<ColDef<ProductDetail>[]>(
     () => [
       {
@@ -169,23 +170,24 @@ export default function CatalogPage() {
         headerTooltip: 'Кратність відвантаження',
       },
       {
-        headerName: 'Вхід без ПДВ',
+        headerName: 'Вхід з ПДВ',
         colId: 'purchasePrice',
-        valueGetter: (p) => p.data?.purchasePrice ?? null,
-        valueFormatter: (p) => (p.data ? priceCur(p.data.purchasePrice, p.data.currency) : ''),
+        valueGetter: (p) => grossPrice(p.data?.purchasePrice, vatRatePct),
+        valueFormatter: (p) => (p.data ? priceCur(p.value as number | null, p.data.currency) : ''),
         width: 132,
         type: 'rightAligned',
         cellClass: 'po-num',
-        headerTooltip: 'Вхідна ціна без ПДВ у валюті прайсу',
+        headerTooltip: `Вхідна ціна з ПДВ ${vatRatePct} % у валюті прайсу. У підборі, порівнянні й КП ціни рахуються без ПДВ`,
       },
       {
-        headerName: 'Вхід, грн',
-        field: 'purchasePriceUah',
-        width: 116,
+        headerName: 'Вхід з ПДВ, грн',
+        colId: 'purchasePriceUah',
+        valueGetter: (p) => grossPrice(p.data?.purchasePriceUah, vatRatePct),
+        width: 128,
         sortable: false,
         type: 'rightAligned',
         cellClass: 'po-num',
-        valueFormatter: (p) => formatMoney(p.value),
+        valueFormatter: (p) => formatMoney(p.value as number | null),
         headerTooltip: 'За курсом з прайсу постачальника. Націнку постачальника й курс блоку застосовують лише в заявці',
       },
       {
@@ -224,7 +226,7 @@ export default function CatalogPage() {
         headerTooltip: 'Прайс — ціна оновлюється автоматично; Вручну — товар додано вручну',
       },
     ],
-    [supplierById],
+    [supplierById, vatRatePct],
   );
 
   const supplierOptions = [

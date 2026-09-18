@@ -159,6 +159,8 @@ export type ProductPatch = Partial<
 export interface ProductPriceUpdateInput {
   currency: CurrencyCode;
   purchasePrice: number | null;
+  /** true — purchasePrice введено з ПДВ, зберігається без ПДВ (Ф1). */
+  priceIncludesVat?: boolean;
   rrp: number | null;
   stockQty?: number | null;
   availability?: AvailabilityStatus;
