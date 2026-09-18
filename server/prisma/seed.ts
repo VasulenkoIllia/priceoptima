@@ -1,5 +1,4 @@
 // Початкове наповнення робочої бази: налаштування, одиниці виміру й один адміністратор.
-// Демо-даних тут немає — вони лишаються у демо-джерелі фронта.
 // Сід ідемпотентний: нічого не перезаписує, тож його безпечно виконувати при кожному запуску.
 import { DEFAULT_UNITS } from '@shared/parse';
 import { DEFAULT_APP_SETTINGS } from '@shared/pricing';
@@ -9,16 +8,13 @@ import { logger } from '../logger';
 import { hashPassword } from '../modules/auth/password';
 import { SETTINGS_ID, toSettingsRow } from '../modules/settings/settings.mapper';
 
-/** Робочі значення: як у DEFAULT_APP_SETTINGS, але блокування витриваліше — мережа й сплячий ноутбук не мають губити редагування. */
-const INITIAL_SETTINGS = { ...DEFAULT_APP_SETTINGS, lockTtlSeconds: 180, lockHeartbeatSeconds: 20 };
-
 async function seedSettings(): Promise<void> {
   const exists = await prisma.appSettings.findUnique({ where: { id: SETTINGS_ID }, select: { id: true } });
   if (exists) {
     logger.info('Налаштування вже є — пропускаємо');
     return;
   }
-  await prisma.appSettings.create({ data: { id: SETTINGS_ID, ...toSettingsRow(INITIAL_SETTINGS) } });
+  await prisma.appSettings.create({ data: { id: SETTINGS_ID, ...toSettingsRow(DEFAULT_APP_SETTINGS) } });
   logger.info('Створено рядок налаштувань');
 }
 

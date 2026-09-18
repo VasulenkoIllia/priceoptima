@@ -39,7 +39,7 @@ import type {
   UUID,
 } from '@shared/types';
 import { ds as defaultDs } from '@/data';
-import type { CallOptions, DataSource, DataSourceEvent } from '@/data/DataSource';
+import type { CallOptions, DataSource } from '@/data/DataSource';
 import { DataSourceError, errorMessage, isDataSourceError } from '@/data/errors';
 import { newId } from '@/lib/ids';
 import { toSupplierRef } from '@/lib/supplierRef';
@@ -306,7 +306,6 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     let watchTimer: ReturnType<typeof setInterval> | null = null;
     let saving: Promise<void> | null = null;
-    let unsubscribe: (() => void) | null = null;
     let loadToken = 0;
     let pendingUnload: { timer: ReturnType<typeof setTimeout>; resolvers: (() => void)[] } | null = null;
     let unloading: Promise<void> | null = null;
@@ -447,22 +446,6 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       });
     }
 
-    function onDsEvent(e: DataSourceEvent): void {
-      const s = get();
-      if (!s.requestId || s.loadState !== 'ready') return;
-      if (e.kind === 'lock-forced' && e.requestId === s.requestId && e.fromSessionId === ds.sessionId) {
-        if (s.hasLock) {
-          loseLock('forced', e.lock.userShortName);
-          set({ lock: e.lock });
-          void refresh();
-        }
-      } else if (e.kind === 'lock' && e.requestId === s.requestId) {
-        if (!s.hasLock) set({ lock: e.lock });
-      } else if (e.kind === 'db' && !s.hasLock) {
-        void refresh();
-      }
-    }
-
     // ── життєвий цикл ─────────────────────────────────────────────
     async function refresh(): Promise<void> {
       const id = get().requestId;
@@ -529,8 +512,6 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
           hasLock,
           ...readOnlyOf(doc, hasLock),
         });
-        unsubscribe?.();
-        unsubscribe = ds.subscribe(onDsEvent);
         if (hasLock) startHeartbeat();
         startWatch();
       } catch (e) {
@@ -547,8 +528,6 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         loadToken++;
         stopHeartbeat();
         stopWatch();
-        unsubscribe?.();
-        unsubscribe = null;
         clearSaveTimer();
         if (s.hasLock) {
           await runSave().catch(() => undefined);

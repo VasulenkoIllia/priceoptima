@@ -1,5 +1,6 @@
 // Блокування редагування заявки (4.10): одна вкладка одного користувача. Блокування живе, поки вкладка шле сигнал
-// (раз на lockHeartbeatSeconds); без сигналу понад lockTtlSeconds — знімається. Адміністратор може забрати собі.
+// (раз на lockHeartbeatSeconds); без сигналу понад lockTtlSeconds його може взяти інший. Поки ж ніхто не взяв —
+// запис лишається за вкладкою, і вона (після сну ноутбука чи у фоні) продовжує роботу. Адміністратор може забрати собі.
 import { Prisma, type RequestLock, type User } from '@prisma/client';
 import type { LockInfo, LockStatusResponse, UUID } from '@shared/types';
 import { prisma } from '../../db';
@@ -46,13 +47,10 @@ export async function acquireLock(requestId: UUID, actor: User, sessionId: strin
   return { acquired: false, lock: await lockInfoOf(current, actor, sessionId) };
 }
 
-/** Сигнал вкладки: продовжує блокування; LOCK_LOST — його вже немає або забрали. */
+/** Сигнал вкладки: продовжує блокування; LOCK_LOST — його взяв інший або забрав адміністратор. */
 export async function heartbeatLock(requestId: UUID, actor: User, sessionId: string, now = new Date()): Promise<LockInfo> {
   const expiresAt = new Date(now.getTime() + (await ttlMs()));
-  const { count } = await prisma.requestLock.updateMany({
-    where: { requestId, userId: actor.id, sessionId, expiresAt: { gt: now } },
-    data: { expiresAt },
-  });
+  const { count } = await prisma.requestLock.updateMany({ where: { requestId, userId: actor.id, sessionId }, data: { expiresAt } });
   if (count !== 1) throw await lockLost(requestId, actor, sessionId, now);
   const lock = await prisma.requestLock.findUnique({ where: { requestId } });
   return (await lockInfoOf(lock, actor, sessionId))!;
@@ -87,9 +85,9 @@ export async function lockStatus(requestId: UUID, actor: User, sessionId: string
   };
 }
 
-/** Зміни приймаються лише від вкладки, що тримає блокування (БЛК-4). */
+/** Зміни приймаються лише від вкладки, за якою запис блокування (БЛК-4; строк міг минути, якщо ніхто не взяв). */
 export async function assertLockHolder(db: Db, requestId: UUID, actor: User, sessionId: string, now = new Date()): Promise<void> {
-  const lock = await activeLock(requestId, now, db);
+  const lock = await db.requestLock.findUnique({ where: { requestId } });
   if (lock && lock.userId === actor.id && lock.sessionId === sessionId) return;
   throw await lockLost(requestId, actor, sessionId, now, db);
 }

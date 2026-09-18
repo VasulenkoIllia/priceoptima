@@ -134,9 +134,9 @@ export interface AppSettings {
   vatRatePct: number;
   /** 7 */
   priceStaleDays: number;
-  /** 30 (прискорено для демо) */
+  /** 180 — блокування без сигналу вкладки знімається (витримує сон ноутбука й гальмування фонових вкладок) */
   lockTtlSeconds: number;
-  /** 10 */
+  /** 20 — як часто вкладка підтверджує блокування */
   lockHeartbeatSeconds: number;
   /** 800 */
   autosaveDebounceMs: number;
@@ -168,7 +168,7 @@ export interface AppSettings {
   importMissingPolicy: ImportMissingPolicy;
   /** Наступний номер заявки (наскрізний лічильник, старт 1). */
   nextRequestNumber: number;
-  /** Наступний номер КП (наскрізний лічильник, старт 2114 для демо). */
+  /** Номер КП — сталий, у бланку «2114 / номер заявки». */
   nextKpNumber: number;
 }
 export type AppSettingsPatch = Partial<AppSettings>;
@@ -198,7 +198,7 @@ export interface OwnCompanyDto {
   kpFooter: string | null;
   isDefault: boolean;
   isActive: boolean;
-  /** Бренд для шапки застосунку й КП ('ДЕМО ТРЕЙД'); необов'язкове. */
+  /** Бренд для шапки застосунку й КП; необов'язкове. */
   brandName?: string | null;
 }
 export type OwnCompanyInput = Omit<OwnCompanyDto, 'id'>;

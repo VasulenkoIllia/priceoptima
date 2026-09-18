@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { buildKpSnapshot, kpBuyerOf } from '@shared/pricing';
 import type { KpRow } from '@shared/types';
-import { makeLogoDataUrl } from '@/data/mock/logos';
 import { buildKpWorkbook } from '../kpExcel';
 import { buildKpPdf } from '../kpPdf';
+
+// логотип-бейдж (SVG data URL), як завантажує користувач у Налаштуваннях
+const LOGO = `data:image/svg+xml;charset=utf-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="#1050B8"/></svg>')}`;
 
 const rows: KpRow[] = [
   { n: 1, lineId: 'L1', code: 'ЦР0000123', imagePath: null, name: 'Змішувач для раковини ПР1', nameSecondary: 'Змішувач д/раковини', unit: 'шт', qty: 2, price: 686.25, sum: 1372.5 },
@@ -18,19 +20,19 @@ const snapshot = buildKpSnapshot({
   vatRatePct: 20,
   rows,
   seller: {
-    nameShort: 'ТОВ «ДЕМО ТРЕЙД»',
-    nameFull: 'ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ «ДЕМО ТРЕЙД»',
+    nameShort: 'ТОВ «ТЕСТ ТРЕЙД»',
+    nameFull: 'ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ «ТЕСТ ТРЕЙД»',
     edrpou: '40000001',
     ipn: '400000010001',
     isVatPayer: true,
     iban: 'UA213223130000026007233566001',
-    bankName: 'АТ «ДЕМОБАНК»',
+    bankName: 'АТ «ТЕСТБАНК»',
     addressLegal: 'м. Київ, вул. Прикладна, 1',
     phone: '044 000 00 00',
-    email: 'sales@demo-trade.example',
-    website: 'demo-trade.example',
+    email: 'sales@test-trade.example',
+    website: 'test-trade.example',
     slogan: 'ВСЕ ДЛЯ КОМПЛЕКТАЦІЇ ІНЖЕНЕРНИХ СИСТЕМ',
-    logoUrl: makeLogoDataUrl('ДЕМО ТРЕЙД', '#1050B8'),
+    logoUrl: LOGO,
     kpFooter: null,
   },
   buyer: kpBuyerOf({ nameShort: 'ТОВ «БК БУДІНВЕСТ»', edrpou: '41000011' }, 'БУДІНВЕСТ', { fullName: 'Петренко Андрій', email: 'a.petrenko@budinvest.example', phone: '067-000-12-34' }),

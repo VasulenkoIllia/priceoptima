@@ -1,39 +1,36 @@
 // Дії стору, додані для сітки підбору: вставка артикулів у показані рядки і пакетне оновлення рядків.
 import { afterEach, describe, expect, it } from 'vitest';
-import type { MockDataSource } from '@/data/mock/MockDataSource';
-import { DEMO_USER_IDS, supplierIdOf } from '@/data/mock/seed';
-import { createTestEnv, type TestEnv } from '@/test/mockEnv';
+import type { FakeServer } from '@/test/fakeServer';
+import { USERS } from '@/test/fakeServer';
+import { createServerWithRequest } from '@/test/requestFixture';
 import { createRequestDocStore, type RequestDocStoreApi } from '../requestDocStore';
 
-let env: TestEnv | undefined;
 const stores: RequestDocStoreApi[] = [];
 
 afterEach(async () => {
   for (const s of stores.splice(0)) await s.getState().unload();
-  env?.dispose();
-  env = undefined;
 });
 
-async function openNew(): Promise<{ tab: MockDataSource; store: RequestDocStoreApi }> {
-  env = createTestEnv();
-  const tab = env.tab('a', DEMO_USER_IDS.koval);
-  const { id } = await tab.createRequest({ clientId: 'cli-c1' });
-  const store = createRequestDocStore({ ds: tab, bindPageLifecycle: false });
+async function openNew(): Promise<{ srv: FakeServer; store: RequestDocStoreApi }> {
+  const { srv } = createServerWithRequest();
+  const tab = srv.tab(USERS.koval, 'a');
+  const { id } = await tab.createRequest({});
+  const store = createRequestDocStore({ ds: tab, bindPageLifecycle: false, watchIntervalMs: 0 });
   stores.push(store);
   await store.getState().load(id);
-  return { tab, store };
+  return { srv, store };
 }
 
 describe('requestDocStore — дії сітки підбору', () => {
   it('pasteSkusToLines: артикули в задані рядки (порядок сітки з фільтром), невідомі — у звіті', async () => {
-    const { tab, store } = await openNew();
+    const { srv, store } = await openNew();
     const [l1, l2, l3] = store.getState().addLines([
       { clientName: 'Позиція 1', qty: 1 },
       { clientName: 'Позиція 2', qty: 1 },
       { clientName: 'Позиція 3', qty: 1 },
     ]);
-    const blockId = store.getState().addBlock(supplierIdOf('s1'))!;
-    const [p1, p2] = await tab.searchProducts({ q: '', supplierId: supplierIdOf('s1'), limit: 2 });
+    const blockId = store.getState().addBlock('s1')!;
+    const [p1, p2] = [srv.products.get('p-s1-a')!, srv.products.get('p-s1-b')!];
     const res = await store.getState().pasteSkusToLines(blockId, [
       { lineId: l3, sku: ` ${p1.sku} ` },
       { lineId: l1, sku: p2.sku.toLowerCase() },
@@ -51,13 +48,13 @@ describe('requestDocStore — дії сітки підбору', () => {
   });
 
   it('updateLines: кілька рядків одним кроком, к-сть пропозицій іде за рядком', async () => {
-    const { tab, store } = await openNew();
+    const { srv, store } = await openNew();
     const [l1, l2] = store.getState().addLines([
       { clientName: 'А', qty: 1 },
       { clientName: 'Б', qty: 1 },
     ]);
-    const blockId = store.getState().addBlock(supplierIdOf('s1'))!;
-    const [p] = await tab.searchProducts({ q: '', supplierId: supplierIdOf('s1'), limit: 1 });
+    const blockId = store.getState().addBlock('s1')!;
+    const p = srv.products.get('p-s1-a')!;
     const offerId = store.getState().setOfferFromProduct(l2, blockId, { ...p, multiplicity: 1 })!;
     store.getState().updateLines([
       { id: l1, patch: { clientName: 'Змішувач', clientUnit: 'шт' } },

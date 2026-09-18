@@ -1,4 +1,4 @@
-// REST-клієнт продуктового бекенду: сесія в cookie, помилки — з тими самими кодами, що й у демо-джерелі.
+// REST-клієнт сервера: сесія в cookie, помилки — DataSourceError з кодами API.
 import type { ApiErrorBody, ApiErrorCode } from '@shared/types';
 import { newId } from '@/lib/ids';
 import { DataSourceError } from '../errors';
@@ -43,7 +43,7 @@ function url(path: string, query?: Record<string, QueryValue>): string {
   return `${BASE}${path}${qs ? `?${qs}` : ''}`;
 }
 
-/** Запит до API; кидає DataSourceError, як і демо-джерело. */
+/** Запит до API; помилка — DataSourceError з кодом і повідомленням сервера. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { method = options.body || options.form ? 'POST' : 'GET', body, form, query, signal, keepalive } = options;
   const headers: Record<string, string> = { 'X-Session-Id': SESSION_ID };

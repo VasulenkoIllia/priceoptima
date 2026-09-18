@@ -198,7 +198,7 @@ export interface PriceUpdateDto {
   rates: RatesPair;
   /** null — автоматично за розкладом; інакше — хто запустив оновлення. */
   user: UserRef | null;
-  // ── стан запуску й звіт звірки (з сервера; у демо-даних їх немає) ──
+  // ── стан запуску й звіт звірки ──
   /** 'error' — оновлення не застосовано (див. error). */
   status?: 'ok' | 'error';
   error?: string | null;

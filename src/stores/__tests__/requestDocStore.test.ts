@@ -1,31 +1,32 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { MockDataSource } from '@/data/mock/MockDataSource';
-import { DEMO_USER_IDS, requestIdOf, supplierIdOf } from '@/data/mock/seed';
-import { createTestEnv, type TestEnv } from '@/test/mockEnv';
+import type { DataSource } from '@/data/DataSource';
+import { FakeServer, USERS, type FakeUser } from '@/test/fakeServer';
+import { createServerWithRequest } from '@/test/requestFixture';
 import { createRequestDocStore, type RequestDocStoreApi } from '../requestDocStore';
 
-const REQ1 = requestIdOf(1);
-let env: TestEnv | undefined;
+let srv: FakeServer;
+let REQ1: string;
 const stores: RequestDocStoreApi[] = [];
 
 afterEach(async () => {
   for (const s of stores.splice(0)) await s.getState().unload();
-  env?.dispose();
-  env = undefined;
 });
 
-async function openStore(tab: MockDataSource, requestId = REQ1): Promise<RequestDocStoreApi> {
-  const store = createRequestDocStore({ ds: tab, bindPageLifecycle: false });
+async function openStore(tab: DataSource, requestId = REQ1, watchIntervalMs = 0): Promise<RequestDocStoreApi> {
+  const store = createRequestDocStore({ ds: tab, bindPageLifecycle: false, watchIntervalMs });
   stores.push(store);
   await store.getState().load(requestId);
   expect(store.getState().loadState).toBe('ready');
   return store;
 }
 
-async function setup(userId: string = DEMO_USER_IDS.koval, label = 'a') {
-  env ??= createTestEnv();
-  return env.tab(label, userId);
+/** Новий «сервер» з типовою заявкою; вкладка користувача. */
+function setup(user: FakeUser = USERS.koval, label = 'a', fresh = true): DataSource {
+  if (fresh) ({ srv, requestId: REQ1 } = createServerWithRequest());
+  return srv.tab(user, label);
 }
+
+const product = (id: string) => srv.products.get(id)!;
 
 /** Рядок з ≥ 2 заповненими кандидатами і без ручного вибору. */
 function lineWithCandidates(store: RequestDocStoreApi) {
@@ -38,20 +39,19 @@ function lineWithCandidates(store: RequestDocStoreApi) {
 
 describe('requestDocStore', () => {
   it('load: документ, блокування, живий розрахунок', async () => {
-    const tab = await setup();
-    const store = await openStore(tab);
+    const store = await openStore(setup());
     const s = store.getState();
     expect(s.hasLock).toBe(true);
     expect(s.readOnly).toBe(false);
-    expect(s.doc!.lines.length).toBeGreaterThanOrEqual(38);
+    expect(s.doc!.lines).toHaveLength(6);
     expect(s.doc!.blocks).toHaveLength(3);
     const c = s.getComputed()!;
-    expect(c.totals.linesCount).toBeGreaterThan(30);
+    expect(c.totals.linesCount).toBe(6);
     expect(s.getComputed()).toBe(c); // мемоізація за посиланням
   });
 
   it('selectOffer: ручний вибір і повернення до рекомендації', async () => {
-    const store = await openStore(await setup());
+    const store = await openStore(setup());
     const { line, cmp } = lineWithCandidates(store);
     const other = Object.keys(store.getState().getComputed()!.offerIndex[line.id]).find((b) => b !== cmp.recommendedBlockId)!;
     store.getState().selectOffer(line.id, other);
@@ -66,7 +66,7 @@ describe('requestDocStore', () => {
   });
 
   it('toggleExclude: виключення знімає затвердження, повернення', async () => {
-    const store = await openStore(await setup());
+    const store = await openStore(setup());
     const { line, cmp } = lineWithCandidates(store);
     store.getState().selectOffer(line.id, cmp.recommendedBlockId);
     const offerId = cmp.recommendedOfferId!;
@@ -84,7 +84,7 @@ describe('requestDocStore', () => {
   });
 
   it('acceptAllRecommendations: затверджує рекомендації, ручний вибір не чіпає', async () => {
-    const store = await openStore(await setup());
+    const store = await openStore(setup());
     const before = store.getState().getComputed()!;
     const manualNonOptimal = Object.values(before.lines).filter((l) => l.selectionState === 'manual_non_optimal').map((l) => l.lineId);
     const n = store.getState().acceptAllRecommendations();
@@ -99,8 +99,8 @@ describe('requestDocStore', () => {
   });
 
   it('pasteSkus: масова вставка артикулів вниз від рядка; невідомі — у звіті', async () => {
-    const tab = await setup();
-    const { id } = await tab.createRequest({ clientId: 'cli-c1' });
+    const tab = setup();
+    const { id } = await tab.createRequest({});
     const store = await openStore(tab, id);
     const lineIds = store.getState().addLines([
       { clientName: 'Позиція 1', qty: 2 },
@@ -109,9 +109,9 @@ describe('requestDocStore', () => {
       { clientName: 'Позиція 4', qty: 5 },
     ]);
     expect(lineIds).toHaveLength(4);
-    const blockId = store.getState().addBlock(supplierIdOf('s2'))!;
+    const blockId = store.getState().addBlock('s2')!;
     expect(blockId).toBeTruthy();
-    const products = await tab.searchProducts({ q: '', supplierId: supplierIdOf('s2'), limit: 2 });
+    const products = [product('p-s2-a'), product('p-s2-b')];
     // з рядка 1: артикул, порожньо (пропуск), артикул у нижньому регістрі, невідомий, зайвий (рядків не вистачило)
     const res = await store.getState().pasteSkus(lineIds[0], blockId, [products[0].sku, '', products[1].sku.toLowerCase(), 'XX-НЕМАЄ', 'зайвий']);
     expect(res).toEqual({ applied: 2, notFound: ['XX-НЕМАЄ'], ambiguous: [], skipped: 1 });
@@ -123,15 +123,13 @@ describe('requestDocStore', () => {
   });
 
   it('setOfferFromProduct: автоокруглення кратності 118 → 120, зміна к-сті рядка перераховує', async () => {
-    const tab = await setup();
-    const src = await tab.getRequestDocument(REQ1);
-    const pipeOffer = src.offers.find((o) => o.multiplicity === 4 && o.qty === 120)!;
-    const product = await tab.getProduct(pipeOffer.productId!);
+    const tab = setup();
+    const pipe = product('p-pipe');
     const { id } = await tab.createRequest({});
     const store = await openStore(tab, id);
     const [lineId] = store.getState().addLines([{ clientName: 'Труба ППР 40', clientUnit: 'м', qty: 118 }]);
-    const blockId = store.getState().addBlock(product.supplierId)!;
-    const offerId = store.getState().setOfferFromProduct(lineId, blockId, product)!;
+    const blockId = store.getState().addBlock(pipe.supplierId)!;
+    const offerId = store.getState().setOfferFromProduct(lineId, blockId, pipe)!;
     let offer = store.getState().doc!.offers.find((o) => o.id === offerId)!;
     expect(offer.qty).toBe(120);
     let oc = store.getState().getComputed()!.offers[offerId];
@@ -151,19 +149,18 @@ describe('requestDocStore', () => {
   });
 
   it('addProductsToLine: товар іншого постачальника створює блок', async () => {
-    const tab = await setup();
-    const store = await openStore(tab);
-    const [s4product] = await tab.searchProducts({ q: '', supplierId: supplierIdOf('s4'), limit: 1 });
+    const store = await openStore(setup());
+    const s4product = product('p-s4');
     const line = store.getState().doc!.lines[0];
     const res = store.getState().addProductsToLine(line.id, [s4product]);
     expect(res.createdBlockIds).toHaveLength(1);
     expect(res.offerIds).toHaveLength(1);
     const s = store.getState();
     const block = s.doc!.blocks.find((b) => b.id === res.createdBlockIds[0])!;
-    expect(block.supplierId).toBe(supplierIdOf('s4'));
+    expect(block.supplierId).toBe('s4');
     expect(block.position).toBe(4);
-    expect(s.doc!.refs.suppliers[supplierIdOf('s4')]).toBeDefined();
-    expect(s.ctx!.suppliers[supplierIdOf('s4')]).toBeDefined();
+    expect(s.doc!.refs.suppliers['s4']).toBeDefined();
+    expect(s.ctx!.suppliers['s4']).toBeDefined();
     expect(s.getComputed()!.offers[res.offerIds[0]].isFilled).toBe(true);
     // повторне додавання в той самий блок — заміна, без нового блоку
     const again = store.getState().addProductsToLine(line.id, [s4product]);
@@ -172,8 +169,8 @@ describe('requestDocStore', () => {
   });
 
   it('refreshOfferPrice: вхідна ціна лише з прайсу — знімок оновлюється з каталогу, ▲▼ від попередньої, подія в історії', async () => {
-    const tab = await setup();
-    const store = await openStore(tab, requestIdOf(4));
+    const tab = setup();
+    const store = await openStore(tab);
     const c = store.getState().getComputed()!;
     const o = store.getState().doc!.offers.find((x) => c.offers[x.id]?.catalogChanged)!;
     expect(o?.catalog).toBeTruthy();
@@ -193,8 +190,7 @@ describe('requestDocStore', () => {
   });
 
   it('applyMix: оптимальний мікс — мінімальна ціна в кожному рядку, і поверх ручного вибору', async () => {
-    const tab = await setup();
-    const store = await openStore(tab);
+    const store = await openStore(setup());
     const { line, cmp } = lineWithCandidates(store);
     const other = Object.keys(store.getState().getComputed()!.offerIndex[line.id]).find((b) => b !== cmp.recommendedBlockId)!;
     store.getState().selectOffer(line.id, other);
@@ -210,8 +206,7 @@ describe('requestDocStore', () => {
   });
 
   it('setApprovals і resetLineMarkups — одним кроком', async () => {
-    const tab = await setup();
-    const store = await openStore(tab);
+    const store = await openStore(setup());
     const [l1, l2] = store.getState().doc!.lines;
     store.getState().setLineMarkup(l1.id, { method: 'markup_on_cost', value: 10 });
     store.getState().setLineMarkup(l2.id, { manualPriceNet: 100 });
@@ -232,7 +227,7 @@ describe('requestDocStore', () => {
   });
 
   it('flush: невдале збереження — помилка викликачу (КП і копія будуються лише зі збереженої заявки)', async () => {
-    const tab = await setup();
+    const tab = setup();
     const store = await openStore(tab);
     const spy = vi.spyOn(tab, 'saveRequestDocument').mockRejectedValueOnce(new Error('Мережа недоступна'));
     store.getState().setHeader({ notes: 'нова нотатка' });
@@ -247,7 +242,7 @@ describe('requestDocStore', () => {
   });
 
   it('автозбереження дельтою: версія зростає, сервер має зміни; undo/redo', async () => {
-    const tab = await setup();
+    const tab = setup();
     const store = await openStore(tab);
     const v0 = store.getState().version;
     const line = store.getState().doc!.lines[0];
@@ -273,10 +268,10 @@ describe('requestDocStore', () => {
     expect(reverted.lines.find((l) => l.id === line.id)!.clientName).toBe(line.clientName);
   });
 
-  it('readOnly без блокування: друга сесія лише переглядає; адмін забирає редагування', async () => {
-    const koval = await setup(DEMO_USER_IDS.koval, 'a');
-    const bondar = await setup(DEMO_USER_IDS.bondar, 'b');
-    const admin = await setup(DEMO_USER_IDS.admin, 'c');
+  it('readOnly без блокування: друга сесія лише переглядає; адмін забирає редагування — власник дізнається при збереженні', async () => {
+    const koval = setup(USERS.koval, 'a');
+    const bondar = setup(USERS.bondar, 'b', false);
+    const admin = setup(USERS.admin, 'c', false);
     const storeA = await openStore(koval);
     const storeB = await openStore(bondar);
     const b = storeB.getState();
@@ -294,14 +289,51 @@ describe('requestDocStore', () => {
     await storeAdmin.getState().forceLock();
     expect(storeAdmin.getState().hasLock).toBe(true);
     expect(storeAdmin.getState().readOnly).toBe(false);
+
+    storeA.getState().setHeader({ notes: 'не збережеться' });
+    await storeA.getState().flush().catch(() => undefined);
     const a = storeA.getState();
     expect(a.hasLock).toBe(false);
     expect(a.readOnly).toBe(true);
     expect(a.lockLost).toMatchObject({ reason: 'forced', byUserShortName: 'Адміністратор' });
+    expect((await admin.getRequestDocument(REQ1)).header.notes).toBeNull();
+  });
+
+  it('режим перегляду сам підтягує збережені зміни й звільнення заявки', async () => {
+    const koval = setup(USERS.koval, 'a');
+    const bondar = setup(USERS.bondar, 'b', false);
+    const storeA = await openStore(koval);
+    const storeB = await openStore(bondar, REQ1, 10);
+    storeA.getState().setHeader({ notes: 'нотатка з іншої вкладки' });
+    await storeA.getState().flush();
+    await vi.waitFor(() => expect(storeB.getState().doc!.header.notes).toBe('нотатка з іншої вкладки'));
+    expect(storeB.getState().version).toBe(storeA.getState().version);
+
+    await storeA.getState().unload();
+    await vi.waitFor(() => expect(storeB.getState().lock).toBeNull());
+    expect(await storeB.getState().retryLock()).toBe(true);
+    expect(storeB.getState().readOnly).toBe(false);
+  });
+
+  it('прострочене блокування (вкладку закрили без звільнення) може взяти інший', async () => {
+    const storeA = await openStore(setup(USERS.koval, 'a'));
+    expect(storeA.getState().hasLock).toBe(true);
+    srv.clock.t += srv.settings.lockTtlSeconds * 1000 + 1;
+    const storeB = await openStore(setup(USERS.bondar, 'b', false));
+    expect(storeB.getState().hasLock).toBe(true);
+  });
+
+  it('строк блокування минув (сон ноутбука), але ніхто не взяв — редагування й збереження тривають', async () => {
+    const storeA = await openStore(setup(USERS.koval, 'a'));
+    srv.clock.t += srv.settings.lockTtlSeconds * 1000 + 1;
+    storeA.getState().setHeader({ notes: 'після сну' });
+    await storeA.getState().flush();
+    expect(storeA.getState().hasLock).toBe(true);
+    expect(storeA.getState().save.state).toBe('saved');
   });
 
   it('setStatus: «Виконано» — лише перегляд; перевідкриття повертає редагування', async () => {
-    const store = await openStore(await setup());
+    const store = await openStore(setup());
     await store.getState().setStatus('done');
     expect(store.getState().doc!.header.status).toBe('done');
     expect(store.getState().readOnlyReason).toBe('status');

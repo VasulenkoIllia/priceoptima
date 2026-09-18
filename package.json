@@ -40,7 +40,6 @@
     "exceljs": "4.4.0",
     "express": "5.2.1",
     "fast-xml-parser": "5.11.1",
-    "idb-keyval": "6.3.0",
     "immer": "11.1.18",
     "multer": "2.4.0",
     "pdfmake": "0.3.11",

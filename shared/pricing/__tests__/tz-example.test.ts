@@ -1,7 +1,6 @@
 // Золотий тест: наскрізний приклад ТЗ §5.3 (заявка 000001). Кожне число ТЗ — точним збігом до копійки;
 // відсотки — з точністю показу (2 знаки).
 import { describe, expect, it } from 'vitest';
-import { EXCEL_ITEMS } from '../../demo/catalog/excel-items';
 import type { CurrencyCode, KpVatMode } from '../../enums';
 import { formatKpNumber } from '../../format/numbering';
 import type { LineMarkupOverride, RequestComputed, RequestLine } from '../../types';
@@ -177,21 +176,6 @@ const mixOf = (c: RequestComputed) => c.scenarios[0]!;
 const singleOf = (c: RequestComputed, block: string) => c.scenarios.find((s) => s.kind === 'single_supplier' && s.blockId === block)!;
 
 describe('ТЗ §5.3 — вхідні дані', () => {
-  it('демо-каталог (excel-items) збігається з товарами прикладу', () => {
-    const mains = PRODUCTS.slice(0, 12);
-    expect(EXCEL_ITEMS).toHaveLength(12);
-    EXCEL_ITEMS.forEach((item, i) => {
-      const p = mains[i]!;
-      expect(p.sku.endsWith(String(item.num))).toBe(true);
-      expect([item.currency, item.purchase, item.rrp, item.multiplicity]).toEqual([
-        p.currency,
-        p.price,
-        p.rrp,
-        p.multiplicity ?? 1,
-      ]);
-    });
-  });
-
   it('Ф2: курси блоків з прайсу', () => {
     expect(blocks.map((b) => [b.rates.USD, b.rates.EUR, b.ratesDate])).toEqual([
       [45, 52.1, '2026-09-01'],

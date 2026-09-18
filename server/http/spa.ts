@@ -17,7 +17,7 @@ export function spaRouter(clientDir: string): Router {
   const router = Router();
   const indexFile = path.join(clientDir, 'index.html');
 
-  // прототип не для пошукових систем
+  // внутрішній застосунок — не для пошукових систем
   router.get('/robots.txt', (_req, res) => {
     res.type('text/plain').send('User-agent: *\nDisallow: /\n');
   });

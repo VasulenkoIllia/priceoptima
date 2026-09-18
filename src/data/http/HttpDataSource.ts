@@ -25,7 +25,6 @@ import type {
   Name1cImportBody,
   Name1cImportResult,
   ProductInput,
-  ProductListQuery,
   ProductPatch,
   ProductPage,
   ProductPageQuery,
@@ -258,19 +257,6 @@ export class HttpDataSource implements DataSource {
 
   // ── каталог ───────────────────────────────────────────────────────
 
-  listProducts(query?: ProductListQuery): Promise<ProductDetail[]> {
-    return api<ProductDetail[]>('/products', {
-      query: {
-        supplierId: query?.supplierId,
-        availability: query?.availability?.join(','),
-        stale: query?.stale,
-        archived: query?.archived,
-        currency: query?.currency,
-        q: query?.search,
-      },
-    });
-  }
-
   listProductsPage(query: ProductPageQuery): Promise<ProductPage> {
     return api<ProductPage>('/products/page', {
       query: {
@@ -349,11 +335,6 @@ export class HttpDataSource implements DataSource {
   }
 
   // ── заявки ────────────────────────────────────────────────────────
-
-  /** Змін від сервера вкладка не слухає: реєстр перечитується за таймером, заявку перевіряє сама сторінка. */
-  subscribe(): () => void {
-    return () => undefined;
-  }
 
   listRequests(query: RequestListQuery = {}): Promise<RequestListItem[]> {
     return api<RequestListItem[]>('/requests', {

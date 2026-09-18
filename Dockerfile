@@ -15,8 +15,6 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# збірка працює з сервером, а не з демо-даними в браузері
-ENV VITE_SERVER=1
 RUN npm run build
 
 # ── лише те, що треба для запуску ───────────────────────────────────

@@ -33,8 +33,8 @@ export function resolveKpTerms(own: readonly KpTerm[] | null | undefined, defaul
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   vatRatePct: 20,
   priceStaleDays: 7,
-  lockTtlSeconds: 30,
-  lockHeartbeatSeconds: 10,
+  lockTtlSeconds: 180,
+  lockHeartbeatSeconds: 20,
   autosaveDebounceMs: 800,
   defaultMarkupMethod: 'rrp',
   defaultMarkupValue: 0,

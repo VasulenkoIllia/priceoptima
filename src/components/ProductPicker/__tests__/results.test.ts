@@ -1,8 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { makeBlock, makeCtx, makeDoc, makeLine, makeOffer, makeSupplier } from '@shared/pricing/__tests__/fixtures';
 import type { ProductPickDto } from '@shared/types';
-import { DEMO_USER_IDS, supplierIdOf } from '@/data/mock/seed';
-import { createTestEnv, type TestEnv } from '@/test/mockEnv';
 import { buildPickerRows, groupSameNames, looksLikeSku, siteSearchUrl, toggleSelection, type PickerRow } from '../results';
 
 function product(id: string, supplierId: string, patch: Partial<ProductPickDto> = {}): ProductPickDto {
@@ -48,54 +46,6 @@ function row(key: string, nameWork: string, unitNetUah: number | null): PickerRo
     cheapestInGroup: false,
   };
 }
-
-describe('пошук у каталозі (DataSource.searchProducts) — ранжування §6.7', () => {
-  let env: TestEnv | undefined;
-  afterEach(() => {
-    env?.dispose();
-    env = undefined;
-  });
-
-  async function catalog() {
-    env = createTestEnv();
-    const tab = env.tab('a', DEMO_USER_IDS.koval);
-    const s3 = supplierIdOf('s3');
-    const s4 = supplierIdOf('s4');
-    const mk = (supplierId: string, sku: string, nameWork: string, purchasePrice: number, out = false) =>
-      tab.createProduct({ supplierId, sku, nameWork, unitCode: 'шт', currency: 'UAH', purchasePrice, stockQty: out ? 0 : null, availability: out ? 'out_of_stock' : 'in_stock' });
-    const a = await mk(s3, 'КВ-7700', 'Квазітрон зюзьгастий Альфа', 120);
-    const b = await mk(s4, 'КВ-77001', 'Квазітрон зюзьгастий Бета', 90, true);
-    const c = await mk(s3, 'КВ-7800', 'Квазітрон зюзьгастий Гамма', 80);
-    const d = await mk(s4, 'КВ-7900', 'Квазітрон простий', 10);
-    return { tab, s4, a, b, c, d };
-  }
-
-  it('точний артикул (нормалізація: регістр, роздільники) > префікс артикулу', async () => {
-    const { tab, a, b } = await catalog();
-    const hits = await tab.searchProducts({ q: 'кв 7700', limit: 50 });
-    expect(hits.slice(0, 2).map((h) => [h.id, h.matchKind])).toEqual([
-      [a.id, 'sku_exact'],
-      [b.id, 'sku_prefix'],
-    ]);
-  });
-
-  it('назви: усі слова > частина слів; серед повних — наявність, далі дешевші', async () => {
-    const { tab, a, b, c, d } = await catalog();
-    const hits = await tab.searchProducts({ q: 'Квазітрон, зюзьгастий', limit: 50 });
-    expect(hits.slice(0, 4).map((h) => [h.id, h.matchKind])).toEqual([
-      [c.id, 'text'],
-      [a.id, 'text'],
-      [b.id, 'text'],
-      [d.id, 'fuzzy'],
-    ]);
-  });
-
-  it('фільтр постачальника', async () => {
-    const { tab, s4, b, d } = await catalog();
-    const hits = await tab.searchProducts({ q: 'квазітрон', supplierId: s4, limit: 50 });
-    expect(hits.map((h) => h.id).sort()).toEqual([b.id, d.id].sort());
-  });
-});
 
 describe('результати вікна вибору', () => {
   it('ціна без ПДВ і РРЦ у грн — за курсом і націнкою блоку; без блоку — за курсом постачальника', () => {

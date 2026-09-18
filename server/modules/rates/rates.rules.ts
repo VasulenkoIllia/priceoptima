@@ -1,5 +1,4 @@
-// Вибір діючих курсів на дату — та сама логіка, що й у демо-джерелі фронта
-// (src/data/mock/rates.ts, effectiveRatesOn): останній відомий курс кожної валюти на дату або раніше.
+// Вибір діючих курсів на дату: останній відомий курс кожної валюти на дату або раніше.
 import { FOREIGN_CURRENCIES } from '@shared/enums';
 import type { CurrencyRateDto, EffectiveRate, EffectiveRates, ISODate } from '@shared/types';
 

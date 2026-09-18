@@ -45,7 +45,7 @@ async function logoContent(url: string | null): Promise<Content | null> {
   }
 }
 
-/** Місце під фото товару (у демо фото немає). */
+/** Місце під фото товару. */
 const PHOTO_PLACEHOLDER =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="0.5" y="0.5" width="23" height="23" rx="3" fill="#F0F2F5" stroke="#D5DAE1"/>' +
   '<g fill="none" stroke="#A0A8B4" stroke-width="1.4"><rect x="5" y="7" width="14" height="10" rx="1.5"/><circle cx="9.5" cy="10.5" r="1.4"/><path d="M6 16l4-4 3 3 2-2 3 3"/></g></svg>';

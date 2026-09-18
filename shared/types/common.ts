@@ -32,7 +32,7 @@ export interface ApiErrorBody {
   };
 }
 
-/** Спільні параметри списків (без пагінації — прототип фільтрує на клієнті). */
+/** Спільні параметри списків: сортування й пошук. */
 export interface ListQuery {
   /** 'field' | '-field' */
   sort?: string;

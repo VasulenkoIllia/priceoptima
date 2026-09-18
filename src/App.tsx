@@ -5,7 +5,6 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/uk';
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router/dom';
-import { DataSync } from '@/app/DataSync';
 import { router } from '@/app/router';
 import { isDataSourceError, qk } from '@/data';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
@@ -22,9 +21,8 @@ const queryClient: QueryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      // помилки джерела даних (NOT_FOUND, UNAUTHORIZED…) не повторюємо; зміни з інших вкладок приходять подіями
+      // помилки API (NOT_FOUND, UNAUTHORIZED…) не повторюємо; повернувшись у вкладку — перечитуємо (дані змінюють інші користувачі)
       retry: (count, error) => !isDataSourceError(error) && count < 1,
-      refetchOnWindowFocus: false,
     },
   },
 });
@@ -36,7 +34,6 @@ export default function App() {
     <ConfigProvider locale={ukUA} theme={antdTheme(density)}>
       <AntApp>
         <QueryClientProvider client={queryClient}>
-          <DataSync />
           <RouterProvider router={router} />
         </QueryClientProvider>
       </AntApp>

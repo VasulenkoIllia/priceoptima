@@ -1,6 +1,15 @@
 // Вкладка «Файли» (РЕД-16, КП-4): сформовані КП (PDF / Excel з незмінного знімка) і файли заявки (від клієнта тощо).
 // Додає й прибирає файли лише той, хто редагує заявку; завантажити може кожен.
-import { DeleteOutlined, DownloadOutlined, FileExcelOutlined, FilePdfOutlined, FileTextOutlined, InboxOutlined, PaperClipOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  InboxOutlined,
+  LoadingOutlined,
+  PaperClipOutlined,
+} from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, List, Popconfirm, Result, Spin, Tag, Typography, Upload } from 'antd';
 import { useState } from 'react';
@@ -102,7 +111,7 @@ export default function FilesTab() {
           return Upload.LIST_IGNORE;
         }}
       >
-        <p className="ant-upload-drag-icon">{uploading ? <Spin /> : <InboxOutlined />}</p>
+        <p className="ant-upload-drag-icon">{uploading ? <LoadingOutlined /> : <InboxOutlined />}</p>
         <p className="ant-upload-text">{readOnly ? 'Додавати файли може той, хто редагує заявку' : 'Додати файл — перетягніть сюди або клацніть'}</p>
         <p className="ant-upload-hint">Лист чи Excel від клієнта, специфікація, рахунок постачальника — до {MAX_MB} МБ</p>
       </Upload.Dragger>

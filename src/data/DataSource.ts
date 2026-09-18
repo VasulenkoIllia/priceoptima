@@ -36,7 +36,6 @@ import type {
   Name1cImportBody,
   Name1cImportResult,
   ProductInput,
-  ProductListQuery,
   ProductPatch,
   ProductPage,
   ProductPageQuery,
@@ -79,26 +78,14 @@ export interface LockAcquireResult {
   lock: LockInfo | null;
 }
 
-/** Зовнішні зміни, на які реагує UI. */
-export type DataSourceEvent =
-  /** Дані змінено в іншій вкладці — перечитати. */
-  | { kind: 'db' }
-  /** Демо-дані скинуто — перезавантажити сторінку. */
-  | { kind: 'reset' }
-  /** Змінився власник блокування заявки (будь-яка вкладка). */
-  | { kind: 'lock'; requestId: UUID; lock: LockInfo | null }
-  /** Адміністратор забрав редагування у вкладки fromSessionId. */
-  | { kind: 'lock-forced'; requestId: UUID; lock: LockInfo; fromSessionId: UUID };
-
 export interface CallOptions {
-  /** Виклик під час закриття сторінки (REST — fetch keepalive; mock — без затримки й одразу в IndexedDB). */
+  /** Виклик під час закриття сторінки (fetch keepalive — браузер доставить запит і після закриття). */
   keepalive?: boolean;
 }
 
 export interface DataSource {
   /** Ідентифікатор вкладки (для блокувань і збережень). */
   readonly sessionId: UUID;
-  subscribe(listener: (event: DataSourceEvent) => void): () => void;
 
   // ── Сесія, користувачі, налаштування ─────────────────────────────
   /** null — ніхто не увійшов. */
@@ -161,8 +148,6 @@ export interface DataSource {
   importSupplierPrices(supplierId: UUID, body: PriceImportBody): Promise<PriceUpdateDto>;
 
   // ── Каталог ─────────────────────────────────────────────────────
-  /** Товари каталогу (прототип — усі одразу, фільтрація на клієнті). */
-  listProducts(query?: ProductListQuery): Promise<ProductDetail[]>;
   /** Сторінка номенклатури з загальною кількістю: пошук, фільтри й сортування виконує сервер. */
   listProductsPage(query: ProductPageQuery): Promise<ProductPage>;
   searchProducts(query: ProductSearchQuery): Promise<ProductPickDto[]>;

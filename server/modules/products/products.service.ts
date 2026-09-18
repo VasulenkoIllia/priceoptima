@@ -109,17 +109,6 @@ function listWhere(query: ProductListQueryInput, ctx: CatalogContext): Prisma.Pr
   return and.length ? { AND: and } : {};
 }
 
-export async function listProducts(query: ProductListQueryInput): Promise<ProductDetail[]> {
-  const ctx = await catalogContext();
-  const rows = await prisma.product.findMany({
-    where: listWhere(query, ctx),
-    orderBy: [{ supplier: { sortOrder: 'asc' } }, { nameWork: 'asc' }],
-    skip: query.offset,
-    take: query.limit,
-  });
-  return rows.map((p) => toProductDetail(p, ctx));
-}
-
 /** Сторінка номенклатури разом із загальною кількістю — для гортання великого каталогу. */
 export async function listProductsPage(query: ProductListQueryInput): Promise<ProductPage> {
   const ctx = await catalogContext();

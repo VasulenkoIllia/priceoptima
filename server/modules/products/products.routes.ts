@@ -20,7 +20,6 @@ import {
   getPriceHistory,
   getProduct,
   importName1c,
-  listProducts,
   listProductsPage,
   lookupSkus,
   searchProducts,
@@ -59,13 +58,6 @@ productsRouter.post(
   '/name1c',
   asyncHandler(async (req, res) => {
     res.json(await importName1c(parseBody(name1cImportSchema, req), currentUser(req)));
-  }),
-);
-
-productsRouter.get(
-  '/',
-  asyncHandler(async (req, res) => {
-    res.json(await listProducts(parseQuery(productListQuerySchema, req)));
   }),
 );
 
