@@ -7,6 +7,8 @@ import { SEMANTIC_COLORS } from '@/theme';
 export interface RatePoint {
   date: ISODate;
   rate: number;
+  /** Курс задано вручну (на цю дату він замінює НБУ). */
+  manual?: boolean;
 }
 
 const W = 480;

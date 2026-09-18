@@ -28,7 +28,8 @@ export function effectiveRatesOn(rates: readonly CurrencyRateDto[], date: ISODat
     let best: CurrencyRateDto | null = null;
     for (const r of rates) {
       if (r.currency !== cur || r.rateDate > date) continue;
-      if (!best || r.rateDate > best.rateDate) best = r;
+      // за ту саму дату ручний курс переважає НБУ: його вводять саме тоді, коли треба виправити
+      if (!best || r.rateDate > best.rateDate || (r.rateDate === best.rateDate && r.source === 'manual')) best = r;
     }
     return best ? { rate: best.rate, rateDate: best.rateDate, source: best.source } : null;
   };

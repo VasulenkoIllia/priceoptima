@@ -17,6 +17,7 @@ import type {
   KpCreateBody,
   KpDocumentDto,
   ListQuery,
+  ManualRateInput,
   LockInfo,
   LockStatusResponse,
   MeResponse,
@@ -32,6 +33,7 @@ import type {
   ProductImageUrlInput,
   ProductInput,
   ProductListQuery,
+  ProductPatch,
   ProductPage,
   ProductPageQuery,
   ProductPickDto,
@@ -135,6 +137,8 @@ export interface DataSource {
   getProduct(id: UUID): Promise<ProductDetail>;
   /** Товар, доданий вручну (у номенклатурі або з заявки) — з'являється в каталозі з джерелом «вручну». DUPLICATE — артикул у постачальника вже є. */
   createProduct(input: ProductInput): Promise<ProductDetail>;
+  /** Картка товару: назви, бренд, одиниця, кратність тощо (ціни — окремо; прайс ці поля не перезаписує). */
+  updateProduct(id: UUID, patch: ProductPatch): Promise<ProductDetail>;
   /** Ціну змінюють вручну лише в товарів, доданих вручну; решта оновлюється з прайсів постачальників. */
   updateProductPrice(id: UUID, input: ProductPriceUpdateInput): Promise<ProductPriceUpdateResult>;
   /** Від найновішого запису. */
@@ -179,6 +183,8 @@ export interface DataSource {
   getRates(date: ISODate): Promise<EffectiveRates>;
   /** Уся історія курсів (від найстарішої дати). */
   listRates(): Promise<CurrencyRateDto[]>;
+  /** Загальний ручний курс на дату: за ту саму дату переважає курс НБУ (діє для постачальників без курсу в прайсі й без ручного). */
+  addManualRate(input: ManualRateInput): Promise<CurrencyRateDto>;
   /** Лише адміністратор. */
   resetDemoData(): Promise<void>;
 }

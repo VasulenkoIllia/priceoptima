@@ -23,3 +23,8 @@ export function initialOfferQty(lineQty: number, multiplicity: number | null | u
   const check = checkMultiplicity(lineQty, multiplicity);
   return check.isMultiple ? null : check.suggestedQty;
 }
+
+/** Кратність, за якою рахується пропозиція: вимкнена в заявці — як 1 (без округлення). */
+export function offerMultiplicity(offer: { multiplicity: number | null; noRounding?: boolean }): number | null {
+  return offer.noRounding ? null : offer.multiplicity;
+}

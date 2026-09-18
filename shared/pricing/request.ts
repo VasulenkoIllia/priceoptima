@@ -19,6 +19,7 @@ import { computeMarkupRow, computeMarkupTotals } from './markup';
 import { sumMoney } from './money';
 import { computeOfferBase } from './offer';
 import { computeScenarios } from './scenarios';
+import { computeSupplierProfit } from './supplier-profit';
 
 export type RequestDocInput = Pick<RequestDocument, 'header' | 'markup' | 'lines' | 'blocks' | 'offers'>;
 
@@ -90,6 +91,7 @@ export function computeRequest(doc: RequestDocInput, ctx: PricingContext): Reque
     fopPriceBasis: ctx.settings.fopPriceBasis,
   };
   const markup = { rows: markupRows, totals: computeMarkupTotals(activeRows, mode) };
+  const supplierProfit = computeSupplierProfit(lines, blocks, offers, offerIndex, markupRows, doc.markup, doc.header, ctx);
 
   const partial: Omit<RequestComputed, 'totals'> = {
     offers,
@@ -98,6 +100,7 @@ export function computeRequest(doc: RequestDocInput, ctx: PricingContext): Reque
     blocks: blockTotals,
     scenarios,
     markup,
+    supplierProfit,
     warnings: [],
   };
   const totals = computeTotalsSummary({ lines, blocks }, partial);

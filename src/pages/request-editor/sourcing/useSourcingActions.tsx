@@ -2,7 +2,7 @@
 import { App, Button } from 'antd';
 import { useMemo } from 'react';
 import { formatQty, formatWarning } from '@shared/format';
-import { checkMultiplicity } from '@shared/pricing';
+import { checkMultiplicity, offerMultiplicity } from '@shared/pricing';
 import { normalizeSku, parseLocaleNumber } from '@shared/parse';
 import type { SupplierBlock, SupplierRef, UUID } from '@shared/types';
 import { openPicker } from '@/components/ProductPicker';
@@ -154,9 +154,9 @@ export function createSourcingActions(app: AppApi) {
     }
     let qty = n.value;
     if (s.settings?.autoRoundMultiplicity ?? true) {
-      const check = checkMultiplicity(qty, offer.multiplicity);
+      const check = checkMultiplicity(qty, offerMultiplicity(offer));
       if (!check.isMultiple && check.suggestedQty != null) {
-        message.info(`Округлено з ${formatQty(qty)} до ${formatQty(check.suggestedQty)}, кратно ${formatQty(offer.multiplicity)}`);
+        message.info(`Округлено з ${formatQty(qty)} до ${formatQty(check.suggestedQty)}, кратно ${formatQty(offerMultiplicity(offer))}`);
         qty = check.suggestedQty;
       }
     }

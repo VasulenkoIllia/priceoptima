@@ -37,7 +37,8 @@ export const settingsPatchSchema = z
     fopPriceBasis: enumOf(FOP_PRICE_BASES, 'база ціни ФОП'),
     importMissingPolicy: enumOf(IMPORT_MISSING_POLICIES, 'позиції, яких немає у прайсі'),
     nextRequestNumber: int(1, 9_999_999, 'Наступний номер заявки'),
-    nextKpNumber: int(1, 9_999_999, 'Наступний номер КП'),
+    /** Стала частина номера КП: «2114 / номер заявки». */
+    nextKpNumber: int(1, 9_999_999, 'Номер КП'),
   })
   .partial();
 

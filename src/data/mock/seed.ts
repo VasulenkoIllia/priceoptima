@@ -61,9 +61,10 @@ import { approvedSaleGrossOf } from './totals';
  * v6: вхід одним обліковим записом (хеш пароля); кратність у демо — лише труби ППР (4 м).
  * v7: джерело прайсу в постачальника (за посиланням / файлом), позначка «немає у прайсі» в товарі.
  */
-export const SEED_VERSION = 7;
+export const SEED_VERSION = 8;
 /** Демо-КП наявних заявок — № 2110–2113, тож перше нове КП (заявки 000001) отримає № 2114 (ТЗ §6, AC-КП-1). */
-const FIRST_DEMO_KP_NUMBER = 2110;
+/** Стала частина номера КП у демо: «2114 / номер заявки». */
+const FIRST_DEMO_KP_NUMBER = 2114;
 const DAY_MS = 86_400_000;
 const HISTORY_DAYS = 60;
 
@@ -759,7 +760,7 @@ function seedRequests(db: MockDb, catalog: DemoCatalog, byCanonical: Map<string,
     return { id: u.id, shortName: u.shortName };
   };
 
-  let nextDemoKp = FIRST_DEMO_KP_NUMBER;
+  const nextDemoKp = FIRST_DEMO_KP_NUMBER;
 
   catalog.requests.forEach((r, i) => {
     const number = i + 1;
@@ -886,7 +887,7 @@ function seedRequests(db: MockDb, catalog: DemoCatalog, byCanonical: Map<string,
       totals: computed.totals,
     };
     db.requests[id] = stored;
-    const updatedAt = seedRequestStory(db, stored, r, { t, ctx, manager, ownName: ownCompany.nameShort, nextKp: () => nextDemoKp++ });
+    const updatedAt = seedRequestStory(db, stored, r, { t, ctx, manager, ownName: ownCompany.nameShort, nextKp: () => nextDemoKp });
     stored.meta.updatedAt = updatedAt;
     stored.meta.kpCount = db.kps[id]?.length ?? 0;
     stored.meta.attachmentsCount = stored.meta.kpCount + (number === 4 ? 1 : 0);
@@ -895,6 +896,7 @@ function seedRequests(db: MockDb, catalog: DemoCatalog, byCanonical: Map<string,
   });
   settings.nextRequestNumber = catalog.requests.length + 1;
   // наступне КП — одразу після демо-КП (з 2110 → перше нове 2114, ТЗ §6); лічильник не може повторити вже виданий номер
+  // номер КП сталий: «2114 / номер заявки»
   settings.nextKpNumber = nextDemoKp;
 }
 

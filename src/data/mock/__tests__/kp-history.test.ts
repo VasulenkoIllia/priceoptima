@@ -30,7 +30,7 @@ describe('КП, історія заявки, прайси (mock)', () => {
     expect(checks.noPrice).toBeLessThan(checks.inKp);
   });
 
-  it('КП: номер з лічильника (2114 → 2115), знімок, реєстр, історія; без блокування — помилка', async () => {
+  it('КП: номер сталий «2114 / номер заявки», знімок, реєстр, історія; без блокування — помилка', async () => {
     env = createTestEnv();
     const viewer = await loggedTab('b', DEMO_USER_IDS.bondar);
     const tab = await editorTab();
@@ -42,7 +42,8 @@ describe('КП, історія заявки, прайси (mock)', () => {
     expect(kp.numberLabel).toBe('2114 / 000001');
     expect(kp.snapshot.rows.length).toBeGreaterThan(10);
     expect(kp.totalGross).toBe(kp.snapshot.totals.totalGross);
-    expect((await tab.getSettings()).nextKpNumber).toBe(2115);
+    // номер не витрачається: наступне КП цієї чи іншої заявки теж 2114
+    expect((await tab.getSettings()).nextKpNumber).toBe(2114);
 
     const [item] = await tab.listRequests({ search: '000001' });
     expect(item.kpCount).toBe(1);
@@ -67,7 +68,8 @@ describe('КП, історія заявки, прайси (mock)', () => {
     await tab.saveRequestDocument(REQ1, { baseVersion: doc.version, sessionId: tab.sessionId, upsert: { lines: approvedLines } });
 
     const fin = await tab.createKp(REQ1, { settings: doc.header.kpSettings, final: true, sessionId: tab.sessionId });
-    expect(fin.kpNumber).toBe(base.kpNumber + 1);
+    expect(fin.kpNumber).toBe(base.kpNumber);
+    expect(fin.version).toBe(base.version + 1);
     expect(fin.onlyApproved).toBe(true);
     expect(fin.snapshot.final).toBe(true);
     expect(fin.snapshot.rows.map((r) => r.lineId)).toEqual([r1.lineId, r2.lineId]);
@@ -117,6 +119,20 @@ describe('КП, історія заявки, прайси (mock)', () => {
     expect(m.purchasePrice).toBe(100);
     expect(products.filter((p) => p.priceSource !== 'manual').every((p) => !p.isStale)).toBe(true);
     expect((await tab.listPriceUpdates(supplierId))[0].id).toBe(res.id);
+  });
+
+  it('загальний ручний курс: за ту саму дату замінює НБУ; повторний на ту саму дату замінює попередній', async () => {
+    env = createTestEnv();
+    const tab = await loggedTab();
+    const today = (await tab.listRates()).map((r) => r.rateDate).sort().at(-1)!;
+    const nbu = (await tab.getRates(today)).USD!;
+    expect(nbu.source).toBe('nbu');
+    await tab.addManualRate({ currency: 'USD', rateDate: today, rate: 41.5 });
+    await tab.addManualRate({ currency: 'USD', rateDate: today, rate: 41.75, note: 'узгоджений' });
+    const eff = (await tab.getRates(today)).USD!;
+    expect(eff).toMatchObject({ rate: 41.75, source: 'manual', rateDate: today });
+    expect((await tab.listRates()).filter((r) => r.source === 'manual')).toHaveLength(1);
+    await expect(tab.addManualRate({ currency: 'EUR', rateDate: today, rate: 0 })).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
   });
 
   it('каталог: фільтри постачальника, пошуку й застарілих цін', async () => {

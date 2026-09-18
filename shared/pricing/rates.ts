@@ -55,8 +55,9 @@ export function supplierDefaultRatesInfo(supplier: SupplierRef | null, headerRat
 }
 
 /**
- * F33 (Ф2, ДОВ-3): курси нового блоку. price_list → прайс → ручний курс постачальника → НБУ з шапки;
- * manual → ручні (fallback — шапка); nbu → шапка; nbu_adjusted → round6(шапка × (1 + adj/100)).
+ * F33 (Ф2, ДОВ-3): курси нового блоку. price_list → прайс → ручний курс постачальника → загальний курс із шапки
+ * (ручний на дату, якщо його задано в «Курси валют», інакше НБУ); manual → ручні (fallback — шапка);
+ * nbu → шапка; nbu_adjusted → round6(шапка × (1 + adj/100)).
  */
 export function supplierDefaultRates(supplier: SupplierRef | null, headerRates: RatesPair): RatesPair {
   return supplierDefaultRatesInfo(supplier, headerRates).rates;
@@ -69,6 +70,8 @@ export function createSupplierBlock(
   init: { id: UUID; position: number },
 ): SupplierBlock {
   const info = supplierDefaultRatesInfo(supplier, headerRates);
+  // підпис джерела — за фактичним джерелом курсу валюти прайсу (для гривневого прайсу — долара)
+  const mainCurrency: ForeignCurrency = supplier.defaultCurrency === 'EUR' ? 'EUR' : 'USD';
   return {
     id: init.id,
     position: init.position,
@@ -76,7 +79,7 @@ export function createSupplierBlock(
     legalEntityId: null,
     defaultCurrency: supplier.defaultCurrency,
     rates: info.rates,
-    rateSource: supplier.ratePolicy,
+    rateSource: info.origins[mainCurrency] ?? supplier.ratePolicy,
     ratesDate: info.date,
     supplierMarkupPct: supplier.supplierMarkupPct,
     pricesIncludeVat: supplier.pricesIncludeVat,

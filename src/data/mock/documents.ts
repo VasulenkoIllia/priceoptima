@@ -81,7 +81,7 @@ export function toRequestListItem(db: MockDb, r: StoredRequest, lock: LockInfo |
   const client = r.header.clientId ? db.clients[r.header.clientId] : undefined;
   const cp = client?.counterparties.find((c) => c.id === r.header.counterpartyId);
   const manager = db.users.find((u) => u.id === r.header.managerId);
-  const lastKp = (db.kps[r.id] ?? []).reduce<StoredKp | null>((best, k) => (!best || k.kpNumber > best.kpNumber ? k : best), null);
+  const lastKp = (db.kps[r.id] ?? []).reduce<StoredKp | null>((best, k) => (!best || k.version > best.version ? k : best), null);
   return {
     id: r.id,
     number: r.header.number,

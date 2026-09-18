@@ -1,6 +1,6 @@
-import { CopyOutlined, DownOutlined, UpOutlined } from '@ant-design/icons';
+import { CopyOutlined, DownOutlined, RedoOutlined, UndoOutlined, UpOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, App, Button, Input, Select, Tooltip, Typography } from 'antd';
+import { Alert, App, Button, Input, Select, Space, Tooltip, Typography } from 'antd';
 import { useState, type ReactNode } from 'react';
 import { REQUEST_STATUS_LABELS } from '@shared/enums';
 import { formatDate, formatRate, formatRequestNumber } from '@shared/format';
@@ -75,6 +75,10 @@ export function EditorHeader() {
   const setHeader = useRequestDoc((s) => s.setHeader);
   const retryLock = useRequestDoc((s) => s.retryLock);
   const forceLock = useRequestDoc((s) => s.forceLock);
+  const canUndo = useRequestDoc((s) => s.canUndo);
+  const canRedo = useRequestDoc((s) => s.canRedo);
+  const undo = useRequestDoc((s) => s.undo);
+  const redo = useRequestDoc((s) => s.redo);
   const flush = useRequestDoc((s) => s.flush);
   const notesOpen = useUiPrefs((s) => s.headerNotesOpen);
   const setNotesOpen = useUiPrefs((s) => s.setHeaderNotesOpen);
@@ -219,12 +223,26 @@ export function EditorHeader() {
         <Field label="Відповідальний">
           <Select style={{ width: 140 }} disabled={readOnly} value={header.managerId} options={managerOptions} onChange={onManagerChange} />
         </Field>
-        <Tooltip title="Курс НБУ на дату заявки — довідково. Курс для розрахунку задається в блоці постачальника (за замовчуванням — з його прайсу).">
+        <Tooltip title="Загальний курс на дату заявки: ручний, якщо його задано в «Курси валют», інакше НБУ. Діє для постачальників без курсу в прайсі й без ручного курсу в картці; у блоці постачальника курс можна змінити.">
           <div className="po-editor-rates po-num">
-            НБУ {formatDate(header.rates.date ?? header.requestDate)}: USD {formatRate(header.rates.USD)} · EUR {formatRate(header.rates.EUR)}
+            Курс {formatDate(header.rates.date ?? header.requestDate)}: USD {formatRate(header.rates.USD)} · EUR {formatRate(header.rates.EUR)}
           </div>
         </Tooltip>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
+          {readOnly ? null : (
+            <Space.Compact>
+              <Tooltip title="Скасувати останню дію (Ctrl+Z): вибір постачальника, «Не підходить», кількість, націнку тощо. Можна натискати кілька разів поспіль.">
+                <Button size="small" icon={<UndoOutlined />} disabled={!canUndo} onClick={undo}>
+                  Назад
+                </Button>
+              </Tooltip>
+              <Tooltip title="Повернути скасовану дію (Ctrl+Y)">
+                <Button size="small" icon={<RedoOutlined />} disabled={!canRedo} onClick={redo}>
+                  Вперед
+                </Button>
+              </Tooltip>
+            </Space.Compact>
+          )}
           <SaveIndicator
             state={save.state}
             savedAt={save.savedAt}

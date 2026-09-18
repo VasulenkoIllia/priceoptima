@@ -9,7 +9,7 @@ import type {
   Warning,
 } from '../types';
 import { round2 } from './money';
-import { checkMultiplicity } from './multiplicity';
+import { checkMultiplicity, offerMultiplicity } from './multiplicity';
 import { resolveRate } from './rates';
 import { isPriceStale, priceAgeDays } from './staleness';
 import { checkStock } from './stock';
@@ -75,24 +75,25 @@ export function computeOfferBase(
     warnings.push({ ...ref, code: 'PRICE_MISSING', severity: 'warning' });
   }
 
-  // F19: кратність
-  const multiplicity = checkMultiplicity(qtyEffective, offer.multiplicity);
+  // F19: кратність (у пропозиції її можна вимкнути — тоді к-сть не округлюється і не попереджає)
+  const mult = offerMultiplicity(offer);
+  const multiplicity = checkMultiplicity(qtyEffective, mult);
   if (!multiplicity.isMultiple) {
     warnings.push({
       ...ref,
       code: 'MULTIPLICITY_MISMATCH',
       severity: 'warning',
-      params: { qty: qtyEffective, multiplicity: offer.multiplicity ?? 1, suggestedQty: multiplicity.suggestedQty },
+      params: { qty: qtyEffective, multiplicity: mult ?? 1, suggestedQty: multiplicity.suggestedQty },
     });
   }
   if (offer.qty != null && offer.qty > line.qty) {
-    const lineCheck = checkMultiplicity(line.qty, offer.multiplicity);
+    const lineCheck = checkMultiplicity(line.qty, mult);
     if (!lineCheck.isMultiple && multiplicity.isMultiple) {
       warnings.push({
         ...ref,
         code: 'QTY_ROUNDED',
         severity: 'info',
-        params: { from: line.qty, to: offer.qty, multiplicity: offer.multiplicity ?? 1 },
+        params: { from: line.qty, to: offer.qty, multiplicity: mult ?? 1 },
       });
     }
   }

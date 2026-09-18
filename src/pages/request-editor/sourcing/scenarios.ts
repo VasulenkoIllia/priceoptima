@@ -15,11 +15,13 @@ export interface SingleScenarioView {
   belowMinOrder: boolean;
   /** Скільки рядків змінить «Затвердити все у цього постачальника» (є кандидат, затверджено інше або нічого). */
   approvable: number;
+  /** Заробіток (прибуток без ПДВ) на покритих рядках за правилами націнки рядків. */
+  profitNet: number;
 }
 
 export interface ScenarioView {
   mix: { totalGross: number; suppliersUsed: number; covered: number; missing: number; total: number };
-  current: { approved: number; total: number; totalGross: number; overpayGross: number; overpayPct: number | null };
+  current: { approved: number; total: number; totalGross: number; overpayGross: number; overpayPct: number | null; profitNet: number };
   singles: SingleScenarioView[];
   /** «Постачальник A: сума обраних 464,51 < мін. замовлення 1 000,00 — нерентабельно» (за поточним вибором). */
   minOrder: { blockId: UUID; supplierName: string; warning: Warning }[];
@@ -60,6 +62,7 @@ export function buildScenarioView({ lines, blocks, suppliers }: ScenarioInput, c
         diffVsMixPct: s.coveredLines ? s.diffVsMixPct : null,
         belowMinOrder: s.belowMinOrderBlockIds.includes(b.id),
         approvable,
+        profitNet: computed.supplierProfit[b.id]?.allIn.profitNet ?? 0,
       },
     ];
   });
@@ -90,6 +93,7 @@ export function buildScenarioView({ lines, blocks, suppliers }: ScenarioInput, c
       totalGross: current?.totalGross ?? 0,
       overpayGross: current?.diffVsMixGross ?? 0,
       overpayPct: current?.diffVsMixPct ?? null,
+      profitNet: computed.markup.totals.profitNet,
     },
     singles,
     minOrder,

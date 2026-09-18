@@ -117,6 +117,21 @@
   color: var(--po-min);
   font-weight: 600;
 }
+.po-mk-by-supplier {
+  cursor: help;
+}
+.po-mk-sup-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 13px;
+  line-height: 20px;
+}
+.po-mk-sup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .po-mk-count {
   margin-left: auto;
   font-size: 12px;

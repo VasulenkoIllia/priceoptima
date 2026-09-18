@@ -109,7 +109,7 @@ export async function buildKpWorkbook(s: KpSnapshot): Promise<Workbook> {
   return wb;
 }
 
-export async function downloadKpExcel(s: KpSnapshot): Promise<void> {
+export async function downloadKpExcel(s: KpSnapshot, version?: number): Promise<void> {
   const data = await (await buildKpWorkbook(s)).xlsx.writeBuffer();
-  saveBlob(new Blob([data], { type: XLSX_MIME }), kpFileName(s, 'xlsx'));
+  saveBlob(new Blob([data], { type: XLSX_MIME }), kpFileName(s, 'xlsx', version));
 }

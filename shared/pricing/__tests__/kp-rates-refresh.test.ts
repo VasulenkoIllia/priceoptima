@@ -166,6 +166,19 @@ describe('F33 курси нового блоку (T20, T21)', () => {
     expect(supplierDefaultRatesInfo(makeSupplier('S', { ratePolicy: 'nbu', manualRateUsd: 46 }), header).rates.USD).toBe(44.5526);
   });
 
+  it('ланцюжок курсу блоку: прайс → ручний постачальника → загальний; підпис — за фактичним джерелом', () => {
+    const header = makeHeader().rates;
+    const noPriceList = { ratePolicy: 'price_list' as const, defaultCurrency: 'USD' as const, priceListRates: { USD: null, EUR: null, date: null } };
+    // у прайсі курсу немає, ручного теж — загальний курс із шапки (ручний на дату або НБУ)
+    const general = createSupplierBlock(makeSupplier('S', noPriceList), header, { id: 'b1', position: 0 });
+    expect(general.rates.USD).toBe(header.USD);
+    expect(general.rateSource).toBe('nbu');
+    // є ручний курс постачальника — він раніше за загальний
+    const manual = createSupplierBlock(makeSupplier('S', { ...noPriceList, manualRateUsd: 46.1 }), header, { id: 'b2', position: 1 });
+    expect(manual.rates.USD).toBe(46.1);
+    expect(manual.rateSource).toBe('manual');
+  });
+
   it('createSupplierBlock: знімок курсів, валюта, націнка постачальника', () => {
     const supplier = makeSupplier('S', {
       defaultCurrency: 'USD',

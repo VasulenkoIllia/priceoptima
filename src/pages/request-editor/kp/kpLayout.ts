@@ -67,7 +67,8 @@ export function kpValidLine(s: KpSnapshot): string | null {
   return s.validUntil ? `Пропозиція дійсна до ${formatDate(s.validUntil)}.` : null;
 }
 
-/** 'КП 2114-000001.pdf'; фінальне — з позначкою. */
-export function kpFileName(s: KpSnapshot, ext: 'pdf' | 'xlsx'): string {
-  return `КП ${s.kpNumber ?? 'чернетка'}-${formatRequestNumber(s.requestNumber)}${s.final ? ' фінальне' : ''}.${ext}`;
+/** 'КП 2114-000001.pdf', друга версія — 'КП 2114-000001 (2).pdf'; фінальне — з позначкою (номер КП у всіх версій однаковий). */
+export function kpFileName(s: KpSnapshot, ext: 'pdf' | 'xlsx', version?: number): string {
+  const v = version && version > 1 ? ` (${version})` : '';
+  return `КП ${s.kpNumber ?? 'чернетка'}-${formatRequestNumber(s.requestNumber)}${s.final ? ' фінальне' : ''}${v}.${ext}`;
 }

@@ -9,7 +9,7 @@ import {
   SyncOutlined,
   UndoOutlined,
 } from '@ant-design/icons';
-import { Button, Descriptions, Drawer, Empty, Input, Space, Tag, Typography } from 'antd';
+import { Button, Descriptions, Drawer, Empty, Input, Space, Switch, Tag, Tooltip, Typography } from 'antd';
 import type { ReactNode } from 'react';
 import { AVAILABILITY_LABELS, CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatMoney, formatMoneyUah, formatPct, formatQty, formatRate, formatWarning } from '@shared/format';
@@ -39,6 +39,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
   const supplier = useRequestDoc((s) => (block?.supplierId ? s.doc?.refs.suppliers[block.supplierId] : undefined));
   const readOnly = useRequestDoc((s) => s.readOnly);
   const setOfferNote = useRequestDoc((s) => s.setOfferNote);
+  const setOfferNoRounding = useRequestDoc((s) => s.setOfferNoRounding);
   const computed = useRequestComputed();
 
   if (!line || !block) return <Empty description="Рядок або блок видалено" />;
@@ -99,6 +100,14 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
           <span className="po-muted">(у заявці {formatQty(line.qty)}{offer.multiplicity && offer.multiplicity !== 1 ? `, кратність ${formatQty(offer.multiplicity)}` : ''})</span>
           {rounded ? <Tag color="orange">{formatWarning(rounded)}</Tag> : null}
           <Warn codes={['MULTIPLICITY_MISMATCH']} warnings={warnings} />
+          {offer.multiplicity && offer.multiplicity !== 1 ? (
+            <Tooltip title="Вимкніть, якщо цього разу постачальник продасть без кратності: к-сть буде як у клієнта. У каталозі кратність товару не зміниться.">
+              <span className="po-muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Switch size="small" checked={!offer.noRounding} disabled={readOnly} onChange={(on) => setOfferNoRounding(offer.id, !on)} />
+                округлювати до кратності
+              </span>
+            </Tooltip>
+          ) : null}
         </Space>
       ),
     },

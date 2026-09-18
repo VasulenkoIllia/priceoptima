@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router';
 import { KP_VAT_MODE_LABELS } from '@shared/enums';
 import { formatDate, formatMoney, formatMoneyUah, formatPct, formatQty } from '@shared/format';
 import { parseLocaleNumber } from '@shared/parse';
-import { approvalBaseKp, approvedKpRows, approvedTotalsFromKp, checkMultiplicity, round2 } from '@shared/pricing';
+import { approvalBaseKp, approvedKpRows, approvedTotalsFromKp, checkMultiplicity, offerMultiplicity, round2 } from '@shared/pricing';
 import type { KpRow, RequestLine, UUID } from '@shared/types';
 import { EmptyState } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
@@ -20,6 +20,9 @@ interface ApprovalRow {
   line: RequestLine | null;
   multiplicity: number | null;
 }
+
+/** Кратність для погодження: вимкнена в пропозиції — не округлюємо. */
+const offerMultiplicityOf = (o: Parameters<typeof offerMultiplicity>[0] | undefined) => (o ? offerMultiplicity(o) : null);
 
 const sameRows = (a: readonly KpRow[], b: readonly KpRow[]) =>
   a.length === b.length && a.every((r, i) => r.lineId === b[i].lineId && r.qty === b[i].qty);
@@ -113,14 +116,14 @@ export default function ApprovalTab() {
       key: kp.lineId,
       kp,
       line: lineById.get(kp.lineId) ?? null,
-      multiplicity: offerId ? (offerById.get(offerId)?.multiplicity ?? null) : null,
+      multiplicity: offerId ? (offerMultiplicityOf(offerById.get(offerId)) ?? null) : null,
     };
   });
   const approved = approvedTotalsFromKp(base.snapshot, doc.lines);
   const approvedCount = approved?.rows.length ?? 0;
   const sharePct = approved && base.snapshot.totals.totalGross ? (approved.totalGross / base.snapshot.totals.totalGross) * 100 : null;
   // список КП — від найновішого: перше фінальне після основи — актуальне
-  const finalKp = kps.data.find((k) => k.onlyApproved && k.kpNumber > base.kpNumber) ?? null;
+  const finalKp = kps.data.find((k) => k.onlyApproved && k.version > base.version) ?? null;
   const finalOutdated = !!finalKp && !sameRows(approvedKpRows(base.snapshot.rows, doc.lines), finalKp.snapshot.rows);
 
   const setAll = (value: boolean) =>

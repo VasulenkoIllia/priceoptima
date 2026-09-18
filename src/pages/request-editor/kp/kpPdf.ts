@@ -131,6 +131,6 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
   return lib.createPdf(doc);
 }
 
-export async function downloadKpPdf(s: KpSnapshot): Promise<void> {
-  await (await buildKpPdf(s)).download(kpFileName(s, 'pdf'));
+export async function downloadKpPdf(s: KpSnapshot, version?: number): Promise<void> {
+  await (await buildKpPdf(s)).download(kpFileName(s, 'pdf', version));
 }

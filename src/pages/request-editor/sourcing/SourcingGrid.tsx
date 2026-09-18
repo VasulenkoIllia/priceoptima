@@ -469,7 +469,7 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
   );
 
   const comparison = mode === 'comparison';
-  const groupHeaderHeight = density === 'compact' ? 60 : 68;
+  const groupHeaderHeight = density === 'compact' ? 74 : 82;
 
   return (
     <div className="po-sourcing-grid-inner" onPaste={onPaste}>

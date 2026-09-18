@@ -196,6 +196,27 @@ export interface MarkupTotals {
   linesUnpriced: number;
 }
 
+/** Заробіток (прибуток без ПДВ) на наборі рядків. */
+export interface ProfitSummary {
+  /** Рядків з ціною продажу й входом. */
+  lines: number;
+  /** Рядків без ціни продажу (напр., «по РРЦ», а РРЦ немає): у заробіток не входять. */
+  unpriced: number;
+  costNet: number;
+  saleNet: number;
+  profitNet: number;
+  markupPct: number | null;
+}
+
+/** Заробіток по постачальнику (блоку). */
+export interface SupplierProfit {
+  blockId: UUID;
+  /** Рядки, де ефективний вибір — цей постачальник (як у націнці й КП). Σ по блоках = прибуток заявки. */
+  selected: ProfitSummary;
+  /** «Якщо все в цього постачальника»: рядки, які він покриває (Ф13), ціни продажу — за правилами націнки рядків. */
+  allIn: ProfitSummary;
+}
+
 export interface RequestComputed {
   offers: Record<UUID, OfferComputed>;
   /** lineId → blockId → offerId */
@@ -205,6 +226,8 @@ export interface RequestComputed {
   /** [optimal_mix, current_selection, ...single_supplier за порядком блоків] */
   scenarios: PurchaseScenario[];
   markup: { rows: Record<UUID, MarkupRowComputed>; totals: MarkupTotals };
+  /** blockId → заробіток по постачальнику. */
+  supplierProfit: Record<UUID, SupplierProfit>;
   totals: RequestTotalsSummary;
   /** Плаский список усіх попереджень. */
   warnings: Warning[];

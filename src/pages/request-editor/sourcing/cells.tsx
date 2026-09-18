@@ -5,7 +5,7 @@ import type { ICellRendererParams } from 'ag-grid-community';
 import { useState, type ReactNode } from 'react';
 import { AVAILABILITY_LABELS } from '@shared/enums';
 import { formatMoney, formatPct, formatQty, formatRate } from '@shared/format';
-import { offerDisplayName } from '@shared/pricing';
+import { offerDisplayName, offerMultiplicity } from '@shared/pricing';
 import type { Offer, OfferComputed, OfferPriceChange, UUID, Warning, WarningCode } from '@shared/types';
 import { QtyCell } from '@/components/QtyCell';
 import { SupplierLogo } from '@/components/SupplierLogo';
@@ -218,7 +218,7 @@ export function BlockQtyCell(p: P<BlockCellParams>) {
       <QtyCell
         qty={cell.oc.qtyEffective}
         roundedFrom={rounded ? Number(rounded.params?.from) : null}
-        multiplicity={cell.offer.multiplicity}
+        multiplicity={offerMultiplicity(cell.offer)}
       />
       <WarningBadge warnings={cellWarnings(cell.oc, 'qty')} size={12} />
     </Flex>

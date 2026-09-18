@@ -164,9 +164,10 @@ export function buildFinalKpSnapshot(
 }
 
 /** КП-основа для погодження — останнє звичайне (не фінальне) КП. */
-export function latestBaseKp<T extends Pick<KpDocumentDto, 'onlyApproved' | 'kpNumber'>>(kps: readonly T[] | null | undefined): T | null {
+export function latestBaseKp<T extends Pick<KpDocumentDto, 'onlyApproved' | 'version'>>(kps: readonly T[] | null | undefined): T | null {
+  // номер КП у всіх версій заявки однаковий («2114 / 000008») — найновішу визначає номер версії
   let best: T | null = null;
-  for (const k of kps ?? []) if (!k.onlyApproved && (!best || k.kpNumber > best.kpNumber)) best = k;
+  for (const k of kps ?? []) if (!k.onlyApproved && (!best || k.version > best.version)) best = k;
   return best;
 }
 
@@ -201,7 +202,7 @@ export function kpChecks(lines: readonly RequestLine[], computed: Pick<RequestCo
 }
 
 /** КП-основа для погодження: обрана в заявці (звичайна версія) або остання звичайна. */
-export function approvalBaseKp<T extends Pick<KpDocumentDto, 'id' | 'onlyApproved' | 'kpNumber'>>(
+export function approvalBaseKp<T extends Pick<KpDocumentDto, 'id' | 'onlyApproved' | 'version'>>(
   kps: readonly T[] | null | undefined,
   approvalKpId: UUID | null | undefined,
 ): T | null {

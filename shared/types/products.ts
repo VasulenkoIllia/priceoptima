@@ -97,6 +97,7 @@ export type ProductSortField =
   | 'supplier'
   | 'sku'
   | 'nameWork'
+  | 'name1c'
   | 'unitCode'
   | 'multiplicity'
   | 'purchasePrice'

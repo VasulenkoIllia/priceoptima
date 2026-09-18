@@ -146,3 +146,21 @@
 .po-cat-photo:focus-within .po-cat-photo-actions {
   opacity: 1;
 }
+
+/* ── редагування картки товару ─────────────────────────────────── */
+.po-cat-name-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.po-cat-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 12px;
+}
+@media (max-width: 560px) {
+  .po-cat-edit-grid {
+    grid-template-columns: 1fr;
+  }
+}

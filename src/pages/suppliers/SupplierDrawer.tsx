@@ -16,10 +16,10 @@ import { hostOf, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSource
 /** «НБУ + 1,5 %», «Вручну: USD 41,20 · EUR 45,10». */
 function ratePolicyLabel(s: SupplierDetail): string {
   if (s.ratePolicy === 'nbu_adjusted') return `НБУ ${s.rateAdjustPct >= 0 ? '+' : '−'} ${pctLabel(Math.abs(s.rateAdjustPct))}`;
-  if (s.ratePolicy === 'manual') {
-    const parts = [s.manualRateUsd != null ? `USD ${formatRate(s.manualRateUsd)}` : null, s.manualRateEur != null ? `EUR ${formatRate(s.manualRateEur)}` : null].filter(Boolean);
-    return parts.length ? `Вручну: ${parts.join(' · ')}` : 'Вручну (курс не вказано)';
-  }
+  const parts = [s.manualRateUsd != null ? `USD ${formatRate(s.manualRateUsd)}` : null, s.manualRateEur != null ? `EUR ${formatRate(s.manualRateEur)}` : null].filter(Boolean);
+  if (s.ratePolicy === 'manual') return parts.length ? `Вручну: ${parts.join(' · ')}` : 'Вручну (курс не вказано)';
+  // з прайсу; запасний — ручний курс постачальника, далі загальний курс
+  if (s.ratePolicy === 'price_list') return parts.length ? `З прайсу; якщо немає: ${parts.join(' · ')}` : 'З прайсу; якщо немає: загальний курс';
   return RATE_POLICY_LABELS[s.ratePolicy];
 }
 

@@ -6,7 +6,7 @@ import { Alert, App, Button, Checkbox, Input, InputNumber, Radio, Select, Spin, 
 import { useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { KP_NAME_SOURCE_LABELS, KP_NAME_SOURCES, KP_VAT_MODE_LABELS, type KpNameSource, type KpVatMode } from '@shared/enums';
-import { formatDateTime, formatMoney } from '@shared/format';
+import { formatDateTime, formatKpNumber, formatMoney } from '@shared/format';
 import { defaultKpVatMode, latestBaseKp, type KpChecks } from '@shared/pricing';
 import type { KpDocumentDto, KpSettings, UUID } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
@@ -197,8 +197,8 @@ export default function KpTab() {
   const download = async (kp: KpDocumentDto, kind: 'pdf' | 'xlsx') => {
     setBusy(kind);
     try {
-      if (kind === 'pdf') await downloadKpPdf(kp.snapshot);
-      else await downloadKpExcel(kp.snapshot);
+      if (kind === 'pdf') await downloadKpPdf(kp.snapshot, kp.version);
+      else await downloadKpExcel(kp.snapshot, kp.version);
     } catch (e) {
       message.error(`Не вдалося сформувати файл: ${errorMessage(e)}`);
     } finally {
@@ -219,7 +219,8 @@ export default function KpTab() {
       : !checks.inKp
         ? 'Немає позицій з ціною продажу'
         : null;
-  const next = appSettings.data?.nextKpNumber;
+  const kpPrefix = appSettings.data?.nextKpNumber;
+  const requestNumber = useRequestDoc((s) => s.doc?.header.number);
 
   // КП-3: «Сформувати на основі цієї» — налаштування версії в заявку, далі перегляд за поточними цінами і «Сформувати»
   const basedOn = (kp: KpDocumentDto) => {
@@ -267,7 +268,7 @@ export default function KpTab() {
               onClick={onCreate}
               style={{ marginTop: 10 }}
             >
-              Сформувати КП{next ? ` № ${next}` : ''}
+              Сформувати КП{kpPrefix && requestNumber != null ? ` № ${formatKpNumber(kpPrefix, requestNumber)}` : ''}
             </Button>
           </Tooltip>
           {outdated && base ? (

@@ -65,7 +65,8 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
       const { nextRequestNumber, nextKpNumber, ...rest } = v;
       const patch: AppSettingsPatch = { ...rest };
       if (nextRequestNumber > current.nextRequestNumber) patch.nextRequestNumber = nextRequestNumber;
-      if (nextKpNumber > current.nextKpNumber) patch.nextKpNumber = nextKpNumber;
+      // номер КП — стала частина «2114 / номер заявки», його можна змінити будь-коли
+      if (nextKpNumber !== current.nextKpNumber) patch.nextKpNumber = nextKpNumber;
       return ds.updateSettings(patch);
     },
     onSuccess: (next) => {
@@ -121,8 +122,14 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
           <Form.Item name="nextRequestNumber" label="Наступний № заявки" extra="Лічильник можна лише збільшити" rules={counterRules(settings.nextRequestNumber)}>
             <InputNumber {...NUM} min={settings.nextRequestNumber} precision={0} />
           </Form.Item>
-          <Form.Item name="nextKpNumber" label="Наступний № КП" extra="Лічильник можна лише збільшити" rules={counterRules(settings.nextKpNumber)} style={{ marginBottom: 0 }}>
-            <InputNumber {...NUM} min={settings.nextKpNumber} precision={0} />
+          <Form.Item
+            name="nextKpNumber"
+            label="Номер КП (стала частина)"
+            extra={`Номер КП: ${settings.nextKpNumber} / номер заявки`}
+            rules={[{ required: true, message: 'Вкажіть номер КП' }]}
+            style={{ marginBottom: 0 }}
+          >
+            <InputNumber {...NUM} min={1} precision={0} />
           </Form.Item>
         </Card>
       </div>

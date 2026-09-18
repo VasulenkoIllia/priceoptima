@@ -112,7 +112,9 @@ describe('MockDataSource — сесія і дані', () => {
   it('лічильники номерів можна лише збільшити; у демо є товари, додані вручну', async () => {
     env = createTestEnv();
     const admin = await loggedTab('a', DEMO_USER_IDS.admin);
-    await expectCode(admin.updateSettings({ nextKpNumber: 2000 }), 'VALIDATION_ERROR');
+    // номер КП — стала частина, його можна змінити в будь-який бік
+    expect((await admin.updateSettings({ nextKpNumber: 2000 })).nextKpNumber).toBe(2000);
+    await expectCode(admin.updateSettings({ nextKpNumber: 0 }), 'VALIDATION_ERROR');
     expect((await admin.updateSettings({ nextKpNumber: 2200 })).nextKpNumber).toBe(2200);
     const manual = (await admin.listProducts()).filter((p) => p.priceSource === 'manual');
     expect(manual.length).toBeGreaterThanOrEqual(3);

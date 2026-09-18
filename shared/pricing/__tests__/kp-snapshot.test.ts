@@ -84,13 +84,13 @@ describe('знімок КП', () => {
     expect(approvedTotalsFromKp(base, [])).toBeNull();
   });
 
-  it('КП-основа — останнє звичайне КП; дати', () => {
+  it('КП-основа — остання звичайна версія (номер КП у всіх версій однаковий); дати', () => {
     const kps = [
-      { kpNumber: 2110, onlyApproved: false },
-      { kpNumber: 2111, onlyApproved: true },
-      { kpNumber: 2109, onlyApproved: false },
+      { kpNumber: 2114, version: 2, onlyApproved: false },
+      { kpNumber: 2114, version: 3, onlyApproved: true },
+      { kpNumber: 2114, version: 1, onlyApproved: false },
     ];
-    expect(latestBaseKp(kps)?.kpNumber).toBe(2110);
+    expect(latestBaseKp(kps)?.version).toBe(2);
     expect(latestBaseKp([])).toBeNull();
     expect(addDaysIso('2026-12-30', 3)).toBe('2027-01-02');
   });

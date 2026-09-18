@@ -33,8 +33,8 @@ export default function FilesTab() {
   const download = async (kp: KpDocumentDto, kind: 'pdf' | 'xlsx') => {
     setBusy(`${kp.id}:${kind}`);
     try {
-      if (kind === 'pdf') await downloadKpPdf(kp.snapshot);
-      else await downloadKpExcel(kp.snapshot);
+      if (kind === 'pdf') await downloadKpPdf(kp.snapshot, kp.version);
+      else await downloadKpExcel(kp.snapshot, kp.version);
     } catch (e) {
       message.error(`Не вдалося сформувати файл: ${errorMessage(e)}`);
     } finally {

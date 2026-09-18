@@ -56,6 +56,7 @@ export const PRODUCT_SORT_FIELDS = [
   'supplier',
   'sku',
   'nameWork',
+  'name1c',
   'unitCode',
   'multiplicity',
   'purchasePrice',

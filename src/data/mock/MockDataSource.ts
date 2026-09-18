@@ -33,6 +33,7 @@ import type {
   KpCreateBody,
   KpDocumentDto,
   ListQuery,
+  ManualRateInput,
   LockInfo,
   LockStatusResponse,
   MeResponse,
@@ -49,6 +50,7 @@ import type {
   ProductImageUrlInput,
   ProductInput,
   ProductListQuery,
+  ProductPatch,
   ProductPage,
   ProductPageQuery,
   ProductPickDto,
@@ -270,8 +272,9 @@ export class MockDataSource implements DataSource {
       if (patch.nextRequestNumber != null && patch.nextRequestNumber < cur.nextRequestNumber) {
         throw new DataSourceError('VALIDATION_ERROR', `Наступний номер заявки — не менше ${cur.nextRequestNumber}`);
       }
-      if (patch.nextKpNumber != null && patch.nextKpNumber < cur.nextKpNumber) {
-        throw new DataSourceError('VALIDATION_ERROR', `Наступний номер КП — не менше ${cur.nextKpNumber}`);
+      // номер КП — стала частина «2114 / номер заявки»: змінюється будь-коли, лише додатний
+      if (patch.nextKpNumber != null && patch.nextKpNumber < 1) {
+        throw new DataSourceError('VALIDATION_ERROR', 'Номер КП — ціле число, більше нуля');
       }
       const p = clone(patch);
       this.mutate((db) => Object.assign(db.settings, p));
@@ -802,6 +805,32 @@ export class MockDataSource implements DataSource {
     });
   }
 
+  updateProduct(id: UUID, patch: ProductPatch): Promise<ProductDetail> {
+    return this.call(() => {
+      this.requireUser();
+      const cur = this.requireProduct(id);
+      const nameWork = patch.nameWork !== undefined ? patch.nameWork.trim() : cur.nameWork;
+      if (!nameWork) throw new DataSourceError('VALIDATION_ERROR', 'Вкажіть робочу назву');
+      if (patch.multiplicity !== undefined && !(patch.multiplicity > 0)) throw new DataSourceError('VALIDATION_ERROR', 'Кратність: більше нуля');
+      const text = (v: string | null | undefined) => (v === undefined ? undefined : v?.trim() || null);
+      this.mutate((db) => {
+        const p = db.products[id];
+        p.nameWork = nameWork;
+        if (patch.name1c !== undefined) p.name1c = text(patch.name1c) ?? null;
+        if (patch.brand !== undefined) p.brand = text(patch.brand) ?? null;
+        if (patch.unitCode !== undefined) p.unitCode = patch.unitCode.trim() || p.unitCode;
+        if (patch.multiplicity !== undefined) p.multiplicity = patch.multiplicity;
+        if (patch.minOrderQty !== undefined) p.minOrderQty = patch.minOrderQty ?? null;
+        if (patch.productUrl !== undefined) p.productUrl = text(patch.productUrl) ?? null;
+        if (patch.notes !== undefined) p.notes = text(patch.notes) ?? null;
+        if (patch.isArchived !== undefined) p.isArchived = patch.isArchived;
+        p.updatedAt = this.nowIso();
+        Object.assign(p, productKeys(p));
+      });
+      return clone(toProductDetail(this.db.products[id], this.productCtx()));
+    });
+  }
+
   createProduct(input: ProductInput): Promise<ProductDetail> {
     return this.call(() => {
       const user = this.requireUser();
@@ -1189,7 +1218,8 @@ export class MockDataSource implements DataSource {
       makeKpDocument(this.db, r, { ...input, id: 'check', kpNumber: this.db.settings.nextKpNumber });
       return this.mutate((db) => {
         const req = db.requests[requestId];
-        const kp = makeKpDocument(db, req, { ...input, id: newId(), kpNumber: db.settings.nextKpNumber++ });
+        // номер КП сталий: «2114 / номер заявки»; версії розрізняються датою й позначкою «фінальне»
+        const kp = makeKpDocument(db, req, { ...input, id: newId(), kpNumber: db.settings.nextKpNumber });
         (db.kps[requestId] ??= []).push(kp);
         req.meta.kpCount = db.kps[requestId].length;
         req.meta.attachmentsCount += 1; // КП (PDF / Excel) — на вкладці «Файли»
@@ -1271,6 +1301,29 @@ export class MockDataSource implements DataSource {
     return this.call(() => {
       this.requireUser();
       return clone(this.db.rates);
+    });
+  }
+
+  addManualRate(input: ManualRateInput): Promise<CurrencyRateDto> {
+    return this.call(() => {
+      this.requireUser();
+      if (!(input.rate > 0)) throw new DataSourceError('VALIDATION_ERROR', 'Курс має бути більшим за нуль');
+      const at = this.nowIso();
+      const entry: CurrencyRateDto = {
+        id: Math.max(0, ...this.db.rates.map((r) => r.id)) + 1,
+        currency: input.currency,
+        rateDate: input.rateDate,
+        rate: round4(input.rate),
+        source: 'manual',
+        fetchedAt: at,
+        note: input.note?.trim() || null,
+      };
+      this.mutate((db) => {
+        // один ручний курс валюти на дату: новий замінює попередній
+        db.rates = db.rates.filter((r) => !(r.source === 'manual' && r.currency === entry.currency && r.rateDate === entry.rateDate));
+        db.rates.push(entry);
+      });
+      return clone(entry);
     });
   }
 

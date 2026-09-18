@@ -213,6 +213,8 @@ export interface Offer {
   /** null → line.qty */
   qty: number | null;
   multiplicity: number | null;
+  /** Кратність для цієї пропозиції вимкнено: кількість не округлюється (кратність товару в каталозі лишається). */
+  noRounding?: boolean;
   stockQty: number | null;
   availability: AvailabilityStatus;
   priceDate: ISODateTime | null;

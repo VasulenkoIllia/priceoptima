@@ -29,8 +29,8 @@ describe('лічильники номерів', () => {
     expect((thrown as ApiError).message).toBe('Наступний номер заявки — не менше 42');
   });
 
-  it('менший номер КП — помилка', () => {
-    expect(() => assertCountersOnlyGrow(current, { nextKpNumber: 2113 })).toThrow(/Наступний номер КП — не менше 2114/u);
+  it('номер КП — стала частина («2114 / номер заявки»), його можна й зменшити', () => {
+    expect(() => assertCountersOnlyGrow(current, { nextKpNumber: 2000 })).not.toThrow();
   });
 });
 

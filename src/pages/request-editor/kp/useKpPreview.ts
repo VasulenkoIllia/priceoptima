@@ -13,6 +13,9 @@ export function useKpPreview(): { snapshot: KpSnapshot | null; checks: KpChecks 
   const computed = useRequestComputed();
   const own = useQuery({ queryKey: qk.ownCompanies, queryFn: () => ds.listOwnCompanies() });
   const users = useQuery({ queryKey: qk.users, queryFn: () => ds.listUsers() });
+  const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
+  // номер КП сталий, тож у перегляді він уже відомий
+  const kpNumber = settings.data?.nextKpNumber ?? null;
 
   return useMemo(() => {
     if (!doc || !ctx || !computed) return { snapshot: null, checks: null };
@@ -22,7 +25,7 @@ export function useKpPreview(): { snapshot: KpSnapshot | null; checks: KpChecks 
     if (!seller) return { snapshot: null, checks };
     const rows = buildKpRows(doc, computed, { ...header.kpSettings, onlyApproved: false }, ctx);
     const snapshot = buildKpSnapshot({
-      kpNumber: null,
+      kpNumber,
       requestNumber: header.number,
       date: toIsoDate(new Date()),
       settings: header.kpSettings,
@@ -33,5 +36,5 @@ export function useKpPreview(): { snapshot: KpSnapshot | null; checks: KpChecks 
       managerName: kpManagerName(users.data?.find((u) => u.id === header.managerId) ?? refs.manager),
     });
     return { snapshot, checks };
-  }, [doc, ctx, computed, own.data, users.data]);
+  }, [doc, ctx, computed, own.data, users.data, kpNumber]);
 }

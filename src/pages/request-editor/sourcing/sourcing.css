@@ -262,6 +262,9 @@
 .po-bh-delta {
   color: var(--po-warning);
 }
+.po-bh-profit {
+  color: var(--po-min);
+}
 .po-bh-link {
   border: none;
   background: none;

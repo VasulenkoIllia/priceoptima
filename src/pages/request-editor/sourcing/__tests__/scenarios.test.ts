@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeRequest } from '@shared/pricing';
-import { makeBlock, makeCtx, makeDoc, makeLine, makeSupplier, uah } from '@shared/pricing/__tests__/fixtures';
+import { MARKUP, makeBlock, makeCtx, makeDoc, makeLine, makeSupplier, uah } from '@shared/pricing/__tests__/fixtures';
 import { buildScenarioView } from '../scenarios';
 
 describe('buildScenarioView — панель «Сценарії закупівлі»', () => {
@@ -15,13 +15,24 @@ describe('buildScenarioView — панель «Сценарії закупівл
 
   it('оптимальний мікс і поточний вибір (переплата vs мікс)', () => {
     expect(view.mix).toEqual({ totalGross: 264, suppliersUsed: 1, covered: 2, missing: 1, total: 3 });
-    expect(view.current).toEqual({ approved: 1, total: 3, totalGross: 276, overpayGross: 12, overpayPct: 4.5455 });
+    expect(view.current).toEqual({ approved: 1, total: 3, totalGross: 276, overpayGross: 12, overpayPct: 4.5455, profitNet: 0 });
   });
 
   it('«все у постачальника»: сума, покриття, бракує, різниця з міксом, мін. замовлення, скільки рядків затвердить кнопка', () => {
     expect(view.singles.map((s) => [s.blockId, s.totalGross, s.covered, s.missing, s.diffVsMixGross, s.belowMinOrder, s.approvable])).toEqual([
       ['b1', 300, 2, 1, 36, true, 1],
       ['b2', 264, 2, 1, 0, false, 2],
+    ]);
+  });
+
+  it('заробіток: поточний вибір і «якщо все в цього постачальника» (націнка на вхід 10 %)', () => {
+    const withMarkup = { ...doc, markup: { ...MARKUP, method: 'markup_on_cost' as const, value: 10 } };
+    const v = buildScenarioView({ lines: doc.lines, blocks: doc.blocks, suppliers: ctx.suppliers }, computeRequest(withMarkup, ctx));
+    // поточний: l1 у b2 (90 × 2 × 0,1 = 18) + l2 у b1 (5)
+    expect(v.current.profitNet).toBe(23);
+    expect(v.singles.map((s) => [s.blockId, s.profitNet])).toEqual([
+      ['b1', 25],
+      ['b2', 22],
     ]);
   });
 

@@ -17,7 +17,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useCallback, useMemo, useState } from 'react';
 import { useOpenTab } from '@/app/AppTabs';
 import { REQUEST_STATUSES } from '@shared/enums';
-import { formatDate, formatMoney, formatTime } from '@shared/format';
+import { formatDate, formatKpNumber, formatMoney, formatTime } from '@shared/format';
 import { requestStageIndicators } from '@shared/status';
 import type { RequestListItem, RequestListQuery, UUID } from '@shared/types';
 import { PageHeader, StatusTag } from '@/components';
@@ -35,10 +35,9 @@ function KpCell({ data }: Cell) {
   if (!data || !requestStageIndicators(data).hasKp) return null;
   const last = data.lastKp;
   return (
-    <Tooltip title={last ? `Останнє КП № ${last.kpNumber}${last.final ? ' — фінальне' : ''}; усього версій: ${data.kpCount}` : 'КП сформовано'}>
+    <Tooltip title={last ? `КП № ${formatKpNumber(last.kpNumber, data.number)}${last.final ? ', останнє фінальне' : ''}; версій: ${data.kpCount}` : 'КП сформовано'}>
       <Tag bordered={false} color={last?.final ? 'purple' : 'blue'} style={{ margin: 0 }} className="po-num">
-        {last ? last.kpNumber : 'КП'}
-        {last?.final ? ' фін.' : ''}
+        {last?.final ? 'фінальне' : 'КП'}
         {data.kpCount > 1 ? ` · ${data.kpCount}` : ''}
       </Tag>
     </Tooltip>

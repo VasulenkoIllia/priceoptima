@@ -1,7 +1,7 @@
 // Вкладка «Націнка» (НАЦ-1…НАЦ-5): ціна продажу кожного рядка від обраної пропозиції — спосіб для заявки й для рядка,
 // ручна ціна (без ПДВ або з ПДВ), попередження й підсумки в режимі цін КП. Коригувати ціни для клієнта можна лише тут, у заявці.
 import { ArrowRightOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { App, Button, InputNumber, Segmented, Select, Tag, Tooltip } from 'antd';
+import { App, Button, InputNumber, Popover, Segmented, Select, Table, Tag, Tooltip } from 'antd';
 import type { CellEditRequestEvent, ColDef, ICellRendererParams, RowClassParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -10,7 +10,7 @@ import { DISCOUNT_FORMULA_LABELS, MARKUP_METHOD_LABELS, MARKUP_METHODS, type KpV
 import { formatMoney, formatPct, formatQty } from '@shared/format';
 import { parseLocaleNumber } from '@shared/parse';
 import { isActiveLine, kpChecks, offerDisplayName } from '@shared/pricing';
-import type { MarkupRowComputed, Offer, RequestLine, SupplierRef, UUID } from '@shared/types';
+import type { MarkupRowComputed, Offer, RequestComputed, RequestDocument, RequestLine, SupplierProfit, SupplierRef, UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
@@ -132,6 +132,73 @@ function Stat({ label, value, strong, tone }: { label: string; value: string; st
       <span className="po-mk-stat-label">{label}</span>
       <span className={`po-num po-mk-stat-value${strong ? ' po-mk-stat-strong' : ''}${tone === 'good' ? ' po-mk-stat-good' : ''}`}>{value}</span>
     </div>
+  );
+}
+
+interface ProfitRow extends SupplierProfit {
+  supplier: SupplierRef | null;
+}
+
+/** Заробіток по постачальниках: за поточним вибором і «якщо все в цього постачальника». */
+function SupplierProfitBreakdown({ doc, computed }: { doc: RequestDocument; computed: RequestComputed }) {
+  const rows = useMemo<ProfitRow[]>(
+    () =>
+      [...doc.blocks]
+        .sort((a, b) => a.position - b.position)
+        .flatMap((b) => {
+          const p = computed.supplierProfit[b.id];
+          return p ? [{ ...p, supplier: b.supplierId ? (doc.refs.suppliers[b.supplierId] ?? null) : null }] : [];
+        }),
+    [doc, computed],
+  );
+  if (!rows.length) return null;
+  const used = rows.filter((r) => r.selected.lines > 0);
+  const table = (
+    <Table<ProfitRow>
+      size="small"
+      pagination={false}
+      rowKey="blockId"
+      dataSource={rows}
+      columns={[
+        {
+          title: 'Постачальник',
+          render: (_, r) => <SupplierLogo name={r.supplier?.name ?? 'Постачальник'} logoUrl={r.supplier?.logoUrl} color={r.supplier?.color} size={16} showName />,
+        },
+        { title: 'Обрано рядків', align: 'right', render: (_, r) => r.selected.lines },
+        { title: 'Вхід без ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.costNet) },
+        { title: 'Продаж без ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.saleNet) },
+        {
+          title: 'Заробіток',
+          align: 'right',
+          className: 'po-num',
+          render: (_, r) => <b className="po-mk-stat-good">{formatMoney(r.selected.profitNet)}</b>,
+        },
+        { title: 'Націнка', align: 'right', className: 'po-num', render: (_, r) => formatPct(r.selected.markupPct, 1) },
+        {
+          title: <Tooltip title="Якби всі рядки з ціною в цього постачальника брали в нього">Якщо все тут</Tooltip>,
+          align: 'right',
+          className: 'po-num',
+          render: (_, r) => `${formatMoney(r.allIn.profitNet)} (${r.allIn.lines} рядк.)`,
+        },
+      ]}
+    />
+  );
+  return (
+    <Popover content={table} title="Заробіток по постачальниках (без ПДВ)" placement="topLeft">
+      <div className="po-mk-stat po-mk-by-supplier">
+        <span className="po-mk-stat-label">По постачальниках</span>
+        <span className="po-mk-sup-list">
+          {used.length
+            ? used.map((r) => (
+                <span key={r.blockId} className="po-mk-sup">
+                  <SupplierLogo name={r.supplier?.name ?? 'Постачальник'} logoUrl={r.supplier?.logoUrl} color={r.supplier?.color} size={14} />
+                  <span className="po-num">{formatMoney(r.selected.profitNet)}</span>
+                </span>
+              ))
+            : '—'}
+        </span>
+      </div>
+    </Popover>
   );
 }
 
@@ -455,6 +522,7 @@ export default function MarkupTab() {
             </>
           )}
           <Stat label="Прибуток" value={formatMoney(totals.profitNet)} tone="good" />
+          <SupplierProfitBreakdown doc={doc} computed={computed} />
           <Stat label="Націнка" value={formatPct(totals.markupPct, 1)} />
           <Stat label="Маржа" value={formatPct(totals.marginPct, 1)} />
           <span className="po-muted po-mk-count">

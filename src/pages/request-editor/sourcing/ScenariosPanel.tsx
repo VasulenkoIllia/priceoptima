@@ -115,6 +115,9 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
             <div>
               переплата vs мікс: <Diff gross={view.current.overpayGross} pct={view.current.overpayPct} />
             </div>
+            <div title="Прибуток без ПДВ за цінами продажу з вкладки «Націнка»">
+              заробіток: <span className="po-num po-sc-good">{formatMoneyUah(view.current.profitNet)}</span>
+            </div>
           </Card>
 
           <div className="po-sc-section">Все в одного постачальника</div>
@@ -136,6 +139,9 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
                 {s.missing ? <div className="po-sc-bad">бракує: {s.missing}</div> : null}
                 <div>
                   різниця з міксом: <Diff gross={s.diffVsMixGross} pct={s.diffVsMixPct} />
+                </div>
+                <div title="Прибуток без ПДВ, якби всі рядки з ціною в цього постачальника брали в нього; ціни продажу за способом націнки рядків">
+                  заробіток: <span className="po-num po-sc-good">{formatMoneyUah(s.profitNet)}</span>
                 </div>
                 {s.belowMinOrder ? (
                   <Tag color="orange" style={{ marginTop: 4 }}>

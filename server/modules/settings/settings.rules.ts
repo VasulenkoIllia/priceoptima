@@ -10,9 +10,6 @@ export function assertCountersOnlyGrow(current: AppSettings, patch: AppSettingsP
   if (patch.nextRequestNumber != null && patch.nextRequestNumber < current.nextRequestNumber) {
     throw new ApiError('VALIDATION_ERROR', `Наступний номер заявки — не менше ${current.nextRequestNumber}`);
   }
-  if (patch.nextKpNumber != null && patch.nextKpNumber < current.nextKpNumber) {
-    throw new ApiError('VALIDATION_ERROR', `Наступний номер КП — не менше ${current.nextKpNumber}`);
-  }
 }
 
 /** Налаштування після застосування змін (порожні поля лишаються як були). */

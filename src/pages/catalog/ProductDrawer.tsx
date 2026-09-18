@@ -9,6 +9,7 @@ import type { PriceHistoryEntry, ProductDetail, SupplierListItem } from '@shared
 import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { ManualPriceDialog } from './ManualPriceDialog';
+import { ProductEditDialog } from './ProductEditDialog';
 import { PriceHistoryChart } from './PriceHistoryChart';
 import { ProductPhotos } from './ProductPhotos';
 import { Availability, HISTORY_SOURCE_LABELS, PriceSourceTag, priceCur } from './productView';
@@ -42,6 +43,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [priceOpen, setPriceOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const history = useQuery({ queryKey: qk.priceHistory(product.id), queryFn: () => ds.getPriceHistory(product.id) });
   const isManual = product.priceSource === 'manual';
   // НОМ-5: «Ціну перевірено» — дата ціни зараз, ціна без змін (лише в доданих вручну; решту оновлює прайс)
@@ -65,6 +67,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
         </Typography.Text>
       ),
     },
+    { key: 'name1c', label: 'Найменування 1С', children: product.name1c ?? <span className="po-muted">не задано</span>, span: 2 },
     { key: 'brand', label: 'Бренд', children: product.brand ?? '—' },
     { key: 'unit', label: 'Од.', children: product.unitCode },
     { key: 'mult', label: 'Кратність', children: <span className="po-num">{formatQty(product.multiplicity)}</span> },
@@ -110,7 +113,12 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
       <div className="po-cat-drawer-title" style={{ marginBottom: 10 }}>
         <SupplierLogo name={product.supplierName} logoUrl={supplier?.logoUrl} color={supplier?.color} size={24} showName />
       </div>
-      <h3 className="po-cat-name">{product.nameWork}</h3>
+      <div className="po-cat-name-row">
+        <h3 className="po-cat-name">{product.nameWork}</h3>
+        <Button size="small" icon={<EditOutlined />} onClick={() => setEditOpen(true)}>
+          Редагувати
+        </Button>
+      </div>
       {product.productUrl ? (
         <Typography.Link href={product.productUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginBottom: 12 }}>
           <GlobalOutlined /> Сторінка товару на сайті постачальника
@@ -164,6 +172,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
         </>
       )}
       {isManual ? <ManualPriceDialog open={priceOpen} product={product} onClose={() => setPriceOpen(false)} /> : null}
+      <ProductEditDialog open={editOpen} product={product} onClose={() => setEditOpen(false)} />
     </>
   );
 }

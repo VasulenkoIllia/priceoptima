@@ -11,6 +11,7 @@ import type {
   EffectiveRates,
   ISODate,
   ListQuery,
+  ManualRateInput,
   MeResponse,
   OwnCompanyDto,
   OwnCompanyInput,
@@ -24,6 +25,7 @@ import type {
   ProductImageUrlInput,
   ProductInput,
   ProductListQuery,
+  ProductPatch,
   ProductPage,
   ProductPageQuery,
   ProductPickDto,
@@ -145,6 +147,10 @@ export class HttpDataSource {
     return api<CurrencyRateDto[]>('/rates');
   }
 
+  addManualRate(input: ManualRateInput): Promise<CurrencyRateDto> {
+    return api<CurrencyRateDto>('/rates', { body: input });
+  }
+
   // ── прайси постачальників ─────────────────────────────────────────
 
   /** Завантажити вигрузку постачальника зараз (за розкладом це робиться щоранку). */
@@ -222,6 +228,10 @@ export class HttpDataSource {
 
   createProduct(input: ProductInput): Promise<ProductDetail> {
     return api<ProductDetail>('/products', { body: input });
+  }
+
+  updateProduct(id: UUID, patch: ProductPatch): Promise<ProductDetail> {
+    return api<ProductDetail>(`/products/${id}`, { method: 'PUT', body: patch });
   }
 
   updateProductPrice(id: UUID, input: ProductPriceUpdateInput): Promise<ProductPriceUpdateResult> {

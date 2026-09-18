@@ -12,7 +12,7 @@ describe('сід демо-БД', () => {
     expect(db.fingerprint).toBe('test');
   });
 
-  it('6 демо-заявок у 3 статусах, лічильники заявок і КП (демо-КП 2110–2113, нове — з 2114)', () => {
+  it('6 демо-заявок у 3 статусах, лічильник заявок; номер КП сталий 2114, версії — окремо', () => {
     const requests = Object.values(db.requests);
     expect(requests).toHaveLength(6);
     expect(new Set(requests.map((r) => r.header.status))).toEqual(new Set(REQUEST_STATUSES));
@@ -21,11 +21,11 @@ describe('сід демо-БД', () => {
     const withKp = requests.filter((r) => r.meta.kpCount > 0).length;
     expect(withKp).toBe(3);
     expect(db.settings.nextKpNumber).toBe(2114);
-    const numbers = Object.values(db.kps)
-      .flat()
-      .map((k) => k.kpNumber)
-      .sort();
-    expect(numbers).toEqual([2110, 2111, 2112, 2113]);
+    const kps = Object.values(db.kps).flat();
+    expect(kps).toHaveLength(4);
+    expect(new Set(kps.map((k) => k.kpNumber))).toEqual(new Set([2114]));
+    // у межах заявки версії йдуть підряд
+    for (const list of Object.values(db.kps)) expect(list.map((k) => k.version)).toEqual(list.map((_, i) => i + 1));
   });
 
   it('000002 «Виконано»: КП-основа і фінальне КП лише з погоджених рядків; історія від створення до статусу', () => {

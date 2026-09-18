@@ -12,6 +12,7 @@ import {
   createSupplierBlock,
   initialOfferQty,
   isCatalogChanged,
+  offerMultiplicity,
   refreshOfferFromCatalog,
   type ProductForOffer,
 } from '@shared/pricing';
@@ -174,6 +175,8 @@ export interface RequestDocActions {
   addProductsToLine(lineId: UUID, products: ProductForLine[]): AddProductsResult;
   clearOffer(offerId: UUID): void;
   setOfferQty(offerId: UUID, qty: number | null): void;
+  /** Вимкнути / увімкнути округлення до кратності для цієї пропозиції (лише в цій заявці). */
+  setOfferNoRounding(offerId: UUID, noRounding: boolean): void;
   setOfferNote(offerId: UUID, note: string | null): void;
   toggleExclude(offerId: UUID, reason?: string | null): void;
   selectOffer(lineId: UUID, blockId: UUID | null): void;
@@ -688,8 +691,8 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         // к-сть пропозицій, що йшла за рядком (або була автоокруглена), перераховується; ручна — лишається
         for (const o of d.offers) {
           if (o.lineId !== id) continue;
-          if (o.qty === null || o.qty === initialOfferQty(oldQty, o.multiplicity, autoRound())) {
-            o.qty = initialOfferQty(line.qty, o.multiplicity, autoRound());
+          if (o.qty === null || o.qty === initialOfferQty(oldQty, offerMultiplicity(o), autoRound())) {
+            o.qty = initialOfferQty(line.qty, offerMultiplicity(o), autoRound());
           }
         }
       }
@@ -934,6 +937,23 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         if (qty !== null && !(Number.isFinite(qty) && qty >= 0)) return;
         editOffer(offerId, (o) => {
           o.qty = qty;
+        });
+      },
+
+      setOfferNoRounding(offerId, noRounding) {
+        const s = get();
+        const offer = s.doc?.offers.find((x) => x.id === offerId);
+        const line = offer ? s.doc?.lines.find((l) => l.id === offer.lineId) : undefined;
+        if (!offer || !line) return;
+        editOffer(offerId, (o) => {
+          if (noRounding) {
+            o.noRounding = true;
+            // к-сть як у клієнта, без округлення
+            o.qty = null;
+          } else {
+            delete o.noRounding;
+            o.qty = initialOfferQty(line.qty, o.multiplicity, autoRound());
+          }
         });
       },
 

@@ -13,7 +13,7 @@ import type { IHeaderGroupParams, IHeaderParams } from 'ag-grid-community';
 import { useState, type ReactNode } from 'react';
 import { CURRENCY_LABELS, RATE_POLICY_LABELS } from '@shared/enums';
 import { formatDate, formatMoney, formatPct, formatRate, formatWarning } from '@shared/format';
-import type { BlockTotals, SupplierBlock, SupplierRef, UUID } from '@shared/types';
+import type { BlockTotals, SupplierBlock, SupplierProfit, SupplierRef, UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
@@ -23,18 +23,25 @@ export interface BlockHeaderParams {
   blockId: UUID;
 }
 
-function useBlockInfo(blockId: UUID): { block: SupplierBlock | null; supplier: SupplierRef | null; totals: BlockTotals | undefined } {
+interface BlockInfo {
+  block: SupplierBlock | null;
+  supplier: SupplierRef | null;
+  totals: BlockTotals | undefined;
+  profit: SupplierProfit | undefined;
+}
+
+function useBlockInfo(blockId: UUID): BlockInfo {
   const block = useRequestDoc((s) => s.doc?.blocks.find((b) => b.id === blockId) ?? null);
   const supplier = useRequestDoc((s) => (block?.supplierId ? (s.doc?.refs.suppliers[block.supplierId] ?? null) : null));
-  const totals = useRequestComputed()?.blocks[blockId];
-  return { block, supplier, totals };
+  const computed = useRequestComputed();
+  return { block, supplier, totals: computed?.blocks[blockId], profit: computed?.supplierProfit[blockId] };
 }
 
 function signedMoney(v: number): string {
   return `${v > 0 ? '+' : ''}${formatMoney(v)}`;
 }
 
-/** Джерело курсу блоку коротко (ТЗ РЕД-4): «прайс 01.09.2026», «картка», «НБУ 11.09.2026», «вручну 12.09.2026». */
+/** Джерело курсу блоку коротко (ТЗ РЕД-4): «прайс 01.09.2026», «картка», «загальний 11.09.2026» (ручний або НБУ), «вручну 12.09.2026». */
 export function rateSourceLabel(block: Pick<SupplierBlock, 'rateSource' | 'ratesDate'>): string {
   const date = block.ratesDate ? formatDate(block.ratesDate) : null;
   switch (block.rateSource) {
@@ -43,10 +50,29 @@ export function rateSourceLabel(block: Pick<SupplierBlock, 'rateSource' | 'rates
     case 'manual':
       return date ? `вручну ${date}` : 'картка';
     case 'nbu':
-      return date ? `НБУ ${date}` : 'НБУ';
+      // загальний курс на дату: ручний із «Курси валют», якщо задано, інакше НБУ
+      return date ? `загальний ${date}` : 'загальний';
     case 'nbu_adjusted':
       return 'НБУ ± %';
   }
+}
+
+/** Пояснення заробітку блоку (тултип). */
+function profitHelp(p: SupplierProfit): ReactNode {
+  return (
+    <div style={{ fontSize: 12 }}>
+      <div>
+        <b>Заробіток по обраних</b> — прибуток без ПДВ на рядках, де обрано цього постачальника ({p.selected.lines}): {formatMoney(p.selected.profitNet)}
+        {p.selected.markupPct != null ? `, націнка ${formatPct(p.selected.markupPct, 1)}` : ''}
+      </div>
+      <div>
+        <b>Якщо все тут</b> — якби всі рядки з ціною в цього постачальника ({p.allIn.lines}) брали в нього: {formatMoney(p.allIn.profitNet)}
+        {p.allIn.markupPct != null ? `, націнка ${formatPct(p.allIn.markupPct, 1)}` : ''}
+      </div>
+      <div>Ціни продажу — за способом націнки кожного рядка (вкладка «Націнка»).</div>
+      {p.allIn.unpriced ? <div>Без ціни продажу (не враховано): {p.allIn.unpriced} рядк.</div> : null}
+    </div>
+  );
 }
 
 /** Пояснення міні-підсумків (тултип). */
@@ -223,7 +249,7 @@ function MinOrderWarning({ totals }: { totals: BlockTotals | undefined }) {
 
 /** Шапка групи колонок блоку («Підбір»): логотип, курс, націнка, міні-підсумки, згорнути, меню. */
 export function BlockGroupHeader(p: IHeaderGroupParams & BlockHeaderParams) {
-  const { block, supplier, totals } = useBlockInfo(p.blockId);
+  const { block, supplier, totals, profit } = useBlockInfo(p.blockId);
   const readOnly = useRequestDoc((s) => s.readOnly);
   const collapsed = useUiPrefs((s) => !!s.collapsedBlocks[p.blockId]);
   const toggleCollapsed = useUiPrefs((s) => s.toggleBlockCollapsed);
@@ -269,6 +295,20 @@ export function BlockGroupHeader(p: IHeaderGroupParams & BlockHeaderParams) {
             <span>
               · {totals.filledCount}/{totals.totalLines}
             </span>
+          </div>
+        </Tooltip>
+      ) : null}
+      {profit ? (
+        <Tooltip title={profitHelp(profit)} placement="bottomLeft">
+          <div className="po-bh-row po-bh-totals po-bh-profit po-num">
+            {collapsed ? (
+              <span>Заробіток {formatMoney(profit.selected.profitNet)}</span>
+            ) : (
+              <>
+                <span>Заробіток по обраних {formatMoney(profit.selected.profitNet)}</span>
+                <span>· якщо все тут {formatMoney(profit.allIn.profitNet)}</span>
+              </>
+            )}
           </div>
         </Tooltip>
       ) : null}

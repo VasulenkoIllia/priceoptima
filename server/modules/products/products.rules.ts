@@ -81,10 +81,11 @@ export function productOrderBy(field: ProductSortField | undefined, dir: 'asc' |
       return [{ [field]: dir }, byName, tail];
     case 'priceSource':
       return [{ priceOrigin: dir }, byName, tail];
+    case 'name1c':
     case 'purchasePrice':
     case 'rrp':
     case 'priceUpdatedAt':
-      // порожні ціни й дати — завжди в кінці, в який бік не сортуй
+      // порожні значення (назва 1С, ціни, дата) — завжди в кінці, в який бік не сортуй
       return [{ [field]: { sort: dir, nulls: 'last' } }, byName, tail];
     default:
       return [{ supplier: { sortOrder: 'asc' } }, { supplier: { name: 'asc' } }, byName, tail];

@@ -14,7 +14,7 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
   const photos = s.columns.showImages;
   return (
     <article className="po-kp-paper">
-      {draft ? <div className="po-kp-draft">Попередній перегляд — номер присвоїться при формуванні</div> : null}
+      {draft ? <div className="po-kp-draft">Попередній перегляд — КП ще не сформовано</div> : null}
       <header className="po-kp-head">
         {s.header.logoPath ? <img className="po-kp-logo" src={s.header.logoPath} alt="" /> : null}
         <div>

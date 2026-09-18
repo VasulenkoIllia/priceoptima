@@ -56,8 +56,8 @@ interface FormValues {
 const text = (v: string | null | undefined) => v?.trim() || null;
 
 const RATE_POLICY_HINTS: Record<RatePolicy, string> = {
-  price_list: 'Курс, який постачальник вказує у прайсі; якщо його немає — курс НБУ',
-  manual: 'Курс, узгоджений з постачальником, — вказується нижче',
+  price_list: 'Курс із прайсу постачальника; якщо в прайсі його немає, то ручний курс нижче, а далі загальний курс із «Курси валют» (або НБУ)',
+  manual: 'Курс, узгоджений з постачальником: вказується нижче',
   nbu: 'Офіційний курс НБУ на дату заявки',
   nbu_adjusted: 'Курс НБУ з поправкою у відсотках',
 };
@@ -140,7 +140,8 @@ function buildInput(v: FormValues, prev: SupplierDetail | null, today: string): 
     email: text(ct.email),
     note: prevCt.get(ct.id)?.note ?? null,
   }));
-  const manual = v.ratePolicy === 'manual';
+  // ручний курс постачальника діє і як основний («Вручну»), і як запасний, коли в прайсі курсу немає
+  const manual = v.ratePolicy === 'manual' || v.ratePolicy === 'price_list';
   const manualRateUsd = manual ? (v.manualRateUsd ?? null) : (prev?.manualRateUsd ?? null);
   const manualRateEur = manual ? (v.manualRateEur ?? null) : (prev?.manualRateEur ?? null);
   const manualChanged = manualRateUsd !== (prev?.manualRateUsd ?? null) || manualRateEur !== (prev?.manualRateEur ?? null);
@@ -307,13 +308,21 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
             </Form.Item>
           ) : null}
         </div>
-        {ratePolicy === 'manual' ? (
+        {ratePolicy === 'manual' || ratePolicy === 'price_list' ? (
           <div className="po-sup-grid-form po-sup-grid-3">
-            <Form.Item name="manualRateUsd" label="Курс USD, грн">
-              <InputNumber min={0} max={10_000} step={0.01} decimalSeparator="," style={{ width: '100%' }} />
+            <Form.Item
+              name="manualRateUsd"
+              label={ratePolicy === 'manual' ? 'Курс USD, грн' : 'Ручний курс USD, грн'}
+              extra={ratePolicy === 'price_list' ? 'Якщо в прайсі курсу немає' : undefined}
+            >
+              <InputNumber min={0} max={10_000} step={0.01} decimalSeparator="," style={{ width: '100%' }} placeholder="не задано" />
             </Form.Item>
-            <Form.Item name="manualRateEur" label="Курс EUR, грн">
-              <InputNumber min={0} max={10_000} step={0.01} decimalSeparator="," style={{ width: '100%' }} />
+            <Form.Item
+              name="manualRateEur"
+              label={ratePolicy === 'manual' ? 'Курс EUR, грн' : 'Ручний курс EUR, грн'}
+              extra={ratePolicy === 'price_list' ? 'Якщо в прайсі курсу немає' : undefined}
+            >
+              <InputNumber min={0} max={10_000} step={0.01} decimalSeparator="," style={{ width: '100%' }} placeholder="не задано" />
             </Form.Item>
           </div>
         ) : null}

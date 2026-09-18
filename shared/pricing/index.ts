@@ -11,6 +11,7 @@ export * from './comparison';
 export * from './blocks';
 export * from './scenarios';
 export * from './markup';
+export * from './supplier-profit';
 export * from './kp-totals';
 export * from './kp-snapshot';
 export * from './refresh';
