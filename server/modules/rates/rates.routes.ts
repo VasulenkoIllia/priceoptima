@@ -3,7 +3,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseQuery } from '../../http/validate';
-import { requireAuth } from '../auth/middleware';
+import { currentUser, requireAuth } from '../auth/middleware';
 import { effectiveRatesQuerySchema, manualRateSchema, ratesQuerySchema } from './rates.schemas';
 import { addManualRate, getEffectiveRates, listRates } from './rates.service';
 
@@ -30,6 +30,6 @@ ratesRouter.post(
   '/',
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.status(201).json(await addManualRate(parseBody(manualRateSchema, req)));
+    res.status(201).json(await addManualRate(parseBody(manualRateSchema, req), currentUser(req)));
   }),
 );

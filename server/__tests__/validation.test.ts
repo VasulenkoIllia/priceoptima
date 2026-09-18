@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { ApiError } from '../http/errors';
 import { parse } from '../http/validate';
 import { loginSchema } from '../modules/auth/auth.schemas';
-import { selfProfileSchema, userInputSchema } from '../modules/users/users.schemas';
+import { registerSchema } from '../modules/access/access.schemas';
+import { profileSchema, roleSchema, userUpdateSchema } from '../modules/users/users.schemas';
 import { settingsPatchSchema } from '../modules/settings/settings.schemas';
 
 function errorOf(fn: () => unknown): ApiError {
@@ -37,14 +38,14 @@ describe('перевірка входу', () => {
 });
 
 describe('перевірка користувача', () => {
-  it('нормалізує поля: пробіли обрізаються, порожні контакти стають null', () => {
+  it('нормалізує поля: пробіли обрізаються, логін малими, порожні контакти стають null', () => {
     expect(
-      parse(userInputSchema, {
-        login: ' koval ',
+      parse(userUpdateSchema, {
+        login: ' Koval ',
         fullName: ' Коваль Олександр Вікторович ',
         shortName: ' Коваль О.В. ',
         email: '   ',
-        role: 'user',
+        role: 'admin',
       }),
     ).toEqual({
       login: 'koval',
@@ -52,21 +53,26 @@ describe('перевірка користувача', () => {
       shortName: 'Коваль О.В.',
       email: null,
       phone: null,
-      role: 'user',
     });
   });
 
-  it('роль поза списком і короткий пароль не проходять', () => {
-    const base = { login: 'koval', fullName: 'Коваль', shortName: 'Коваль О.В.' };
-    expect(errorOf(() => parse(userInputSchema, { ...base, role: 'root' })).message).toBe('Невідома роль');
-    expect(errorOf(() => parse(userInputSchema, { ...base, role: 'user', password: '1234' })).message).toBe(
-      'Пароль — не менше 8 символів',
+  it('роль поза списком не проходить', () => {
+    expect(errorOf(() => parse(roleSchema, { role: 'root' })).message).toBe('Невідома роль');
+  });
+
+  it('реєстрація за запрошенням: логін латиницею, пароль від 8 символів, e-mail перевіряється', () => {
+    const base = { login: ' Olena.K ', fullName: ' Коваль Олена ', password: '12345678' };
+    expect(parse(registerSchema, base)).toEqual({ login: 'olena.k', fullName: 'Коваль Олена', phone: null, email: null, password: '12345678' });
+    expect(errorOf(() => parse(registerSchema, { ...base, login: 'олена' })).message).toBe(
+      'Логін — латинські літери, цифри, крапка, дефіс або підкреслення',
     );
+    expect(errorOf(() => parse(registerSchema, { ...base, password: '1234' })).message).toBe('Пароль — не менше 8 символів');
+    expect(errorOf(() => parse(registerSchema, { ...base, email: 'не пошта' })).message).toBe('Невірний e-mail');
   });
 
   it('свій профіль: логін і роль до бази не доходять', () => {
     expect(
-      parse(selfProfileSchema, {
+      parse(profileSchema, {
         fullName: 'Коваль О. В.',
         shortName: 'Коваль О.В.',
         login: 'hacker',

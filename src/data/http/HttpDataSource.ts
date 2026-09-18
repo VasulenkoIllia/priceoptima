@@ -42,9 +42,19 @@ import type {
   SupplierPriceSourceInput,
   SupplierPriceSourceSettings,
   UserDto,
-  UserInput,
+  UserUpdateInput,
   UUID,
+  AccessLinkCreated,
+  AccessLinkDto,
+  AccessLinkInfo,
+  AuditPage,
+  AuditQuery,
+  InviteCreateInput,
+  PasswordChangeInput,
+  ProfileInput,
+  RegisterInput,
 } from '@shared/types';
+import type { UserRole } from '@shared/enums';
 import { isDataSourceError } from '../errors';
 import { api } from './client';
 
@@ -83,8 +93,67 @@ export class HttpDataSource {
     return api<UserDto[]>('/users');
   }
 
-  saveUser(id: UUID | null, input: UserInput): Promise<UserDto> {
-    return id ? api<UserDto>(`/users/${id}`, { method: 'PUT', body: input }) : api<UserDto>('/users', { body: input });
+  updateUser(id: UUID, input: UserUpdateInput): Promise<UserDto> {
+    return api<UserDto>(`/users/${id}`, { method: 'PUT', body: input });
+  }
+
+  setUserRole(id: UUID, role: UserRole): Promise<UserDto> {
+    return api<UserDto>(`/users/${id}/role`, { method: 'PUT', body: { role } });
+  }
+
+  blockUser(id: UUID): Promise<UserDto> {
+    return api<UserDto>(`/users/${id}/block`, { method: 'POST' });
+  }
+
+  unblockUser(id: UUID): Promise<UserDto> {
+    return api<UserDto>(`/users/${id}/unblock`, { method: 'POST' });
+  }
+
+  listAccessLinks(): Promise<AccessLinkDto[]> {
+    return api<AccessLinkDto[]>('/users/links');
+  }
+
+  createInvite(input: InviteCreateInput): Promise<AccessLinkCreated> {
+    return api<AccessLinkCreated>('/users/invites', { body: input });
+  }
+
+  createResetLink(userId: UUID): Promise<AccessLinkCreated> {
+    return api<AccessLinkCreated>(`/users/${userId}/reset-link`, { method: 'POST' });
+  }
+
+  async revokeAccessLink(id: UUID): Promise<void> {
+    await api<void>(`/users/links/${id}`, { method: 'DELETE' });
+  }
+
+  getAccessLink(token: string): Promise<AccessLinkInfo> {
+    return api<AccessLinkInfo>(`/auth/links/${encodeURIComponent(token)}`);
+  }
+
+  async registerByInvite(token: string, input: RegisterInput): Promise<MeResponse> {
+    const me = await api<MeResponse>(`/auth/links/${encodeURIComponent(token)}/register`, { body: input });
+    this.options.onLogin?.(me);
+    return me;
+  }
+
+  async resetPasswordByLink(token: string, password: string): Promise<MeResponse> {
+    const me = await api<MeResponse>(`/auth/links/${encodeURIComponent(token)}/reset`, { body: { password } });
+    this.options.onLogin?.(me);
+    return me;
+  }
+
+  updateProfile(input: ProfileInput): Promise<UserDto> {
+    return api<UserDto>('/auth/profile', { method: 'PUT', body: input });
+  }
+
+  changePassword(input: PasswordChangeInput): Promise<UserDto> {
+    return api<UserDto>('/auth/password', { body: input });
+  }
+
+  listAudit(query: AuditQuery = {}): Promise<AuditPage> {
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(query)) if (v != null && v !== '') params.set(k, String(v));
+    const qs = params.toString();
+    return api<AuditPage>(`/audit${qs ? `?${qs}` : ''}`);
   }
 
   getSettings(): Promise<AppSettings> {

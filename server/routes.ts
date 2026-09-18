@@ -1,7 +1,8 @@
 // Збірка маршрутів API. Усе під /api; невідомий шлях тут — помилка, а не сторінка застосунку.
 import { Router } from 'express';
 import { apiNotFound } from './http/errorHandler';
-import { attachSession } from './modules/auth/middleware';
+import { attachSession, passwordChangeGate } from './modules/auth/middleware';
+import { auditRouter } from './modules/audit/audit.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { clientsRouter } from './modules/clients/clients.routes';
 import { imagesRouter } from './modules/images/images.routes';
@@ -17,8 +18,10 @@ import { usersRouter } from './modules/users/users.routes';
 export const apiRouter = Router();
 
 apiRouter.use(attachSession);
+apiRouter.use(passwordChangeGate);
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/users', usersRouter);
+apiRouter.use('/audit', auditRouter);
 apiRouter.use('/settings', settingsRouter);
 apiRouter.use('/own-companies', ownCompaniesRouter);
 apiRouter.use('/suppliers', suppliersRouter);

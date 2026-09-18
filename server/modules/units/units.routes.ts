@@ -3,7 +3,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseParams } from '../../http/validate';
-import { requireAdmin, requireAuth } from '../auth/middleware';
+import { requireAuth } from '../auth/middleware';
 import { unitCodeSchema, unitPatchSchema } from './units.schemas';
 import { listUnits, updateUnit } from './units.service';
 
@@ -17,9 +17,10 @@ unitsRouter.get(
   }),
 );
 
+// одиниці ведуть обидві ролі (ТЗ §2)
 unitsRouter.put(
   '/:code',
-  requireAdmin,
+  requireAuth,
   asyncHandler(async (req, res) => {
     const { code } = parseParams(unitCodeSchema, req);
     res.json(await updateUnit(code, parseBody(unitPatchSchema, req)));

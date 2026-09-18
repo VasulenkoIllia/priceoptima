@@ -1,5 +1,5 @@
 // Довідник курсів валют: історія НБУ (заповнює щоденне завдання) і ручні виправлення.
-import type { Prisma } from '@prisma/client';
+import type { Prisma, User } from '@prisma/client';
 import type { ForeignCurrency } from '@shared/enums';
 import { FOREIGN_CURRENCIES } from '@shared/enums';
 import { toIsoDate } from '@shared/format';
@@ -7,6 +7,7 @@ import type { CurrencyRateDto, EffectiveRates, ISODate } from '@shared/types';
 import { prisma } from '../../db';
 import { ApiError } from '../../http/errors';
 import { dateOnly } from '../../lib/mapping';
+import { audit } from '../audit/audit.service';
 import { toCurrencyRateDto } from './rates.mapper';
 import { effectiveRatesOn } from './rates.rules';
 import type { ManualRateBody, RatesQuery } from './rates.schemas';
@@ -37,7 +38,7 @@ export async function listRates(query: RatesQuery): Promise<CurrencyRateDto[]> {
 }
 
 /** Ручний курс на дату; повторне введення на ту саму дату замінює попереднє значення. */
-export async function addManualRate(body: ManualRateBody): Promise<CurrencyRateDto> {
+export async function addManualRate(body: ManualRateBody, actor: User): Promise<CurrencyRateDto> {
   const row = await prisma.currencyRate.upsert({
     where: {
       currency_rateDate_source: { currency: body.currency, rateDate: dateOnly(body.rateDate), source: 'manual' },
@@ -48,9 +49,11 @@ export async function addManualRate(body: ManualRateBody): Promise<CurrencyRateD
       rate: body.rate,
       source: 'manual',
       note: body.note,
+      createdById: actor.id,
     },
-    update: { rate: body.rate, note: body.note, fetchedAt: new Date() },
+    update: { rate: body.rate, note: body.note, fetchedAt: new Date(), createdById: actor.id },
   });
+  await audit({ userId: actor.id, action: 'rate.manual', entityType: 'rate', summary: `Ручний курс ${body.currency} на ${body.rateDate}: ${body.rate}` });
   return toCurrencyRateDto(row);
 }
 

@@ -18,6 +18,9 @@ const responsible: User = {
   phone: null,
   isActive: true,
   lastLoginAt: null,
+  blockedAt: null,
+  mustChangePassword: false,
+  createdById: null,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
 };
@@ -58,6 +61,8 @@ const client: Client = {
   isActive: true,
   createdAt: new Date('2026-01-10T08:00:00.000Z'),
   updatedAt: new Date('2026-09-15T10:30:00.000Z'),
+  createdById: null,
+  updatedById: null,
 };
 
 const row: ClientRow = {

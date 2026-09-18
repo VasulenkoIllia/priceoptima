@@ -2,6 +2,7 @@ import { Button, Result, Spin } from 'antd';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { errorMessage } from '@/data';
+import { ForcePasswordChange } from './ProfileDialog';
 import { SessionProvider, useMeQuery, useSession } from './session';
 
 export function FullScreenSpin() {
@@ -31,6 +32,7 @@ export function RequireUser({ children }: { children: ReactNode }) {
     const from = location.pathname + location.search;
     return <Navigate to={from && from !== '/' ? `/login?from=${encodeURIComponent(from)}` : '/login'} replace />;
   }
+  if (me.data.user.mustChangePassword) return <ForcePasswordChange user={me.data.user} />;
   return <SessionProvider value={me.data}>{children}</SessionProvider>;
 }
 

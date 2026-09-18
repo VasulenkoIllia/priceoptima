@@ -25,6 +25,7 @@ import {
   type PriceColumnRole,
 } from './priceRows';
 import { applySavedMapping, toSavedMapping } from './mappingStore';
+import { useIsAdmin } from '@/app/session';
 import { readSpreadsheetFile, sheetFromText, SpreadsheetError, type SheetData } from '@/lib/spreadsheet';
 import { downloadPriceTemplate } from './template';
 import './priceImport.css';
@@ -177,6 +178,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       }),
   });
 
+  const isAdmin = useIsAdmin();
   const switchToHybrid = useMutation({
     mutationFn: async () => {
       const s = await ds.getSupplierPriceSource(supplierId);
@@ -271,11 +273,15 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
           <>
             Ціни з файлу протримаються лише до наступного оновлення вигрузки. Якщо ціни мають братися з файлу, а асортимент, наявність і
             фото — з посилання, перемкніть постачальника в режим «Гібрид».
-            <div style={{ marginTop: 8 }}>
-              <Button size="small" loading={switchToHybrid.isPending} onClick={() => switchToHybrid.mutate()}>
-                Перемкнути на «Гібрид»
-              </Button>
-            </div>
+            {isAdmin ? (
+              <div style={{ marginTop: 8 }}>
+                <Button size="small" loading={switchToHybrid.isPending} onClick={() => switchToHybrid.mutate()}>
+                  Перемкнути на «Гібрид»
+                </Button>
+              </div>
+            ) : (
+              <div style={{ marginTop: 8 }}>Перемкнути джерело прайсу може адміністратор.</div>
+            )}
           </>
         }
       />

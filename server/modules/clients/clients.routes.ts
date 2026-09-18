@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseParams, parseQuery } from '../../http/validate';
-import { requireAuth } from '../auth/middleware';
+import { currentUser, requireAuth } from '../auth/middleware';
 import { clientIdSchema, clientInputSchema, clientSearchSchema } from './clients.schemas';
 import { createClient, getClient, listClients, searchClients, updateClient } from './clients.service';
 
@@ -43,7 +43,7 @@ clientsRouter.post(
   '/',
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.status(201).json(await createClient(parseBody(clientInputSchema, req)));
+    res.status(201).json(await createClient(parseBody(clientInputSchema, req), currentUser(req)));
   }),
 );
 
@@ -52,6 +52,6 @@ clientsRouter.put(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { id } = parseParams(clientIdSchema, req);
-    res.json(await updateClient(id, parseBody(clientInputSchema, req)));
+    res.json(await updateClient(id, parseBody(clientInputSchema, req), currentUser(req)));
   }),
 );

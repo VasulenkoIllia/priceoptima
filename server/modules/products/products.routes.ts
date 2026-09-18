@@ -58,7 +58,7 @@ productsRouter.post(
 productsRouter.post(
   '/name1c',
   asyncHandler(async (req, res) => {
-    res.json(await importName1c(parseBody(name1cImportSchema, req)));
+    res.json(await importName1c(parseBody(name1cImportSchema, req), currentUser(req)));
   }),
 );
 
@@ -88,7 +88,7 @@ productsRouter.put(
   '/:id',
   asyncHandler(async (req, res) => {
     const { id } = parseParams(productIdSchema, req);
-    res.json(await updateProduct(id, parseBody(productPatchSchema, req)));
+    res.json(await updateProduct(id, parseBody(productPatchSchema, req), currentUser(req)));
   }),
 );
 

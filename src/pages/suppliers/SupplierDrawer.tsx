@@ -8,6 +8,7 @@ import { formatDateTime, formatMoneyUah, formatRate } from '@shared/format';
 import type { PriceUpdateDto, SupplierDetail, SupplierListItem } from '@shared/types';
 import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
+import { useIsAdmin } from '@/app/session';
 import { PriceSourceDialog } from './PriceSourceDialog';
 import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierFormDialog } from './SupplierFormDialog';
@@ -134,6 +135,8 @@ interface SupplierCardProps {
 }
 
 function SupplierCard({ detail, onSource }: SupplierCardProps) {
+  // посилання й токени вигрузок змінює лише адміністратор
+  const isAdmin = useIsAdmin();
   const { message, modal } = App.useApp();
   const log = useQuery({ queryKey: qk.priceUpdates(detail.id), queryFn: () => ds.listPriceUpdates(detail.id) });
   const source = detail.priceSource;
@@ -203,9 +206,11 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
                 </Button>
               </Tooltip>
             ) : null}
-            <Button size="small" icon={<SettingOutlined />} onClick={onSource}>
-              Налаштувати
-            </Button>
+            {isAdmin ? (
+              <Button size="small" icon={<SettingOutlined />} onClick={onSource}>
+                Налаштувати
+              </Button>
+            ) : null}
           </span>
         </div>
         <span className="po-muted">

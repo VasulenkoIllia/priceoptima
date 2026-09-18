@@ -1,4 +1,5 @@
-// Контракт джерела даних (§8 ui-prototype). Методи 1:1 з майбутнім REST; зараз — MockDataSource у браузері.
+// Контракт джерела даних (§8 ui-prototype). Методи 1:1 з REST.
+import type { UserRole } from '@shared/enums';
 import type {
   AppSettings,
   AppSettingsPatch,
@@ -57,8 +58,17 @@ import type {
   SupplierPriceSourceInput,
   SupplierPriceSourceSettings,
   UserDto,
-  UserInput,
   UUID,
+  AccessLinkCreated,
+  AccessLinkDto,
+  AccessLinkInfo,
+  AuditPage,
+  AuditQuery,
+  InviteCreateInput,
+  PasswordChangeInput,
+  ProfileInput,
+  RegisterInput,
+  UserUpdateInput,
 } from '@shared/types';
 
 export interface LockAcquireResult {
@@ -96,8 +106,28 @@ export interface DataSource {
   login(login: string, password: string): Promise<MeResponse>;
   logout(): Promise<void>;
   listUsers(): Promise<UserDto[]>;
-  /** Лише адміністратор. Паролів тут немає: у прототипі входить лише адміністратор із сіду, решта користувачів — довідник. */
-  saveUser(id: UUID | null, input: UserInput): Promise<UserDto>;
+  /** Лише адміністратор: дані користувача (роль і доступ — окремими діями). */
+  updateUser(id: UUID, input: UserUpdateInput): Promise<UserDto>;
+  setUserRole(id: UUID, role: UserRole): Promise<UserDto>;
+  /** Блокування: вхід закрито, сесії й блокування заявок знімаються; заявки й історія лишаються. */
+  blockUser(id: UUID): Promise<UserDto>;
+  unblockUser(id: UUID): Promise<UserDto>;
+  /** Запрошення й посилання для зміни пароля (лише адміністратор). Токен повертається один раз. */
+  listAccessLinks(): Promise<AccessLinkDto[]>;
+  createInvite(input: InviteCreateInput): Promise<AccessLinkCreated>;
+  createResetLink(userId: UUID): Promise<AccessLinkCreated>;
+  revokeAccessLink(id: UUID): Promise<void>;
+  /** Посилання без входу: що це за посилання і чи діє. */
+  getAccessLink(token: string): Promise<AccessLinkInfo>;
+  /** Реєстрація за запрошенням — одразу вхід. */
+  registerByInvite(token: string, input: RegisterInput): Promise<MeResponse>;
+  /** Новий пароль за посиланням — одразу вхід. */
+  resetPasswordByLink(token: string, password: string): Promise<MeResponse>;
+  /** Мій профіль. */
+  updateProfile(input: ProfileInput): Promise<UserDto>;
+  changePassword(input: PasswordChangeInput): Promise<UserDto>;
+  /** Журнал дій (лише адміністратор), від найновішого. */
+  listAudit(query?: AuditQuery): Promise<AuditPage>;
   getSettings(): Promise<AppSettings>;
   updateSettings(patch: AppSettingsPatch): Promise<AppSettings>;
   listOwnCompanies(): Promise<OwnCompanyDto[]>;

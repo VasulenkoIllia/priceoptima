@@ -1,11 +1,12 @@
-// /api/users — довідник користувачів. Створює й редагує адміністратор; свій профіль правит кожен.
+// /api/users — довідник користувачів (читають усі); дані, роль, доступ і посилання — лише адміністратор.
 import { Router } from 'express';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseParams } from '../../http/validate';
-import { forbidden } from '../../http/errors';
+import { createInvite, createResetLink, listAccessLinks, revokeAccessLink } from '../access/access.service';
+import { inviteCreateSchema, linkIdSchema } from '../access/access.schemas';
 import { currentUser, requireAdmin, requireAuth } from '../auth/middleware';
-import { createUser, listUsers, updateOwnProfile, updateUser } from './users.service';
-import { selfProfileSchema, userIdSchema, userInputSchema } from './users.schemas';
+import { blockUser, listUsers, setUserRole, unblockUser, updateUser } from './users.service';
+import { roleSchema, userIdSchema, userUpdateSchema } from './users.schemas';
 
 export const usersRouter = Router();
 
@@ -17,26 +18,68 @@ usersRouter.get(
   }),
 );
 
+// запрошення й посилання для зміни пароля (оголошуємо раніше за /:id)
+usersRouter.get(
+  '/links',
+  requireAdmin,
+  asyncHandler(async (_req, res) => {
+    res.json(await listAccessLinks());
+  }),
+);
+
 usersRouter.post(
-  '/',
+  '/invites',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    res.status(201).json(await createUser(parseBody(userInputSchema, req)));
+    res.status(201).json(await createInvite(currentUser(req), parseBody(inviteCreateSchema, req)));
+  }),
+);
+
+usersRouter.delete(
+  '/links/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    await revokeAccessLink(currentUser(req), parseParams(linkIdSchema, req).id);
+    res.status(204).end();
   }),
 );
 
 usersRouter.put(
   '/:id',
-  requireAuth,
+  requireAdmin,
   asyncHandler(async (req, res) => {
-    const { id } = parseParams(userIdSchema, req);
-    const actor = currentUser(req);
-    if (actor.role === 'admin') {
-      res.json(await updateUser(id, parseBody(userInputSchema, req)));
-      return;
-    }
-    // не адміністратор змінює лише власні контактні дані
-    if (actor.id !== id) throw forbidden('Дія доступна лише адміністратору');
-    res.json(await updateOwnProfile(id, parseBody(selfProfileSchema, req)));
+    res.json(await updateUser(currentUser(req), parseParams(userIdSchema, req).id, parseBody(userUpdateSchema, req)));
+  }),
+);
+
+usersRouter.put(
+  '/:id/role',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    res.json(await setUserRole(currentUser(req), parseParams(userIdSchema, req).id, parseBody(roleSchema, req).role));
+  }),
+);
+
+usersRouter.post(
+  '/:id/block',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    res.json(await blockUser(currentUser(req), parseParams(userIdSchema, req).id));
+  }),
+);
+
+usersRouter.post(
+  '/:id/unblock',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    res.json(await unblockUser(currentUser(req), parseParams(userIdSchema, req).id));
+  }),
+);
+
+usersRouter.post(
+  '/:id/reset-link',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await createResetLink(currentUser(req), parseParams(userIdSchema, req).id));
   }),
 );

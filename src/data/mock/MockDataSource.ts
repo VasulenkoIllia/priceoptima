@@ -81,7 +81,10 @@ import type {
   SupplierPriceSourceInput,
   SupplierPriceSourceSettings,
   UserDto,
-  UserInput,
+  AccessLinkCreated,
+  AccessLinkDto,
+  AccessLinkInfo,
+  AuditPage,
   UserRef,
   UUID,
 } from '@shared/types';
@@ -229,42 +232,51 @@ export class MockDataSource implements DataSource {
     return this.call(() => clone(this.db.users));
   }
 
-  saveUser(id: UUID | null, input: UserInput): Promise<UserDto> {
-    return this.call(() => {
-      this.requireAdmin();
-      const login = input.login?.trim() ?? '';
-      if (!input.fullName?.trim() || !input.shortName?.trim() || !login) {
-        throw new DataSourceError('VALIDATION_ERROR', 'Вкажіть ПІБ, коротке ім’я і логін');
-      }
-      if (id && !this.db.users.some((u) => u.id === id)) throw new DataSourceError('NOT_FOUND', 'Користувача не знайдено');
-      if (this.db.users.some((u) => u.login === login && u.id !== id)) throw new DataSourceError('DUPLICATE', `Логін «${login}» уже зайнятий`);
-      const userId = id ?? newId();
-      const isActive = input.isActive ?? true;
-      const adminsLeft = this.db.users.filter((u) => u.id !== userId && u.role === 'admin' && u.isActive).length;
-      if (!adminsLeft && (input.role !== 'admin' || !isActive)) {
-        throw new DataSourceError('VALIDATION_ERROR', 'Потрібен хоча б один активний адміністратор');
-      }
-      const at = this.nowIso();
-      const data = clone(input);
-      this.mutate((db) => {
-        const prev = db.users.find((u) => u.id === userId);
-        const next: UserDto = {
-          id: userId,
-          login,
-          fullName: data.fullName.trim(),
-          shortName: data.shortName.trim(),
-          email: data.email?.trim() || null,
-          phone: data.phone?.trim() || null,
-          role: data.role,
-          isActive,
-          lastLoginAt: prev?.lastLoginAt ?? null,
-          createdAt: prev?.createdAt ?? at,
-        };
-        if (prev) db.users[db.users.indexOf(prev)] = next;
-        else db.users.push(next);
-      });
-      return clone(this.db.users.find((u) => u.id === userId)!);
-    });
+  // Користувачі, запрошення, профіль і журнал — лише з сервером (демо-джерело прибирається разом із переносом заявок).
+  private serverOnly(): never {
+    throw new DataSourceError('INVALID_STATE', 'Доступно лише з сервером');
+  }
+  updateUser(): Promise<UserDto> {
+    return this.call(() => this.serverOnly());
+  }
+  setUserRole(): Promise<UserDto> {
+    return this.call(() => this.serverOnly());
+  }
+  blockUser(): Promise<UserDto> {
+    return this.call(() => this.serverOnly());
+  }
+  unblockUser(): Promise<UserDto> {
+    return this.call(() => this.serverOnly());
+  }
+  listAccessLinks(): Promise<AccessLinkDto[]> {
+    return this.call(() => this.serverOnly());
+  }
+  createInvite(): Promise<AccessLinkCreated> {
+    return this.call(() => this.serverOnly());
+  }
+  createResetLink(): Promise<AccessLinkCreated> {
+    return this.call(() => this.serverOnly());
+  }
+  revokeAccessLink(): Promise<void> {
+    return this.call(() => this.serverOnly());
+  }
+  getAccessLink(): Promise<AccessLinkInfo> {
+    return this.call(() => this.serverOnly());
+  }
+  registerByInvite(): Promise<MeResponse> {
+    return this.call(() => this.serverOnly());
+  }
+  resetPasswordByLink(): Promise<MeResponse> {
+    return this.call(() => this.serverOnly());
+  }
+  updateProfile(): Promise<UserDto> {
+    return this.call(() => this.serverOnly());
+  }
+  changePassword(): Promise<UserDto> {
+    return this.call(() => this.serverOnly());
+  }
+  listAudit(): Promise<AuditPage> {
+    return this.call(() => this.serverOnly());
   }
 
   getSettings(): Promise<AppSettings> {

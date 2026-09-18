@@ -1,6 +1,5 @@
 import {
   AppstoreOutlined,
-  DeleteOutlined,
   DollarOutlined,
   DownOutlined,
   FileTextOutlined,
@@ -8,9 +7,11 @@ import {
   SettingOutlined,
   ShopOutlined,
   TeamOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Avatar, Button, Dropdown, Layout, Menu, type MenuProps } from 'antd';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { USER_ROLE_LABELS } from '@shared/enums';
 import { ds, errorMessage, qk } from '@/data';
@@ -20,6 +21,7 @@ import { useTabs } from '@/stores/tabsStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { BRAND_COLOR } from '@/theme';
 import { AppTabBar, AppTabPanes, useOpenTab } from './AppTabs';
+import { ProfileDialog } from './ProfileDialog';
 import { useSession } from './session';
 
 const NAV_ITEMS: { key: string; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
@@ -33,7 +35,8 @@ const NAV_ITEMS: { key: string; label: string; icon: React.ReactNode; adminOnly?
 
 export function AppLayout() {
   const { user } = useSession();
-  const { modal, message } = App.useApp();
+  const { message } = App.useApp();
+  const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
   const openTab = useOpenTab();
   const location = useLocation();
@@ -66,33 +69,16 @@ export function AppLayout() {
     navigate('/login', { replace: true });
   };
 
-  const resetDemo = () => {
-    modal.confirm({
-      title: 'Скинути демо-дані?',
-      content: 'Заявки, ціни й довідники повернуться до початкового демо-стану. Інші відкриті вкладки перезавантажаться.',
-      okText: 'Скинути',
-      okButtonProps: { danger: true },
-      cancelText: 'Скасувати',
-      onOk: async () => {
-        try {
-          await ds.resetDemoData();
-        } catch (e) {
-          message.error(errorMessage(e));
-        }
-      },
-    });
-  };
-
   const userMenu: MenuProps = {
     items: [
       { key: 'who', label: `${user.fullName} · ${USER_ROLE_LABELS[user.role]}`, disabled: true },
       { type: 'divider' },
-      ...(isAdmin ? [{ key: 'reset', icon: <DeleteOutlined />, label: 'Скинути демо-дані', danger: true }] : []),
+      { key: 'profile', icon: <UserOutlined />, label: 'Мій профіль' },
       { key: 'logout', icon: <LogoutOutlined />, label: 'Вийти' },
     ],
     onClick: ({ key }) => {
       if (key === 'logout') void logout();
-      if (key === 'reset') resetDemo();
+      if (key === 'profile') setProfileOpen(true);
     },
   };
 
@@ -140,6 +126,7 @@ export function AppLayout() {
           <AppTabPanes />
         </Layout.Content>
       </Layout>
+      <ProfileDialog open={profileOpen} user={user} onClose={() => setProfileOpen(false)} />
     </Layout>
   );
 }

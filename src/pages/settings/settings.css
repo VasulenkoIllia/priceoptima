@@ -113,3 +113,9 @@
 .po-set-units .ant-table {
   font-size: 13px;
 }
+
+.po-set-subtitle {
+  margin: 24px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}

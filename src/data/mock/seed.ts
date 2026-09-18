@@ -164,7 +164,7 @@ function demoCatalog(overrides: SeedOverrides | null): DemoCatalog {
 // ── користувачі й наші юрособи ──────────────────────────────────────
 /** Входить лише адміністратор (adminLogin — з облікових даних сіду); решта — довідник відповідальних. */
 function seedUsers(createdAt: ISODateTime, adminLogin: string): UserDto[] {
-  const base = { isActive: true, lastLoginAt: null, createdAt };
+  const base = { isActive: true, blockedAt: null, mustChangePassword: false, invitedBy: null, lastLoginAt: null, createdAt };
   return [
     { ...base, id: DEMO_USER_IDS.koval, login: 'koval', fullName: 'Коваль Олена Вікторівна', shortName: 'Коваль О.В.', email: 'koval@demo-trade.example', phone: '067 000 11 22', role: 'user' },
     { ...base, id: DEMO_USER_IDS.bondar, login: 'bondar', fullName: 'Бондар Ігор Сергійович', shortName: 'Бондар І.С.', email: 'bondar@demo-trade.example', phone: '050 000 33 44', role: 'user' },

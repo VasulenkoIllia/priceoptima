@@ -55,9 +55,11 @@ async function seedAdmin(): Promise<void> {
       fullName: config.ADMIN_FULL_NAME,
       shortName: config.ADMIN_SHORT_NAME,
       role: 'admin',
+      // пароль із .env знає той, хто розгортав сервер: при першому вході адміністратор задає свій (РОЛ-2)
+      mustChangePassword: true,
     },
   });
-  logger.info({ login }, 'Створено адміністратора');
+  logger.info({ login }, 'Створено адміністратора (при першому вході змінить пароль)');
 }
 
 async function main(): Promise<void> {

@@ -8,7 +8,7 @@ import type {
   PriceRounding,
   UserRole,
 } from '../enums';
-import type { ISODateTime, UUID } from './common';
+import type { ISODateTime, UserRef, UUID } from './common';
 import type { KpTerm } from './kp';
 
 export interface UserDto {
@@ -20,19 +20,113 @@ export interface UserDto {
   email: string | null;
   phone: string | null;
   role: UserRole;
+  /** false — заблоковано: вхід закрито, заявки й історія лишаються. */
   isActive: boolean;
+  blockedAt: ISODateTime | null;
+  /** Перший вхід адміністратора з .env: спершу змінити пароль. */
+  mustChangePassword: boolean;
+  /** Хто запросив (коротке ім'я); null — перший адміністратор. */
+  invitedBy: string | null;
   lastLoginAt: ISODateTime | null;
   createdAt: ISODateTime;
 }
 
-export interface UserInput {
+/** Адміністратор змінює дані користувача (роль і доступ — окремими діями). */
+export interface UserUpdateInput {
   login: string;
   fullName: string;
   shortName: string;
   email?: string | null;
   phone?: string | null;
+}
+
+/** Мій профіль: логін і роль не змінюються. */
+export interface ProfileInput {
+  fullName: string;
+  shortName: string;
+  email?: string | null;
+  phone?: string | null;
+}
+
+export interface PasswordChangeInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+// ── Разові посилання: запрошення й скидання пароля ──────────────────
+export type AccessLinkKind = 'invite' | 'reset';
+export type AccessLinkState = 'valid' | 'used' | 'revoked' | 'expired';
+
+export interface InviteCreateInput {
   role: UserRole;
-  isActive?: boolean;
+  /** Для кого (підказка адміну). */
+  note?: string | null;
+}
+
+/** Токен показується лише один раз, при створенні (у базі — хеш). */
+export interface AccessLinkCreated {
+  id: UUID;
+  token: string;
+  expiresAt: ISODateTime;
+}
+
+export interface AccessLinkDto {
+  id: UUID;
+  kind: AccessLinkKind;
+  role: UserRole | null;
+  note: string | null;
+  /** Скидання — чий пароль; запрошення — хто зареєструвався. */
+  user: UserRef | null;
+  createdBy: UserRef | null;
+  createdAt: ISODateTime;
+  expiresAt: ISODateTime;
+  usedAt: ISODateTime | null;
+  state: AccessLinkState;
+}
+
+/** Що бачить людина, яка відкрила посилання (без входу). */
+export interface AccessLinkInfo {
+  kind: AccessLinkKind;
+  state: AccessLinkState;
+  role: UserRole | null;
+  expiresAt: ISODateTime;
+  /** Скидання пароля — чий обліковий запис. */
+  login: string | null;
+  fullName: string | null;
+}
+
+export interface RegisterInput {
+  login: string;
+  fullName: string;
+  phone?: string | null;
+  email?: string | null;
+  password: string;
+}
+
+// ── Журнал дій ─────────────────────────────────────────────────────
+export interface AuditEventDto {
+  id: string;
+  at: ISODateTime;
+  user: UserRef | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  summary: string;
+}
+
+export interface AuditQuery {
+  userId?: UUID;
+  entityType?: string;
+  entityId?: string;
+  /** Записи, старші за цей id (гортання назад). */
+  before?: string;
+  limit?: number;
+}
+
+export interface AuditPage {
+  items: AuditEventDto[];
+  /** Для наступної порції; null — більше немає. */
+  nextBefore: string | null;
 }
 
 export interface AppSettings {

@@ -35,6 +35,8 @@ const supplier: Supplier = {
   lastImportAt: new Date('2026-09-15T06:12:00.000Z'),
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-09-15T06:12:00.000Z'),
+  createdById: null,
+  updatedById: null,
 };
 
 const feed: SupplierPriceFeed = {

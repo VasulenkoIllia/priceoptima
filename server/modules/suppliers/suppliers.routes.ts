@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseParams } from '../../http/validate';
-import { requireAuth } from '../auth/middleware';
+import { currentUser, requireAdmin, requireAuth } from '../auth/middleware';
 import { priceMappingSchema, priceSourceSchema, supplierIdSchema, supplierInputSchema } from './suppliers.schemas';
 import {
   createSupplier,
@@ -38,7 +38,7 @@ suppliersRouter.post(
   '/',
   requireAuth,
   asyncHandler(async (req, res) => {
-    res.status(201).json(await createSupplier(parseBody(supplierInputSchema, req)));
+    res.status(201).json(await createSupplier(parseBody(supplierInputSchema, req), currentUser(req)));
   }),
 );
 
@@ -47,7 +47,7 @@ suppliersRouter.put(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { id } = parseParams(supplierIdSchema, req);
-    res.json(await updateSupplier(id, parseBody(supplierInputSchema, req)));
+    res.json(await updateSupplier(id, parseBody(supplierInputSchema, req), currentUser(req)));
   }),
 );
 
@@ -60,12 +60,13 @@ suppliersRouter.get(
   }),
 );
 
+// посилання й токени вигрузок — доступи до чужих систем: змінює лише адміністратор (рішення 18.09)
 suppliersRouter.put(
   '/:id/price-source',
-  requireAuth,
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const { id } = parseParams(supplierIdSchema, req);
-    res.json(await updatePriceSource(id, parseBody(priceSourceSchema, req)));
+    res.json(await updatePriceSource(id, parseBody(priceSourceSchema, req), currentUser(req)));
   }),
 );
 

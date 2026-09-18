@@ -15,6 +15,12 @@ enum UserRole {
   user
 }
 
+/// Разове посилання: запрошення нового користувача або скидання пароля.
+enum AccessLinkKind {
+  invite
+  reset
+}
+
 enum Currency {
   UAH
   USD
@@ -89,18 +95,24 @@ enum ImportRunStatus {
 // ── користувачі й налаштування ──────────────────────────────────────
 
 model User {
-  id           String    @id @default(uuid())
-  login        String    @unique
-  passwordHash String?
-  fullName     String
-  shortName    String
-  role         UserRole  @default(user)
-  email        String?
-  phone        String?
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                 String    @id @default(uuid())
+  login              String    @unique
+  passwordHash       String?
+  fullName           String
+  shortName          String
+  role               UserRole  @default(user)
+  email              String?
+  phone              String?
+  isActive           Boolean   @default(true)
+  /// Коли заблоковано (isActive = false).
+  blockedAt          DateTime?
+  /// Перший вхід адміністратора з .env — спершу змінити пароль (РОЛ-2).
+  mustChangePassword Boolean   @default(false)
+  /// Хто запросив (null — перший адміністратор із .env).
+  createdById        String?
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   sessions     Session[]
   importRuns   PriceImportRun[]
@@ -147,6 +159,7 @@ model AppSettings {
   nextRequestNumber           Int      @default(1)
   nextKpNumber                Int      @default(2114)
   updatedAt                   DateTime @updatedAt
+  updatedById                 String?
 }
 
 model OwnCompany {
@@ -172,6 +185,8 @@ model OwnCompany {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  createdById  String?
+  updatedById  String?
 }
 
 // ── постачальники ───────────────────────────────────────────────────
@@ -206,6 +221,8 @@ model Supplier {
   lastImportAt      DateTime?
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
+  createdById       String?
+  updatedById       String?
 
   feed          SupplierPriceFeed?
   legalEntities SupplierLegalEntity[]
@@ -218,24 +235,24 @@ model Supplier {
 
 /// Джерело прайсу. URL і секрет назовні не віддаємо — в API лише хост і стан.
 model SupplierPriceFeed {
-  supplierId      String           @id
-  supplier        Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  kind            PriceFeedKind    @default(manual)
-  format          PriceFeedFormat?
-  url             String?
-  auth            FeedAuth         @default(none)
+  supplierId       String           @id
+  supplier         Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  kind             PriceFeedKind    @default(manual)
+  format           PriceFeedFormat?
+  url              String?
+  auth             FeedAuth         @default(none)
   /// Токен або пароль (шифрується перед записом).
-  secret          String?
+  secret           String?
   /// Година щоденного запуску, 0–23.
-  scheduleHour    Int?
-  hasPurchasePrice Boolean         @default(true)
+  scheduleHour     Int?
+  hasPurchasePrice Boolean          @default(true)
   /// Зіставлення колонок для файлових прайсів (як у діалозі завантаження).
-  columnMapping   Json?
-  note            String?
-  lastError       String?
-  lastErrorAt     DateTime?
-  failCount       Int              @default(0)
-  updatedAt       DateTime         @updatedAt
+  columnMapping    Json?
+  note             String?
+  lastError        String?
+  lastErrorAt      DateTime?
+  failCount        Int              @default(0)
+  updatedAt        DateTime         @updatedAt
 }
 
 model SupplierLegalEntity {
@@ -273,14 +290,16 @@ model SupplierContact {
 // ── клієнти ─────────────────────────────────────────────────────────
 
 model Client {
-  id                String         @id @default(uuid())
+  id                String          @id @default(uuid())
   name              String
   notes             String?
   responsibleUserId String?
-  responsibleUser   User?          @relation(fields: [responsibleUserId], references: [id])
-  isActive          Boolean        @default(true)
+  responsibleUser   User?           @relation(fields: [responsibleUserId], references: [id])
+  isActive          Boolean         @default(true)
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
+  createdById       String?
+  updatedById       String?
   counterparties    Counterparty[]
   contacts          ClientContact[]
 
@@ -338,13 +357,15 @@ model Unit {
 }
 
 model CurrencyRate {
-  id        Int        @id @default(autoincrement())
-  currency  Currency
-  rateDate  DateTime   @db.Date
-  rate      Decimal    @db.Decimal(12, 4)
-  source    RateSource
-  fetchedAt DateTime   @default(now())
-  note      String?
+  id          Int        @id @default(autoincrement())
+  currency    Currency
+  rateDate    DateTime   @db.Date
+  rate        Decimal    @db.Decimal(12, 4)
+  source      RateSource
+  fetchedAt   DateTime   @default(now())
+  note        String?
+  /// Хто ввів ручний курс.
+  createdById String?
 
   @@unique([currency, rateDate, source])
   @@index([rateDate])
@@ -391,6 +412,9 @@ model Product {
   autoArchivedAt DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  /// Хто додав вручну / востаннє змінив картку (прайс — у журналі оновлень).
+  createdById    String?
+  updatedById    String?
 
   priceHistory PriceHistory[]
   images       ProductImage[]
@@ -454,40 +478,40 @@ model PriceHistory {
 // ── оновлення прайсів ───────────────────────────────────────────────
 
 model PriceImportRun {
-  id            Int             @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   supplierId    String
-  supplier      Supplier        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  startedAt     DateTime        @default(now())
+  supplier      Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  startedAt     DateTime         @default(now())
   finishedAt    DateTime?
   source        ImportRunSource
-  status        ImportRunStatus @default(ok)
+  status        ImportRunStatus  @default(ok)
   fileId        String?
   file          PriceImportFile? @relation(fields: [fileId], references: [id])
   /// Назва файлу прайсу (рядки з браузера приходять без самого файлу).
   fileName      String?
-  productsTotal Int             @default(0)
-  added         Int             @default(0)
-  changed       Int             @default(0)
-  priceUp       Int             @default(0)
-  priceDown     Int             @default(0)
-  stockChanged  Int             @default(0)
-  missing       Int             @default(0)
-  skipped       Int             @default(0)
+  productsTotal Int              @default(0)
+  added         Int              @default(0)
+  changed       Int              @default(0)
+  priceUp       Int              @default(0)
+  priceDown     Int              @default(0)
+  stockChanged  Int              @default(0)
+  missing       Int              @default(0)
+  skipped       Int              @default(0)
   /// Знайдено за штрихкодом або артикулом — код товару замінено кодом із прайсу.
-  relinked      Int             @default(0)
+  relinked      Int              @default(0)
   /// Повернуто з архіву: позиція знову є у прайсі.
-  restored      Int             @default(0)
+  restored      Int              @default(0)
   /// Товарів, у яких заповнений опис відрізняється від прайсу (опис не змінено).
-  detailsDiffer Int             @default(0)
-  rateUsd       Decimal?        @db.Decimal(12, 4)
-  rateEur       Decimal?        @db.Decimal(12, 4)
+  detailsDiffer Int              @default(0)
+  rateUsd       Decimal?         @db.Decimal(12, 4)
+  rateEur       Decimal?         @db.Decimal(12, 4)
   errorText     String?
   /// Попередження розбору прайсу, по одному на рядок (немає цін, пропущені рядки тощо).
   warnings      String?
   /// Звіт звірки: приклади відмінностей описів, великих змін цін, перечеплених кодів, ненайдених і пропущених рядків.
   details       Json?
   userId        String?
-  user          User?           @relation(fields: [userId], references: [id])
+  user          User?            @relation(fields: [userId], references: [id])
 
   priceHistory PriceHistory[]
 
@@ -508,4 +532,42 @@ model PriceImportFile {
   runs PriceImportRun[]
 
   @@index([supplierId, uploadedAt])
+}
+
+// ── доступ і журнал дій ─────────────────────────────────────────────
+
+/// Разове посилання: запрошення (роль обирає адмін) або скидання пароля. У базі — лише SHA-256 токена.
+model AccessLink {
+  id          String         @id @default(uuid())
+  kind        AccessLinkKind
+  tokenHash   String         @unique
+  /// Роль нового користувача (запрошення).
+  role        UserRole?
+  /// Для кого (підказка адміну): «Олена, закупівлі».
+  note        String?
+  /// Скидання — чий пароль; запрошення — хто зареєструвався.
+  userId      String?
+  createdById String
+  createdAt   DateTime       @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+  revokedAt   DateTime?
+
+  @@index([kind, createdAt])
+}
+
+/// Журнал дій: хто, коли, що зробив (вхід, користувачі, налаштування, довідники, каталог).
+model AuditEvent {
+  id         BigInt   @id @default(autoincrement())
+  at         DateTime @default(now())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  summary    String
+  details    Json?
+
+  @@index([at])
+  @@index([entityType, entityId, at])
+  @@index([userId, at])
 }

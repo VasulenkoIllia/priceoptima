@@ -18,6 +18,7 @@ import type {
 } from '@shared/types';
 import { prisma } from '../../db';
 import { duplicate, notFound } from '../../http/errors';
+import { audit } from '../audit/audit.service';
 import { getSettings } from '../settings/settings.service';
 import { toPriceHistoryEntry, toProductDetail, toProductListItem, type CatalogContext } from './products.mapper';
 import { assertManualPrice, availabilityOf, priceChanged, productOrderBy, searchTextOf, staleBefore, likePattern } from './products.rules';
@@ -297,6 +298,8 @@ export async function createProduct(input: ProductInputBody, actor: User): Promi
         notes: input.notes,
         priceOrigin: 'manual',
         priceUpdatedAt: now,
+        createdById: actor.id,
+        updatedById: actor.id,
       },
     });
     await tx.priceHistory.create({
@@ -316,11 +319,12 @@ export async function createProduct(input: ProductInputBody, actor: User): Promi
     return product;
   });
 
+  await audit({ userId: actor.id, action: 'product.create', entityType: 'product', entityId: created.id, summary: `Додано товар ${created.sku} · ${created.nameWork}` });
   const ctx = await catalogContext();
   return toProductDetail(created, ctx);
 }
 
-export async function updateProduct(id: UUID, patch: ProductPatchBody): Promise<ProductDetail> {
+export async function updateProduct(id: UUID, patch: ProductPatchBody, actor: User): Promise<ProductDetail> {
   const current = await productOrFail(id);
   const next = {
     nameWork: patch.nameWork ?? current.nameWork,
@@ -338,8 +342,10 @@ export async function updateProduct(id: UUID, patch: ProductPatchBody): Promise<
       ...(patch.productUrl !== undefined ? { productUrl: patch.productUrl } : {}),
       ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
       ...(patch.isArchived !== undefined ? { isArchived: patch.isArchived } : {}),
+      updatedById: actor.id,
     },
   });
+  await audit({ userId: actor.id, action: 'product.update', entityType: 'product', entityId: id, summary: `Змінено картку товару ${updated.sku}` });
   const ctx = await catalogContext();
   return toProductDetail(updated, ctx);
 }
@@ -374,7 +380,7 @@ export async function updateProductPrice(
   const result = await prisma.$transaction(async (tx) => {
     const product = await tx.product.update({
       where: { id },
-      data: { ...after, priceUpdatedAt: now, priceOrigin: 'manual' },
+      data: { ...after, priceUpdatedAt: now, priceOrigin: 'manual', updatedById: actor.id },
     });
     if (!changed) return { product, entry: null };
     const entry = await tx.priceHistory.create({
@@ -429,7 +435,7 @@ const NOT_FOUND_LIMIT = 500;
  * Назви 1С з Excel (п.9.2 правок): «артикул → назва 1С» у товари постачальника.
  * Оновлення прайсів цю назву не чіпають; пошук каталогу враховує її (searchText).
  */
-export async function importName1c(input: Name1cImportInput): Promise<Name1cImportResult> {
+export async function importName1c(input: Name1cImportInput, actor: User): Promise<Name1cImportResult> {
   const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true } });
   if (!supplier) throw notFound('Постачальника не знайдено');
   // каталог постачальника — до ~20 тис. позицій: беремо весь, а не IN на тисячі артикулів
@@ -452,10 +458,18 @@ export async function importName1c(input: Name1cImportInput): Promise<Name1cImpo
           UPDATE "Product" AS p SET
             "name1c" = v.name1c,
             "searchText" = v.search_text,
+            "updatedById" = ${actor.id},
             "updatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
           FROM (VALUES ${Prisma.join(values)}) AS v(id, name1c, search_text)
           WHERE p.id = v.id`;
       }
+    });
+    await audit({
+      userId: actor.id,
+      action: 'product.name1c',
+      entityType: 'supplier',
+      entityId: input.supplierId,
+      summary: `Назви 1С з Excel: змінено ${plan.updates.length}, без змін ${plan.unchanged}, не знайдено ${plan.notFound.length}`,
     });
   }
   return {

@@ -54,6 +54,13 @@ export const attachSession: RequestHandler = asyncHandler(async (req, res, next)
   return next();
 });
 
+/** Поки адміністратор з .env не змінив пароль, доступні лише «хто я», зміна пароля й вихід (РОЛ-2). */
+const ALLOWED_BEFORE_PASSWORD_CHANGE = new Set(['/auth/me', '/auth/password', '/auth/logout']);
+export const passwordChangeGate: RequestHandler = (req, _res, next) => {
+  if (!req.currentUser?.mustChangePassword || ALLOWED_BEFORE_PASSWORD_CHANGE.has(req.path)) return next();
+  return next(forbidden('Спершу змініть пароль'));
+};
+
 export const requireAuth: RequestHandler = (req, _res, next) => {
   if (!req.currentUser) return next(unauthorized());
   return next();

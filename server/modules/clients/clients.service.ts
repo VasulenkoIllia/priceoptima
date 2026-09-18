@@ -2,11 +2,12 @@
 // Вкладені списки зберігаються цілком: старі рядки замінюються новими в одній транзакції,
 // а передані ідентифікатори зберігаються — посилання із заявок лишаються дійсними.
 import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, User } from '@prisma/client';
 import type { ClientDetail, ClientListItem, ClientLookupItem } from '@shared/types';
 import { prisma } from '../../db';
 import { ApiError, notFound } from '../../http/errors';
 import { withSingleDefault } from '../../lib/defaults';
+import { audit } from '../audit/audit.service';
 import { toClientDetail, toClientListItem, toLookupItems, lookupTokens } from './clients.mapper';
 import type { ClientRow } from './clients.mapper';
 import { withSingleDefaultPerCounterparty } from './clients.rules';
@@ -49,18 +50,19 @@ export async function searchClients(query: string): Promise<ClientLookupItem[]> 
     .slice(0, LOOKUP_LIMIT);
 }
 
-export async function createClient(input: ClientInputBody): Promise<ClientDetail> {
+export async function createClient(input: ClientInputBody, actor: User): Promise<ClientDetail> {
   await assertResponsibleExists(input.responsibleUserId);
   const id = randomUUID();
   const nested = prepareNested(input.counterparties ?? [], input.contacts ?? []);
   await prisma.$transaction(async (tx) => {
-    await tx.client.create({ data: { id, ...toRow(input) } });
+    await tx.client.create({ data: { id, ...toRow(input), createdById: actor.id, updatedById: actor.id } });
     await saveNested(tx, id, nested);
   });
+  await audit({ userId: actor.id, action: 'client.create', entityType: 'client', entityId: id, summary: `Додано клієнта ${input.name}` });
   return getClient(id);
 }
 
-export async function updateClient(id: string, input: ClientInputBody): Promise<ClientDetail> {
+export async function updateClient(id: string, input: ClientInputBody, actor: User): Promise<ClientDetail> {
   const current = await getClientOrFail(id);
   await assertResponsibleExists(input.responsibleUserId);
   // список, якого не передали, лишається як був — але переписуємо обидва,
@@ -69,9 +71,10 @@ export async function updateClient(id: string, input: ClientInputBody): Promise<
   const contacts = input.contacts ?? current.contacts.map(toContactInput);
   const nested = prepareNested(counterparties, contacts);
   await prisma.$transaction(async (tx) => {
-    await tx.client.update({ where: { id }, data: toRow(input) });
+    await tx.client.update({ where: { id }, data: { ...toRow(input), updatedById: actor.id } });
     await saveNested(tx, id, nested);
   });
+  await audit({ userId: actor.id, action: 'client.update', entityType: 'client', entityId: id, summary: `Змінено картку клієнта ${input.name}` });
   return getClient(id);
 }
 

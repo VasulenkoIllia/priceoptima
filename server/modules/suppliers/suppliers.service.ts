@@ -1,7 +1,7 @@
 // Постачальники: довідник із юрособами, контактами й джерелом прайсу.
 // Посилання на вигрузку й токен доступу лишаються на сервері — в API йде лише хост і стан доступу.
 import { randomUUID } from 'node:crypto';
-import type { Prisma } from '@prisma/client';
+import type { Prisma, User } from '@prisma/client';
 import type { PriceImportMapping, SupplierDetail, SupplierListItem, SupplierPriceSourceSettings } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
@@ -9,6 +9,7 @@ import { ApiError, notFound } from '../../http/errors';
 import { withSingleDefault } from '../../lib/defaults';
 import { dateOnly } from '../../lib/mapping';
 import { createSecretBox } from '../../lib/secretBox';
+import { audit } from '../audit/audit.service';
 import type { SupplierDetailRow } from './suppliers.mapper';
 import { toPriceSourceSettings, toSupplierDetail, toSupplierListItem } from './suppliers.mapper';
 import { priceMappingSchema, type PriceMappingBody, type PriceSourceBody, type SupplierInputBody } from './suppliers.schemas';
@@ -35,17 +36,18 @@ export async function getSupplier(id: string): Promise<SupplierDetail> {
   return toSupplierDetail(row, await productCount(id));
 }
 
-export async function createSupplier(input: SupplierInputBody): Promise<SupplierDetail> {
+export async function createSupplier(input: SupplierInputBody, actor: User): Promise<SupplierDetail> {
   const id = randomUUID();
   const nested = prepareNested(input);
   await prisma.$transaction(async (tx) => {
-    await tx.supplier.create({ data: { id, ...toRow(input) } });
+    await tx.supplier.create({ data: { id, ...toRow(input), createdById: actor.id, updatedById: actor.id } });
     await saveNested(tx, id, nested);
   });
+  await audit({ userId: actor.id, action: 'supplier.create', entityType: 'supplier', entityId: id, summary: `Додано постачальника ${input.name}` });
   return getSupplier(id);
 }
 
-export async function updateSupplier(id: string, input: SupplierInputBody): Promise<SupplierDetail> {
+export async function updateSupplier(id: string, input: SupplierInputBody, actor: User): Promise<SupplierDetail> {
   const current = await getSupplierOrFail(id);
   // списки, яких не передали, лишаються як були
   const nested = prepareNested({
@@ -54,9 +56,10 @@ export async function updateSupplier(id: string, input: SupplierInputBody): Prom
     contacts: input.contacts ?? current.contacts.map(toContactInput),
   });
   await prisma.$transaction(async (tx) => {
-    await tx.supplier.update({ where: { id }, data: toRow(input) });
+    await tx.supplier.update({ where: { id }, data: { ...toRow(input), updatedById: actor.id } });
     await saveNested(tx, id, nested);
   });
+  await audit({ userId: actor.id, action: 'supplier.update', entityType: 'supplier', entityId: id, summary: `Змінено картку постачальника ${input.name}` });
   return getSupplier(id);
 }
 
@@ -67,8 +70,8 @@ export async function getPriceSource(id: string): Promise<SupplierPriceSourceSet
 }
 
 /** Налаштування вигрузки прайсу. Секрет приходить відкритим текстом і лягає в базу зашифрованим. */
-export async function updatePriceSource(id: string, input: PriceSourceBody): Promise<SupplierPriceSourceSettings> {
-  const supplier = await prisma.supplier.findUnique({ where: { id }, select: { id: true } });
+export async function updatePriceSource(id: string, input: PriceSourceBody, actor: User): Promise<SupplierPriceSourceSettings> {
+  const supplier = await prisma.supplier.findUnique({ where: { id }, select: { id: true, name: true } });
   if (!supplier) throw notFound('Постачальника не знайдено');
   const feed = await prisma.supplierPriceFeed.findUnique({ where: { supplierId: id } });
   const url = input.url === undefined ? (feed?.url ?? null) : input.url || null;
@@ -98,6 +101,14 @@ export async function updatePriceSource(id: string, input: PriceSourceBody): Pro
     where: { supplierId: id },
     create: { supplierId: id, ...data },
     update: data,
+  });
+  // сам секрет і посилання в журнал не пишемо — лише факт зміни
+  await audit({
+    userId: actor.id,
+    action: 'supplier.price_source',
+    entityType: 'supplier',
+    entityId: id,
+    summary: `Джерело прайсу ${supplier.name}: ${input.kind === 'manual' ? 'файлом' : input.kind === 'hybrid' ? 'змішано' : 'за посиланням'}${accessChanged ? ', змінено доступ' : ''}`,
   });
   return toPriceSourceSettings(row);
 }

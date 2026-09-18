@@ -43,6 +43,8 @@ function supplier(part: Partial<Supplier> = {}): Supplier {
     lastImportAt: null,
     createdAt: NOW,
     updatedAt: NOW,
+    createdById: null,
+    updatedById: null,
     ...part,
   };
 }
@@ -77,6 +79,8 @@ function product(part: Partial<Product> = {}): Product {
     autoArchivedAt: null,
     createdAt: new Date('2026-08-01T09:00:00.000Z'),
     updatedAt: NOW,
+    createdById: null,
+    updatedById: null,
     ...part,
   };
 }
@@ -159,6 +163,9 @@ describe('історія цін у DTO', () => {
     phone: null,
     isActive: true,
     lastLoginAt: null,
+    blockedAt: null,
+    mustChangePassword: false,
+    createdById: null,
     createdAt: NOW,
     updatedAt: NOW,
   };

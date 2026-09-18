@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody } from '../../http/validate';
-import { requireAdmin, requireAuth } from '../auth/middleware';
+import { currentUser, requireAdmin, requireAuth } from '../auth/middleware';
 import { settingsPatchSchema } from './settings.schemas';
 import { getSettings, updateSettings } from './settings.service';
 
@@ -20,6 +20,6 @@ settingsRouter.put(
   '/',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    res.json(await updateSettings(parseBody(settingsPatchSchema, req)));
+    res.json(await updateSettings(parseBody(settingsPatchSchema, req), currentUser(req)));
   }),
 );
