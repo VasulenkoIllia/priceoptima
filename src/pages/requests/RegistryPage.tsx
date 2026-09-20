@@ -216,7 +216,8 @@ export default function RegistryPage() {
         width: 122,
         type: 'rightAligned',
         cellClass: 'po-num',
-        valueFormatter: (p) => formatMoney(p.value),
+        // цін продажу ще немає — «—», щоб не плутати з нульовою сумою (РЕЄ-3)
+        valueFormatter: (p) => (p.value ? formatMoney(p.value) : '—'),
         headerTooltip: 'Сума продажу з ПДВ (після націнки)',
       },
       {
@@ -225,7 +226,7 @@ export default function RegistryPage() {
         width: 130,
         type: 'rightAligned',
         cellClass: 'po-num',
-        valueFormatter: (p) => formatMoney(p.value),
+        valueFormatter: (p) => (p.value ? formatMoney(p.value) : '—'),
       },
       { headerName: 'КП', colId: 'kp', width: 104, cellRenderer: KpCell, headerTooltip: 'Останнє сформоване КП (фін. — фінальне) і кількість версій' },
       { headerName: 'Статус', field: 'status', width: 190, cellRenderer: StatusCell },

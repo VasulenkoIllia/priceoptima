@@ -17,7 +17,6 @@ export const AVAILABILITY_STATUSES = ['in_stock', 'low_stock', 'out_of_stock', '
 export const IMPORT_STATUSES = ['uploaded', 'parsing', 'previewed', 'applying', 'applied', 'failed', 'cancelled'] as const;
 export const IMPORT_ROW_ACTIONS = ['create', 'update', 'unchanged', 'error', 'skip'] as const;
 export const IMPORT_SOURCES = ['upload', 'url'] as const;
-export const IMPORT_MISSING_POLICIES = ['keep', 'mark_out_of_stock', 'archive'] as const;
 export const KP_VAT_MODES = ['without_vat', 'with_vat', 'no_vat'] as const;
 export const PRODUCT_NAME_KINDS = ['work', 'accounting'] as const;
 /** Назва в КП: з каталогу / як у клієнта / з каталогу + клієнтська дрібним. */
@@ -40,7 +39,6 @@ export type AvailabilityStatus = (typeof AVAILABILITY_STATUSES)[number];
 export type ImportStatus = (typeof IMPORT_STATUSES)[number];
 export type ImportRowAction = (typeof IMPORT_ROW_ACTIONS)[number];
 export type ImportSource = (typeof IMPORT_SOURCES)[number];
-export type ImportMissingPolicy = (typeof IMPORT_MISSING_POLICIES)[number];
 export type KpVatMode = (typeof KP_VAT_MODES)[number];
 export type ProductNameKind = (typeof PRODUCT_NAME_KINDS)[number];
 export type KpNameSource = (typeof KP_NAME_SOURCES)[number];

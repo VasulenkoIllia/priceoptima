@@ -136,7 +136,7 @@ model Session {
 model AppSettings {
   id                          Int      @id @default(1)
   vatRatePct                  Decimal  @default(20) @db.Decimal(5, 2)
-  priceStaleDays              Int      @default(14)
+  priceStaleDays              Int      @default(7)
   lockTtlSeconds              Int      @default(180)
   lockHeartbeatSeconds        Int      @default(20)
   autosaveDebounceMs          Int      @default(800)
@@ -153,7 +153,6 @@ model AppSettings {
   /// Типові умови КП [{label, value}]; null — вбудовані типові (Умови поставки, Термін, Оплата, Гарантія).
   kpTerms                     Json?
   fopPriceBasis               String   @default("gross")
-  importMissingPolicy         String   @default("keep")
   nextRequestNumber           Int      @default(1)
   nextKpNumber                Int      @default(2114)
   updatedAt                   DateTime @updatedAt

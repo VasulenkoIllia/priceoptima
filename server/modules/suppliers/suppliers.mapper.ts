@@ -142,6 +142,5 @@ export function toSupplierDetail(row: SupplierDetailRow, productsCount: number):
     legalEntities: row.legalEntities.map(toLegalEntityDto),
     contacts: row.contacts.map(toSupplierContactDto),
     // профілі завантаження прайсів з'являться разом із модулем імпорту
-    importProfiles: [],
   };
 }

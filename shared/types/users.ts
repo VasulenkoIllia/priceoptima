@@ -1,7 +1,6 @@
 import type {
   DiscountFormula,
   FopPriceBasis,
-  ImportMissingPolicy,
   KpNameSource,
   KpVatMode,
   MarkupMethod,
@@ -165,7 +164,6 @@ export interface AppSettings {
   /** 'net' — базова ціна КП від ФОП */
   fopPriceBasis: FopPriceBasis;
   /** 'keep' */
-  importMissingPolicy: ImportMissingPolicy;
   /** Наступний номер заявки (наскрізний лічильник, старт 1). */
   nextRequestNumber: number;
   /** Номер КП — сталий, у бланку «2114 / номер заявки». */

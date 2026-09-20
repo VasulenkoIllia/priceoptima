@@ -4,7 +4,6 @@ import type { AppSettings as AppSettingsRow, Prisma } from '@prisma/client';
 import {
   DISCOUNT_FORMULAS,
   FOP_PRICE_BASES,
-  IMPORT_MISSING_POLICIES,
   KP_NAME_SOURCES,
   KP_VAT_MODES,
   MARKUP_METHODS,
@@ -53,7 +52,6 @@ export function toAppSettings(row: AppSettingsRow): AppSettings {
     kpValidityDays: row.kpValidityDays,
     kpTerms: kpTermsOf(row.kpTerms),
     fopPriceBasis: oneOf(FOP_PRICE_BASES, row.fopPriceBasis, DEFAULT_APP_SETTINGS.fopPriceBasis),
-    importMissingPolicy: oneOf(IMPORT_MISSING_POLICIES, row.importMissingPolicy, DEFAULT_APP_SETTINGS.importMissingPolicy),
     nextRequestNumber: row.nextRequestNumber,
     nextKpNumber: row.nextKpNumber,
   };
@@ -79,7 +77,6 @@ export function toSettingsRow(settings: AppSettings) {
     kpValidityDays: settings.kpValidityDays,
     kpTerms: settings.kpTerms.map((t) => ({ label: t.label, value: t.value })),
     fopPriceBasis: settings.fopPriceBasis,
-    importMissingPolicy: settings.importMissingPolicy,
     nextRequestNumber: settings.nextRequestNumber,
     nextKpNumber: settings.nextKpNumber,
   };

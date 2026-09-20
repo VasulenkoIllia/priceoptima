@@ -3,7 +3,6 @@ import { z } from 'zod';
 import {
   DISCOUNT_FORMULAS,
   FOP_PRICE_BASES,
-  IMPORT_MISSING_POLICIES,
   KP_NAME_SOURCES,
   KP_VAT_MODES,
   MARKUP_METHODS,
@@ -46,7 +45,6 @@ export const settingsPatchSchema = z
       .max(KP_TERMS_MAX, `Умов у КП — не більше ${KP_TERMS_MAX}`)
       .transform((terms) => terms.filter((t) => t.label)),
     fopPriceBasis: enumOf(FOP_PRICE_BASES, 'база ціни ФОП'),
-    importMissingPolicy: enumOf(IMPORT_MISSING_POLICIES, 'позиції, яких немає у прайсі'),
     nextRequestNumber: int(1, 9_999_999, 'Наступний номер заявки'),
     /** Стала частина номера КП: «2114 / номер заявки». */
     nextKpNumber: int(1, 9_999_999, 'Номер КП'),

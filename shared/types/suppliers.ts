@@ -7,7 +7,6 @@ import type {
   RateSource,
 } from '../enums';
 import type { ISODate, ISODateTime, UUID, UserRef } from './common';
-import type { ImportProfileDto } from './imports';
 
 export interface RatesPair {
   USD: number | null;
@@ -133,12 +132,11 @@ export interface SupplierDetail extends SupplierListItem {
   manualRatesDate: ISODate | null;
   legalEntities: SupplierLegalEntityDto[];
   contacts: SupplierContactDto[];
-  importProfiles: ImportProfileDto[];
 }
 
 export type SupplierInput = Omit<
   SupplierDetail,
-  'id' | 'productsCount' | 'lastImportAt' | 'priceSource' | 'priceListRates' | 'legalEntities' | 'contacts' | 'importProfiles'
+  'id' | 'productsCount' | 'lastImportAt' | 'priceSource' | 'priceListRates' | 'legalEntities' | 'contacts'
 > & {
   /** Курси з прайсу веде завантаження прайсу; не передали — лишаються збережені. */
   priceListRates?: PriceListRates;
