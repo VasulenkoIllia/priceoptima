@@ -18,6 +18,12 @@ import { clientOrNull, kpsOf, loadRequest } from './requests.service';
 
 const TX = { timeout: 30_000, maxWait: 10_000 };
 
+/** Товари підбору заявки — щоб зібрати фото до транзакції. */
+async function offerProductIds(requestId: UUID): Promise<string[]> {
+  const rows = await prisma.requestOffer.findMany({ where: { requestId }, select: { productId: true } });
+  return rows.map((r) => r.productId).filter((id): id is string => !!id);
+}
+
 /** Версії КП заявки, від найновішої. */
 export async function listKps(requestId: UUID): Promise<KpDocumentDto[]> {
   const exists = await prisma.request.findUnique({ where: { id: requestId }, select: { id: true } });
@@ -27,6 +33,8 @@ export async function listKps(requestId: UUID): Promise<KpDocumentDto[]> {
 
 export async function createKp(requestId: UUID, body: KpCreateInput, actor: User, now = new Date()): Promise<KpDocumentDto> {
   const [env, owns] = await Promise.all([pricingEnv(now), listOwnCompanies()]);
+  // фото збираємо до транзакції: перше звернення тягне їх із сайту постачальника, а транзакція не має чекати на мережу
+  const images = body.settings.showImages ? await mainImagesFor(await offerProductIds(requestId)) : undefined;
   const kp = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Request" WHERE id = ${requestId} FOR UPDATE`;
     const r = await loadRequest(requestId, tx);
@@ -49,8 +57,6 @@ export async function createKp(requestId: UUID, body: KpCreateInput, actor: User
     if (!own) throw new ApiError('VALIDATION_ERROR', 'Спершу додайте нашу юрособу в Налаштуваннях');
     const manager = await tx.user.findUnique({ where: { id: state.header.managerId }, select: { shortName: true, phone: true } });
     const kps = await kpsOf(requestId, tx);
-    // фото беремо лише коли їх додають у бланк: перше звернення зберігає фото з прайсу в наше сховище
-    const images = body.settings.showImages ? await mainImagesFor(state.offers.map((o) => o.productId).filter((id): id is string => !!id)) : undefined;
 
     let built;
     try {

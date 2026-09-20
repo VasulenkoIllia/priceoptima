@@ -29,8 +29,10 @@ const IMAGE_ORDER: Prisma.ProductImageOrderByWithRelationInput[] = [
   { createdAt: 'asc' },
 ];
 
-/** Скільки чекаємо фото з сайту постачальника — КП не має через нього зависати. */
+/** Скільки чекаємо одне фото з сайту постачальника, скільки тягнемо одночасно і скільки чекаємо всі — КП не має через це зависати. */
 const FEED_IMAGE_TIMEOUT_MS = 10_000;
+const FEED_IMAGE_PARALLEL = 6;
+const FEED_IMAGE_BUDGET_MS = 20_000;
 
 /**
  * Головні фото товарів для КП: посилання на файл у нашому сховищі.
@@ -41,10 +43,23 @@ export async function mainImagesFor(productIds: readonly UUID[]): Promise<Map<UU
   const out = new Map<UUID, string>();
   if (!ids.length) return out;
   const rows = await prisma.productImage.findMany({ where: { productId: { in: ids }, isMain: true }, orderBy: IMAGE_ORDER });
+  const pending: ProductImage[] = [];
   for (const row of rows) {
-    const stored = row.storedPath ? row : await storeFeedImage(row);
-    if (stored) out.set(row.productId, servedImageUrl(stored.id));
+    if (row.storedPath) out.set(row.productId, servedImageUrl(row.id));
+    else if (row.url) pending.push(row);
   }
+  // фото з прайсу тягнемо кількома потоками й не довше за відведений час: решта рядків просто буде без фото
+  const deadline = Date.now() + FEED_IMAGE_BUDGET_MS;
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(FEED_IMAGE_PARALLEL, pending.length) }, async () => {
+      while (next < pending.length && Date.now() < deadline) {
+        const row = pending[next++];
+        const stored = await storeFeedImage(row);
+        if (stored) out.set(row.productId, servedImageUrl(stored.id));
+      }
+    }),
+  );
   return out;
 }
 
