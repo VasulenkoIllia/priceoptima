@@ -3,6 +3,8 @@ export type { EmptyStateProps } from './EmptyState';
 export { KpTermsEditor } from './KpTermsEditor';
 export type { KpTermsEditorProps } from './KpTermsEditor';
 export { LockBanner } from './LockBanner';
+export { LogoField } from './LogoField';
+export type { LogoFieldProps } from './LogoField';
 export type { LockBannerProps } from './LockBanner';
 export { MoneyCell } from './MoneyCell';
 export type { MoneyCellProps } from './MoneyCell';

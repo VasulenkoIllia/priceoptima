@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { CURRENCY_CODES, CURRENCY_LABELS, RATE_POLICIES, RATE_POLICY_LABELS, type CurrencyCode, type RatePolicy } from '@shared/enums';
 import { toIsoDate } from '@shared/format';
 import type { SupplierDetail, SupplierInput, UUID } from '@shared/types';
+import { LogoField } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { newId } from '@/lib/ids';
 
@@ -32,6 +33,7 @@ interface ContactValues {
 
 interface FormValues {
   name: string;
+  logoUrl?: string | null;
   color?: string | null;
   isActive: boolean;
   website?: string | null;
@@ -79,6 +81,7 @@ function toFormValues(s: SupplierDetail | null): FormValues {
   }
   return {
     name: s.name,
+    logoUrl: s.logoUrl,
     color: s.color,
     isActive: s.isActive,
     website: s.website,
@@ -147,7 +150,7 @@ function buildInput(v: FormValues, prev: SupplierDetail | null, today: string): 
   const manualChanged = manualRateUsd !== (prev?.manualRateUsd ?? null) || manualRateEur !== (prev?.manualRateEur ?? null);
   return {
     name: v.name.trim(),
-    logoUrl: prev?.logoUrl ?? null,
+    logoUrl: v.logoUrl ?? null,
     color: v.color ?? null,
     defaultCurrency: v.defaultCurrency,
     pricesIncludeVat: !!v.pricesIncludeVat,
@@ -247,6 +250,9 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
         <div className="po-sup-grid-form po-sup-grid-name">
           <Form.Item name="name" label="Назва постачальника" rules={[{ required: true, whitespace: true, message: 'Вкажіть назву постачальника' }]}>
             <Input autoFocus placeholder="Напр.: САНДІ" maxLength={200} />
+          </Form.Item>
+          <Form.Item name="logoUrl" label="Логотип">
+            <LogoField hint="Показуємо в списках і блоках заявки" />
           </Form.Item>
           <Form.Item name="color" label="Колір значка">
             <ColorField />

@@ -2,11 +2,25 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Checkbox, Form, Input, Modal, Tooltip } from 'antd';
 import type { OwnCompanyDto, OwnCompanyInput } from '@shared/types';
+import { LogoField } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 
 type FormValues = Pick<
   OwnCompanyDto,
-  'nameShort' | 'nameFull' | 'edrpou' | 'ipn' | 'isVatPayer' | 'iban' | 'bankName' | 'addressLegal' | 'phone' | 'email' | 'website' | 'slogan' | 'isDefault'
+  | 'nameShort'
+  | 'nameFull'
+  | 'edrpou'
+  | 'ipn'
+  | 'isVatPayer'
+  | 'iban'
+  | 'bankName'
+  | 'addressLegal'
+  | 'phone'
+  | 'email'
+  | 'website'
+  | 'slogan'
+  | 'logoUrl'
+  | 'isDefault'
 >;
 
 const text = (v: string | null | undefined) => v?.trim() || null;
@@ -14,7 +28,7 @@ const noSpaces = (v: string) => v.replace(/\s/gu, '');
 const GRID_2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 12 } as const;
 const GRID_3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 12 } as const;
 
-/** Повний OwnCompanyInput: поля, яких немає у формі (логотип, код, підвал КП), — без змін. */
+/** Повний OwnCompanyInput: поля, яких немає у формі (код, підвал КП), — без змін. */
 function toInput(c: OwnCompanyDto, v: FormValues): OwnCompanyInput {
   const { id: _id, ...rest } = c;
   return {
@@ -31,6 +45,7 @@ function toInput(c: OwnCompanyDto, v: FormValues): OwnCompanyInput {
     email: text(v.email),
     website: text(v.website),
     slogan: text(v.slogan),
+    logoUrl: v.logoUrl ?? null,
     isDefault: !!v.isDefault,
   };
 }
@@ -119,9 +134,14 @@ export function OwnCompanyDialog({ open, company, onClose }: OwnCompanyDialogPro
             <Input />
           </Form.Item>
         </div>
-        <Form.Item name="slogan" label="Слоган (у шапці КП)">
-          <Input />
-        </Form.Item>
+        <div style={GRID_2}>
+          <Form.Item name="slogan" label="Слоган (у шапці КП)">
+            <Input />
+          </Form.Item>
+          <Form.Item name="logoUrl" label="Логотип (у шапці КП)">
+            <LogoField hint="PNG, JPEG або SVG; зменшимо самі" />
+          </Form.Item>
+        </div>
         <Form.Item name="isDefault" valuePropName="checked" style={{ marginBottom: 0 }}>
           <Checkbox disabled={company.isDefault}>
             <Tooltip title={company.isDefault ? 'Щоб змінити, позначте іншу юрособу' : undefined}>За замовчуванням у нових заявках</Tooltip>
