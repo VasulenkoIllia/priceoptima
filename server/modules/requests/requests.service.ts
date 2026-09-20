@@ -82,14 +82,25 @@ async function clientOrNull(id: UUID | null): Promise<ClientDetail | null> {
   }
 }
 
-/** Текст пошуку реєстру: номер, клієнт, контрагент, ЄДРПОУ, назва. */
-function searchTextOf(number: number, title: string | null, client: ClientDetail | null, counterpartyId: UUID | null): string {
+/**
+ * Текст пошуку реєстру (РЕЄ-1): номер, клієнт, контрагент, ЄДРПОУ, назва й відповідальний.
+ * Складаємо при збереженні заявки; якщо людина згодом змінить ПІБ, текст оновиться при наступному збереженні.
+ */
+function searchTextOf(
+  number: number,
+  title: string | null,
+  client: ClientDetail | null,
+  counterpartyId: UUID | null,
+  manager: { shortName: string; fullName: string } | null,
+): string {
   const cp = client?.counterparties.find((c) => c.id === counterpartyId);
-  return [formatRequestNumber(number), String(number), client?.name, cp?.nameShort, cp?.nameFull, cp?.edrpou, title]
+  return [formatRequestNumber(number), String(number), client?.name, cp?.nameShort, cp?.nameFull, cp?.edrpou, title, manager?.shortName, manager?.fullName]
     .filter(Boolean)
     .join(' ')
     .toLocaleLowerCase('uk');
 }
+
+const managerNames = (db: Tx | typeof prisma, id: UUID) => db.user.findUnique({ where: { id }, select: { shortName: true, fullName: true } });
 
 async function kpsOf(requestId: UUID, db: Tx | typeof prisma = prisma): Promise<KpDocumentDto[]> {
   const rows = await db.kpDocument.findMany({ where: { requestId }, orderBy: { version: 'asc' } });
@@ -287,7 +298,7 @@ export async function createRequest(body: CreateRequestInput, actor: User, now =
         ...headerData(header),
         markup: defaultMarkupSettings(env.settings) as unknown as Prisma.InputJsonValue,
         ...totalsData(EMPTY_TOTALS),
-        searchText: searchTextOf(n, header.title, client, header.counterpartyId),
+        searchText: searchTextOf(n, header.title, client, header.counterpartyId, await managerNames(tx, header.managerId)),
         createdAt: now,
         createdById: actor.id,
         updatedAt: now,
@@ -385,13 +396,14 @@ export async function saveRequestDocument(id: UUID, patch: DocumentPatch, actor:
     const totals = requestTotals(after, env.ctx, kps);
     const headerChanged = stableJson(before.header) !== stableJson(after.header);
     const client = headerChanged ? await clientOrNull(after.header.clientId) : null;
+    const manager = headerChanged ? await managerNames(tx, after.header.managerId) : null;
     const updated = await tx.request.update({
       where: { id },
       data: {
         ...headerData(after.header),
         markup: after.markup as unknown as Prisma.InputJsonValue,
         ...totalsData(totals),
-        ...(headerChanged ? { searchText: searchTextOf(after.header.number, after.header.title, client, after.header.counterpartyId) } : {}),
+        ...(headerChanged ? { searchText: searchTextOf(after.header.number, after.header.title, client, after.header.counterpartyId, manager) } : {}),
         version: { increment: 1 },
         updatedAt: now,
         updatedById: actor.id,
@@ -483,7 +495,7 @@ export async function copyRequest(id: UUID, body: CopyRequestBody, actor: User, 
         ...totalsData(totals),
         sourceRequestId: source.id,
         copyInfo: copy.report as unknown as Prisma.InputJsonValue,
-        searchText: searchTextOf(number, copy.state.header.title, searchClient, copy.state.header.counterpartyId),
+        searchText: searchTextOf(number, copy.state.header.title, searchClient, copy.state.header.counterpartyId, await managerNames(tx, copy.state.header.managerId)),
         createdAt: now,
         createdById: actor.id,
         updatedAt: now,
