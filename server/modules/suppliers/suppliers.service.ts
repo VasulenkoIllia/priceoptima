@@ -9,6 +9,7 @@ import { ApiError, notFound } from '../../http/errors';
 import { withSingleDefault } from '../../lib/defaults';
 import { dateOnly } from '../../lib/mapping';
 import { createSecretBox } from '../../lib/secretBox';
+import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
 import type { SupplierDetailRow } from './suppliers.mapper';
 import { toPriceSourceSettings, toSupplierDetail, toSupplierListItem } from './suppliers.mapper';
@@ -56,7 +57,11 @@ export async function updateSupplier(id: string, input: SupplierInputBody, actor
     contacts: input.contacts ?? current.contacts.map(toContactInput),
   });
   await prisma.$transaction(async (tx) => {
-    await tx.supplier.update({ where: { id }, data: { ...toRow(input), updatedById: actor.id } });
+    const saved = await tx.supplier.updateMany({
+      where: { id, ...(expectedVersion(input) != null ? { version: expectedVersion(input)! } : {}) },
+      data: { ...toRow(input), updatedById: actor.id, version: { increment: 1 } },
+    });
+    if (saved.count !== 1) throw await staleCardError('Постачальника', await tx.supplier.findUnique({ where: { id } }));
     await saveNested(tx, id, nested);
   });
   await audit({ userId: actor.id, action: 'supplier.update', entityType: 'supplier', entityId: id, summary: `Змінено картку постачальника ${input.name}` });

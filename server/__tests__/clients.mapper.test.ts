@@ -55,6 +55,7 @@ const contact: ClientContact = {
 
 const client: Client = {
   id: CLIENT_ID,
+  version: 1,
   name: 'АВТОСТРАДА',
   notes: 'Працюємо з 2024 року',
   responsibleUserId: responsible.id,

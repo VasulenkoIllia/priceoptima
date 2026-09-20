@@ -179,6 +179,8 @@ export interface MeResponse {
 
 export interface OwnCompanyDto {
   id: UUID;
+  /** Версія картки: передається назад при збереженні, щоб не стерти чужі правки (ДОВ-6). */
+  version: number;
   code: string;
   nameShort: string;
   nameFull: string;
@@ -199,7 +201,8 @@ export interface OwnCompanyDto {
   /** Бренд для шапки застосунку й КП; необов'язкове. */
   brandName?: string | null;
 }
-export type OwnCompanyInput = Omit<OwnCompanyDto, 'id'>;
+/** Версія — та, з якою відкрили картку (для нової не передається). */
+export type OwnCompanyInput = Omit<OwnCompanyDto, 'id' | 'version'> & { version?: number };
 
 export interface UnitDto {
   /** 'шт', 'м', 'м2' … */

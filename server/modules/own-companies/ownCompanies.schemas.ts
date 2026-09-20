@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { optionalText, trimmed } from '../../lib/fields';
 
 export const ownCompanyInputSchema = z.object({
+  /** Версія картки, яку відкрив користувач (ДОВ-6). */
+  version: z.number().int().min(1).optional(),
   code: trimmed(20, 'Вкажіть позначку юрособи'),
   nameShort: trimmed(160, 'Вкажіть коротку назву'),
   nameFull: trimmed(400, 'Вкажіть повну назву'),

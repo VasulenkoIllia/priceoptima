@@ -135,6 +135,7 @@ export function toSupplierContactDto(row: SupplierContact): SupplierContactDto {
 export function toSupplierDetail(row: SupplierDetailRow, productsCount: number): SupplierDetail {
   return {
     ...toSupplierListItem(row, productsCount),
+    version: row.version,
     notes: row.notes,
     deliveryInfo: row.deliveryInfo,
     rrpIncludesVat: row.rrpIncludesVat,

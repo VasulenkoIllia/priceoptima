@@ -126,6 +126,8 @@ export interface SupplierContactDto {
 }
 
 export interface SupplierDetail extends SupplierListItem {
+  /** Версія картки: передається назад при збереженні, щоб не стерти чужі правки (ДОВ-6). */
+  version: number;
   notes: string | null;
   deliveryInfo: string | null;
   rrpIncludesVat: boolean;
@@ -136,8 +138,10 @@ export interface SupplierDetail extends SupplierListItem {
 
 export type SupplierInput = Omit<
   SupplierDetail,
-  'id' | 'productsCount' | 'lastImportAt' | 'priceSource' | 'priceListRates' | 'legalEntities' | 'contacts'
+  'id' | 'version' | 'productsCount' | 'lastImportAt' | 'priceSource' | 'priceListRates' | 'legalEntities' | 'contacts'
 > & {
+  /** Версія відкритої картки; для нової не передається. */
+  version?: number;
   /** Курси з прайсу веде завантаження прайсу; не передали — лишаються збережені. */
   priceListRates?: PriceListRates;
   legalEntities?: (Omit<SupplierLegalEntityDto, 'id' | 'supplierId'> & { id?: UUID })[];

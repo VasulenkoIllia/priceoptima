@@ -35,6 +35,8 @@ export const contactInputSchema = z.object({
 });
 
 export const clientInputSchema = z.object({
+  /** Версія картки, яку відкрив користувач: чужі правки не перезаписуємо (ДОВ-6). */
+  version: z.number().int().min(1).optional(),
   name: trimmed(200, 'Вкажіть назву клієнта'),
   note: optionalText(2000),
   responsibleUserId: optionalId,

@@ -30,6 +30,8 @@ export interface ProductListItem {
 }
 
 export interface ProductDetail extends ProductListItem {
+  /** Версія картки: передається назад при збереженні, щоб не стерти чужі правки (ДОВ-6). */
+  version: number;
   minOrderQty: number | null;
   notes: string | null;
   priceSource: PriceSource | null;
@@ -151,6 +153,8 @@ export interface ProductInput {
 export type ProductPatch = Partial<
   Omit<ProductInput, 'supplierId' | 'currency' | 'purchasePrice' | 'rrp' | 'stockQty' | 'availability'>
 > & {
+  /** Версія картки, з якою її відкрили (ДОВ-6). */
+  version: number;
   /** Архівна позиція не пропонується в підборі (товар не видаляємо — на нього посилаються заявки). */
   isArchived?: boolean;
 };

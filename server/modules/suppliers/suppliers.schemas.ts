@@ -34,6 +34,8 @@ export const supplierContactInputSchema = z.object({
 });
 
 export const supplierInputSchema = z.object({
+  /** Версія картки, яку відкрив користувач: чужі правки не перезаписуємо (ДОВ-6). */
+  version: z.number().int().min(1).optional(),
   name: trimmed(200, 'Вкажіть назву постачальника'),
   logoUrl: optionalText(300_000),
   color: optionalText(20),

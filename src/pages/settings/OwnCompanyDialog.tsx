@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Checkbox, Form, Input, Modal, Tooltip } from 'antd';
 import type { OwnCompanyDto, OwnCompanyInput } from '@shared/types';
 import { LogoField } from '@/components';
-import { ds, errorMessage, qk } from '@/data';
+import { ds, errorMessage, isDataSourceError, qk } from '@/data';
 
 type FormValues = Pick<
   OwnCompanyDto,
@@ -33,6 +33,7 @@ function toInput(c: OwnCompanyDto, v: FormValues): OwnCompanyInput {
   const { id: _id, ...rest } = c;
   return {
     ...rest,
+    version: c.version,
     nameShort: v.nameShort.trim(),
     nameFull: v.nameFull.trim(),
     edrpou: text(v.edrpou),
@@ -68,7 +69,11 @@ export function OwnCompanyDialog({ open, company, onClose }: OwnCompanyDialogPro
       message.success('Реквізити збережено');
       onClose();
     },
-    onError: (e) => message.error(errorMessage(e)),
+    onError: (e) => {
+      message.error(errorMessage(e));
+      // картку встигли змінити — перечитуємо, щоб у формі були свіжі дані
+      if (isDataSourceError(e, 'VERSION_CONFLICT')) void queryClient.invalidateQueries();
+    },
   });
 
   return (

@@ -8,7 +8,7 @@ import { CURRENCY_CODES, CURRENCY_LABELS, RATE_POLICIES, RATE_POLICY_LABELS, typ
 import { toIsoDate } from '@shared/format';
 import type { SupplierDetail, SupplierInput, UUID } from '@shared/types';
 import { LogoField } from '@/components';
-import { ds, errorMessage, qk } from '@/data';
+import { ds, errorMessage, isDataSourceError, qk } from '@/data';
 import { newId } from '@/lib/ids';
 
 interface LegalEntityValues {
@@ -149,6 +149,7 @@ function buildInput(v: FormValues, prev: SupplierDetail | null, today: string): 
   const manualRateEur = manual ? (v.manualRateEur ?? null) : (prev?.manualRateEur ?? null);
   const manualChanged = manualRateUsd !== (prev?.manualRateUsd ?? null) || manualRateEur !== (prev?.manualRateEur ?? null);
   return {
+    version: prev?.version,
     name: v.name.trim(),
     logoUrl: v.logoUrl ?? null,
     color: v.color ?? null,
@@ -223,7 +224,11 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
       onClose();
       onSaved?.(saved);
     },
-    onError: (e) => message.error(errorMessage(e)),
+    onError: (e) => {
+      message.error(errorMessage(e));
+      // картку встигли змінити — перечитуємо, щоб у формі були свіжі дані
+      if (isDataSourceError(e, 'VERSION_CONFLICT')) void queryClient.invalidateQueries();
+    },
   });
 
   return (

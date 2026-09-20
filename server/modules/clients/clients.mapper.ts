@@ -44,6 +44,7 @@ export function toContactDto(row: ClientContact): ContactDto {
 export function toClientDetail(row: ClientRow): ClientDetail {
   return {
     id: row.id,
+    version: row.version,
     name: row.name,
     note: row.notes,
     responsibleUserId: row.responsibleUserId,

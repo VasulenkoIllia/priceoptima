@@ -135,6 +135,8 @@ export const productInputSchema = z.object({
 /** Картка товару: артикул, валюта й ціни тут не змінюються (ціни — окремим методом). */
 export const productPatchSchema = z
   .object({
+    /** Версія картки, яку відкрив користувач (ДОВ-6). */
+    version: z.number().int().min(1),
     nameWork: trimmed(300, 'Вкажіть робочу назву'),
     name1c: optionalText(300),
     brand: optionalText(120),

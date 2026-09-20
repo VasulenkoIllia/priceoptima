@@ -8,6 +8,7 @@ const dec = (v: string) => new Prisma.Decimal(v);
 
 const supplier: Supplier = {
   id: 'f2a1c0de-0000-4000-8000-000000000001',
+  version: 1,
   name: 'Дніпро-Сантехніка',
   color: '#1677ff',
   logoUrl: null,

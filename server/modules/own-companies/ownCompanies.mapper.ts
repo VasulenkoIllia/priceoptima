@@ -6,6 +6,7 @@ import type { OwnCompanyDto } from '@shared/types';
 export function toOwnCompanyDto(row: OwnCompany): OwnCompanyDto {
   return {
     id: row.id,
+    version: row.version,
     code: row.code,
     nameShort: row.nameShort,
     nameFull: row.nameFull ?? row.nameShort,

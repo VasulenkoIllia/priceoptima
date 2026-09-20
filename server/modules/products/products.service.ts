@@ -18,6 +18,7 @@ import type {
 } from '@shared/types';
 import { prisma } from '../../db';
 import { duplicate, notFound } from '../../http/errors';
+import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
 import { getSettings } from '../settings/settings.service';
 import { toPriceHistoryEntry, toProductDetail, toProductListItem, type CatalogContext } from './products.mapper';
@@ -379,10 +380,12 @@ export async function updateProduct(id: UUID, patch: ProductPatchBody, actor: Us
     name1c: patch.name1c !== undefined ? patch.name1c : current.name1c,
     brand: patch.brand !== undefined ? patch.brand : current.brand,
   };
-  const updated = await prisma.product.update({
-    where: { id },
+  const expected = expectedVersion(patch);
+  const saved = await prisma.product.updateMany({
+    where: { id, ...(expected != null ? { version: expected } : {}) },
     data: {
       ...next,
+      version: { increment: 1 },
       searchText: searchTextOf({ sku: current.sku, ...next }),
       ...(patch.unitCode !== undefined ? { unitCode: patch.unitCode } : {}),
       ...(patch.multiplicity !== undefined ? { multiplicity: patch.multiplicity } : {}),
@@ -393,6 +396,8 @@ export async function updateProduct(id: UUID, patch: ProductPatchBody, actor: Us
       updatedById: actor.id,
     },
   });
+  if (saved.count !== 1) throw await staleCardError('Товар', await prisma.product.findUnique({ where: { id } }));
+  const updated = await productOrFail(id);
   await audit({ userId: actor.id, action: 'product.update', entityType: 'product', entityId: id, summary: `Змінено картку товару ${updated.sku}` });
   const ctx = await catalogContext();
   return toProductDetail(updated, ctx);

@@ -161,6 +161,8 @@ model AppSettings {
 
 model OwnCompany {
   id           String   @id @default(uuid())
+  /// Лічильник змін картки: зберігаємо лише з тією версією, яку відкрив користувач (ДОВ-6).
+  version      Int      @default(1)
   /// Коротка позначка юрособи в інтерфейсі ('ТОВ', 'ФОП').
   code         String   @default("")
   nameShort    String
@@ -190,6 +192,8 @@ model OwnCompany {
 
 model Supplier {
   id                String     @id @default(uuid())
+  /// Лічильник змін картки: зберігаємо лише з тією версією, яку відкрив користувач (ДОВ-6).
+  version           Int        @default(1)
   name              String
   color             String?
   logoUrl           String?
@@ -232,25 +236,25 @@ model Supplier {
 
 /// Джерело прайсу. URL і секрет назовні не віддаємо — в API лише хост і стан.
 model SupplierPriceFeed {
-  supplierId       String           @id
-  supplier         Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  kind             PriceFeedKind    @default(manual)
+  supplierId       String        @id
+  supplier         Supplier      @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  kind             PriceFeedKind @default(manual)
   /// Модуль вигрузки постачальника (shared/catalog/connectors): sandi, sanwell, yml.
   connector        String?
   url              String?
-  auth             FeedAuth         @default(none)
+  auth             FeedAuth      @default(none)
   /// Токен або пароль (шифрується перед записом).
   secret           String?
   /// Година щоденного запуску, 0–23.
   scheduleHour     Int?
-  hasPurchasePrice Boolean          @default(true)
+  hasPurchasePrice Boolean       @default(true)
   /// Зіставлення колонок для файлових прайсів (як у діалозі завантаження).
   columnMapping    Json?
   note             String?
   lastError        String?
   lastErrorAt      DateTime?
-  failCount        Int              @default(0)
-  updatedAt        DateTime         @updatedAt
+  failCount        Int           @default(0)
+  updatedAt        DateTime      @updatedAt
 }
 
 model SupplierLegalEntity {
@@ -289,6 +293,8 @@ model SupplierContact {
 
 model Client {
   id                String          @id @default(uuid())
+  /// Лічильник змін картки: зберігаємо лише з тією версією, яку відкрив користувач (ДОВ-6).
+  version           Int             @default(1)
   name              String
   notes             String?
   responsibleUserId String?
@@ -373,6 +379,8 @@ model CurrencyRate {
 
 model Product {
   id             String       @id @default(uuid())
+  /// Лічильник змін картки: зберігаємо лише з тією версією, яку відкрив користувач (ДОВ-6).
+  version        Int          @default(1)
   supplierId     String
   supplier       Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   /// Код постачальника як у прайсі.

@@ -7,6 +7,7 @@ import type { ClientDetail, ClientListItem, ClientLookupItem } from '@shared/typ
 import { prisma } from '../../db';
 import { ApiError, notFound } from '../../http/errors';
 import { withSingleDefault } from '../../lib/defaults';
+import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
 import { toClientDetail, toClientListItem, toLookupItems, lookupTokens } from './clients.mapper';
 import type { ClientRow } from './clients.mapper';
@@ -71,7 +72,11 @@ export async function updateClient(id: string, input: ClientInputBody, actor: Us
   const contacts = input.contacts ?? current.contacts.map(toContactInput);
   const nested = prepareNested(counterparties, contacts);
   await prisma.$transaction(async (tx) => {
-    await tx.client.update({ where: { id }, data: { ...toRow(input), updatedById: actor.id } });
+    const saved = await tx.client.updateMany({
+      where: { id, ...(expectedVersion(input) != null ? { version: expectedVersion(input)! } : {}) },
+      data: { ...toRow(input), updatedById: actor.id, version: { increment: 1 } },
+    });
+    if (saved.count !== 1) throw await staleCardError('Клієнта', await tx.client.findUnique({ where: { id } }));
     await saveNested(tx, id, nested);
   });
   await audit({ userId: actor.id, action: 'client.update', entityType: 'client', entityId: id, summary: `Змінено картку клієнта ${input.name}` });

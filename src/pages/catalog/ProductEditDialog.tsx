@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Form, Input, InputNumber, Modal } from 'antd';
 import { useEffect } from 'react';
 import type { ProductDetail, ProductPatch } from '@shared/types';
-import { ds, errorMessage, qk } from '@/data';
+import { ds, errorMessage, isDataSourceError, qk } from '@/data';
 
 interface Values {
   nameWork: string;
@@ -45,6 +45,7 @@ export function ProductEditDialog({ open, product, onClose }: ProductEditDialogP
   const save = useMutation({
     mutationFn: (v: Values) => {
       const patch: ProductPatch = {
+        version: product.version,
         nameWork: v.nameWork.trim(),
         name1c: text(v.name1c),
         brand: text(v.brand),
@@ -61,7 +62,11 @@ export function ProductEditDialog({ open, product, onClose }: ProductEditDialogP
       message.success('Картку товару збережено');
       onClose();
     },
-    onError: (e) => message.error(errorMessage(e)),
+    onError: (e) => {
+      message.error(errorMessage(e));
+      // картку встигли змінити — перечитуємо, щоб у формі були свіжі дані
+      if (isDataSourceError(e, 'VERSION_CONFLICT')) void queryClient.invalidateQueries();
+    },
   });
 
   return (

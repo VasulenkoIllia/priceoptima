@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Checkbox, Form, Input, Modal, Select, Tooltip, Typography } from 'antd';
 import { useEffect } from 'react';
 import type { ClientDetail, ClientInput, ContactInput, CounterpartyInput, UUID } from '@shared/types';
-import { ds, errorMessage, qk } from '@/data';
+import { ds, errorMessage, isDataSourceError, qk } from '@/data';
 import { newId } from '@/lib/ids';
 
 interface CounterpartyValues {
@@ -112,7 +112,8 @@ function buildInput(v: FormValues, prev: ClientDetail | null): ClientInput {
   });
   if (contacts.length && !contacts.some((c) => c.isPrimary)) contacts[0] = { ...contacts[0], isPrimary: true };
 
-  return { name, note: text(v.note), responsibleUserId: v.responsibleUserId ?? null, isActive: prev?.isActive ?? true, counterparties, contacts };
+  // version — та, з якою відкрили картку: чужі правки не перезаписуємо
+  return { version: prev?.version, name, note: text(v.note), responsibleUserId: v.responsibleUserId ?? null, isActive: prev?.isActive ?? true, counterparties, contacts };
 }
 
 export interface ClientFormDialogProps {
@@ -147,7 +148,11 @@ export function ClientFormDialog({ open, client, onClose, onSaved }: ClientFormD
       onClose();
       onSaved?.(saved.id);
     },
-    onError: (e) => message.error(errorMessage(e)),
+    onError: (e) => {
+      message.error(errorMessage(e));
+      // картку встигли змінити — перечитуємо, щоб у формі були свіжі дані
+      if (isDataSourceError(e, 'VERSION_CONFLICT')) void queryClient.invalidateQueries();
+    },
   });
 
   const userOptions = (users.data ?? [])

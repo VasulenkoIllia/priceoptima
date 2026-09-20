@@ -41,6 +41,8 @@ export interface ClientListItem {
 
 export interface ClientDetail {
   id: UUID;
+  /** Версія картки: передається назад при збереженні, щоб не стерти чужі правки (ДОВ-6). */
+  version: number;
   name: string;
   note: string | null;
   responsibleUserId: UUID | null;
@@ -65,6 +67,8 @@ export type CounterpartyInput = Omit<CounterpartyDto, 'id' | 'clientId'> & { id?
 export type ContactInput = Omit<ContactDto, 'id' | 'clientId'> & { id?: UUID };
 
 export interface ClientInput {
+  /** Версія відкритої картки; для нової — не передається. */
+  version?: number;
   name: string;
   note?: string | null;
   responsibleUserId?: UUID | null;

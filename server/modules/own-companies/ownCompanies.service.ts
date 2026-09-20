@@ -3,6 +3,7 @@ import type { User } from '@prisma/client';
 import type { OwnCompanyDto } from '@shared/types';
 import { prisma } from '../../db';
 import { notFound } from '../../http/errors';
+import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
 import { toOwnCompanyDto } from './ownCompanies.mapper';
 import { assertDefaultStaysActive, resolveDefaultFlag } from './ownCompanies.rules';
@@ -36,7 +37,13 @@ export async function updateOwnCompany(id: string, input: OwnCompanyInputBody, a
   const row = await prisma.$transaction(async (tx) => {
     // нову основну ставимо разом зі зняттям попередньої, щоб основна не подвоїлась
     if (isDefault) await tx.ownCompany.updateMany({ where: { isDefault: true, NOT: { id } }, data: { isDefault: false } });
-    return tx.ownCompany.update({ where: { id }, data: { ...toRow(input), isDefault, updatedById: actor.id } });
+    const expected = expectedVersion(input);
+    const saved = await tx.ownCompany.updateMany({
+      where: { id, ...(expected != null ? { version: expected } : {}) },
+      data: { ...toRow(input), isDefault, updatedById: actor.id, version: { increment: 1 } },
+    });
+    if (saved.count !== 1) throw await staleCardError('Юрособу', await tx.ownCompany.findUnique({ where: { id } }));
+    return tx.ownCompany.findUniqueOrThrow({ where: { id } });
   });
   await audit({ userId: actor.id, action: 'own_company.update', entityType: 'own_company', entityId: id, summary: `Змінено реквізити ${row.nameShort}` });
   // раніше сформовані КП не змінюються — у них знімок реквізитів

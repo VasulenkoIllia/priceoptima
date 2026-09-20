@@ -16,6 +16,7 @@ const dec = (v: number) => new Prisma.Decimal(v);
 function supplier(part: Partial<Supplier> = {}): Supplier {
   return {
     id: 'sup-1',
+    version: 1,
     name: 'Пласт-Сервіс',
     color: '#123456',
     logoUrl: null,
@@ -52,6 +53,7 @@ function supplier(part: Partial<Supplier> = {}): Supplier {
 function product(part: Partial<Product> = {}): Product {
   return {
     id: 'prd-1',
+    version: 1,
     supplierId: 'sup-1',
     sku: 'ЦР-100',
     skuKey: 'CP100',

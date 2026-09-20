@@ -348,7 +348,7 @@ class FakeTab {
     const at = this.srv.now().toISOString();
     const p = pickProduct(`p-new-${this.srv.products.size + 1}`, input.supplierId, { sku: input.sku, nameWork: input.nameWork, purchasePrice: input.purchasePrice ?? null });
     this.srv.addProducts(p);
-    return { ...p, minOrderQty: null, notes: null, priceSource: 'manual', lastImportId: null, createdAt: at, updatedAt: at } as ProductDetail;
+    return { ...p, version: 1, minOrderQty: null, notes: null, priceSource: 'manual', lastImportId: null, createdAt: at, updatedAt: at } as ProductDetail;
   }
 
   // ── блокування ────────────────────────────────────────────────────

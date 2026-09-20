@@ -61,6 +61,7 @@ export function toProductDetail(p: Product, ctx: CatalogContext): ProductDetail 
   const staleDays = supplier?.priceStaleDays ?? ctx.staleDays;
   return {
     id: p.id,
+    version: p.version,
     supplierId: p.supplierId,
     supplierName: supplier?.name ?? '—',
     sku: p.sku,
