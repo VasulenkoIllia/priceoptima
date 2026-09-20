@@ -1,4 +1,6 @@
 // Правила оновлення прайсів, які не залежать від бази: ролі джерела, розклад, архівація зниклих, шлях файлу прайсу.
+import type { PriceRow } from './connectors';
+import { normalizeInputPrice, normalizeInputRrp } from '@shared/pricing';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { PriceFeedKind } from '@prisma/client';
@@ -50,4 +52,21 @@ export function priceFileStoredPath(supplierId: string, fileName: string | null 
   const ext = path.extname(fileName ?? '').toLowerCase();
   const safeExt = /^\.[a-z0-9]{1,5}$/u.test(ext) ? ext : '.bin';
   return path.posix.join('price-lists', supplierId, `${randomUUID()}${safeExt}`);
+}
+
+/**
+ * Ціни вигрузки до вигляду каталогу (ІМП-2): вхід зберігаємо без ПДВ, РРЦ — з ПДВ.
+ * Як ціни подано у вигрузці — у картці постачальника.
+ */
+export function vatNormalizedRows(
+  rows: readonly PriceRow[],
+  supplier: { pricesIncludeVat: boolean; rrpIncludesVat: boolean },
+  vatRatePct: number,
+): PriceRow[] {
+  if (!supplier.pricesIncludeVat && supplier.rrpIncludesVat) return [...rows];
+  return rows.map((r) => ({
+    ...r,
+    purchasePrice: r.purchasePrice == null ? r.purchasePrice : normalizeInputPrice(r.purchasePrice, supplier.pricesIncludeVat, vatRatePct),
+    rrp: r.rrp == null ? r.rrp : normalizeInputRrp(r.rrp, supplier.rrpIncludesVat, vatRatePct),
+  }));
 }

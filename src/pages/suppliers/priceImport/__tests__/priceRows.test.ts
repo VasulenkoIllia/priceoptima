@@ -185,6 +185,31 @@ describe('buildPriceRows — рядки прайсу', () => {
     ]);
   });
 
+  it('РРЦ без ПДВ у прайсі зберігається з ПДВ, з ПДВ — як є', () => {
+    const rows = [
+      ['Код', 'Назва', 'Ціна', 'РРЦ'],
+      ['A-1', 'Кран', '100', '150'],
+    ];
+    const mapping = detectColumns(rows);
+    expect(buildPriceRows(rows, mapping, { ...DEFAULT_BUILD_OPTIONS, rrpIncludesVat: false }).rows[0].rrp).toBe(180);
+    expect(buildPriceRows(rows, mapping, { ...DEFAULT_BUILD_OPTIONS, rrpIncludesVat: true }).rows[0].rrp).toBe(150);
+  });
+
+  it('невідома валюта в рядку — рядок не імпортуємо', () => {
+    const rows = [
+      ['Код', 'Назва', 'Ціна', 'Валюта'],
+      ['A-1', 'Кран', '100', 'PLN'],
+      ['A-2', 'Труба', '50', 'USD'],
+      ['A-3', 'Фітинг', '20', ''],
+    ];
+    const res = buildPriceRows(rows, detectColumns(rows), DEFAULT_BUILD_OPTIONS);
+    expect(res.rows.map((r) => [r.code, r.currency])).toEqual([
+      ['A-2', 'USD'],
+      ['A-3', 'UAH'],
+    ]);
+    expect(res.preview[0].errors).toEqual(['Невідома валюта']);
+  });
+
   it('порожній код, дублікат коду, нечислова ціна і «Разом» — у підсумки, не в імпорт', () => {
     const rows = [
       ['Код', 'Назва', 'Ціна'],

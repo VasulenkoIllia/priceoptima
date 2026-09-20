@@ -134,6 +134,7 @@ export const priceMappingSchema = z.object({
   headerRow: z.number().int().min(0).max(1000).nullable().default(null),
   columns: z.partialRecord(z.enum(PRICE_COLUMN_ROLES), columnRef).default({}),
   pricesIncludeVat: z.boolean().default(false),
+  rrpIncludesVat: z.boolean().default(true),
   currency: z.enum(CURRENCY_CODES, { message: 'Невідома валюта' }).default('UAH'),
   skipRowsWithoutPrice: z.boolean().default(true),
   markMissing: z.boolean().default(false),

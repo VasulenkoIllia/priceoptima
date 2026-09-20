@@ -5,7 +5,7 @@ import { applySavedMapping, toSavedMapping, type SavedPriceMapping } from '../ma
 const HEADER = ['Код 1С', 'Назва номенклатури', 'Ціна опт з ПДВ', 'Наявність філія'];
 const ROWS = [HEADER, ['ТА-1', 'Кран', '219,00', '100+']];
 
-const OPTIONS = { pricesIncludeVat: true, currency: 'UAH' as const, skipRowsWithoutPrice: true, markMissing: false };
+const OPTIONS = { pricesIncludeVat: true, rrpIncludesVat: true, currency: 'UAH' as const, skipRowsWithoutPrice: true, markMissing: false };
 
 describe('збереження зіставлень прайсу', () => {
   it('toSavedMapping запам’ятовує і заголовки колонок, і налаштування', () => {

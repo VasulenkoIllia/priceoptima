@@ -2,6 +2,7 @@
 // Усі зміни одного оновлення пишемо однією транзакцією великими пакетами (без запиту на кожен рядок):
 // або прайс застосовано повністю, або не застосовано нічого й у журналі — запис із помилкою.
 import { Prisma, type PriceImportFile, type Supplier, type SupplierPriceFeed, type User } from '@prisma/client';
+import { getSettings } from '../settings/settings.service';
 import { FEED_CONNECTOR_INFO, isFeedConnector, type FeedConnector } from '@shared/catalog/connectors';
 import type { RatesPair, UUID } from '@shared/types';
 import { config } from '../../config';
@@ -40,6 +41,7 @@ import {
   feedHourOf,
   priceFileStoredPath,
   rolesFor,
+  vatNormalizedRows,
 } from './priceUpdates.rules';
 import type { ImportBody, PriceUpdatesQuery } from './priceUpdates.schemas';
 
@@ -141,7 +143,8 @@ export async function runFeedUpdate(
     const body = await step(ctx, () => downloadFeed(feed, secrets));
     const parsed = await step(ctx, async () => parseFeedBody(connector, body, supplier, feed));
     // без закупівельних цін у вигрузці ціну входу не чіпаємо, хоч би що віддав розбір
-    const rows = feed.hasPurchasePrice ? parsed.rows : parsed.rows.map((r) => ({ ...r, purchasePrice: null }));
+    const priced = feed.hasPurchasePrice ? parsed.rows : parsed.rows.map((r) => ({ ...r, purchasePrice: null }));
+    const rows = vatNormalizedRows(priced, supplier, (await getSettings()).vatRatePct);
     return applyPrice(ctx, {
       rows,
       rates: parsed.rates ?? null,

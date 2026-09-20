@@ -36,6 +36,7 @@ const REQUIRED_ROLES: PriceColumnRole[] = ['code'];
 
 interface ImportOptions {
   pricesIncludeVat: boolean;
+  rrpIncludesVat: boolean;
   currency: CurrencyCode;
   skipRowsWithoutPrice: boolean;
   markMissing: boolean;
@@ -90,6 +91,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   const [mapping, setMapping] = useState<PriceColumnMap>(EMPTY_COLUMN_MAP);
   const [options, setOptions] = useState<ImportOptions>({
     pricesIncludeVat: false,
+    rrpIncludesVat: true,
     currency: 'UAH',
     skipRowsWithoutPrice: true,
     markMissing: false,
@@ -118,6 +120,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     setMapping(next);
     setOptions({
       pricesIncludeVat: detectPriceIncludesVat(priceHeader) ?? saved?.pricesIncludeVat ?? supplier.data?.pricesIncludeVat ?? false,
+      // РРЦ у каталозі зберігається з ПДВ; як у прайсі — з картки постачальника, якщо профіль ще не збережено
+      rrpIncludesVat: saved?.rrpIncludesVat ?? supplier.data?.rrpIncludesVat ?? true,
       currency: detectHeaderCurrency(priceHeader) ?? saved?.currency ?? supplier.data?.defaultCurrency ?? 'UAH',
       skipRowsWithoutPrice: saved?.skipRowsWithoutPrice ?? true,
       markMissing: saved?.markMissing ?? false,
@@ -449,6 +453,15 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
                   Ціни з ПДВ
                 </Checkbox>
               </Tooltip>
+              <Tooltip title="РРЦ у прайсі вказана з ПДВ. Якщо без ПДВ — зніміть галочку, помножимо на 1,2: у каталозі РРЦ завжди з ПДВ">
+                <Checkbox
+                  checked={options.rrpIncludesVat}
+                  disabled={mapping.rrp == null}
+                  onChange={(e) => setOptions((o) => ({ ...o, rrpIncludesVat: e.target.checked }))}
+                >
+                  РРЦ з ПДВ
+                </Checkbox>
+              </Tooltip>
               <label className="po-pi-field">
                 <span style={{ flexBasis: 'auto' }}>Валюта прайсу:</span>
                 <Select<CurrencyCode>
@@ -501,7 +514,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
             )}
             <RowsPreview preview={built.preview} />
             <div className="po-muted" style={{ fontSize: 12 }}>
-              Ціни показано вже зведеними до входу без ПДВ{options.pricesIncludeVat ? ` (поділено на ${(1 + vatRatePct / 100).toLocaleString('uk-UA')})` : ''}. РРЦ читається як ціна з ПДВ.
+              Ціни показано вже зведеними до входу без ПДВ{options.pricesIncludeVat ? ` (поділено на ${(1 + vatRatePct / 100).toLocaleString('uk-UA')})` : ''}. РРЦ у
+              каталозі зберігається з ПДВ{options.rrpIncludesVat ? '' : ` (помножено на ${(1 + vatRatePct / 100).toLocaleString('uk-UA')})`}.
             </div>
           </>
         ) : null}

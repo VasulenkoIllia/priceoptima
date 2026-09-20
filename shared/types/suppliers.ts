@@ -279,6 +279,8 @@ export interface PriceImportMapping {
   /** Індекс колонки + її заголовок — якщо колонки посунуться, знайдемо за заголовком. */
   columns: Partial<Record<PriceColumnRole, { index: number; header: string }>>;
   pricesIncludeVat: boolean;
+  /** РРЦ у прайсі вже з ПДВ (інакше множимо на ставку). */
+  rrpIncludesVat: boolean;
   currency: CurrencyCode;
   skipRowsWithoutPrice: boolean;
   markMissing: boolean;

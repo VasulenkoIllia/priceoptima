@@ -153,6 +153,7 @@ describe('зіставлення колонок файлу прайсу', () => 
       headerRow: 0,
       columns: { code: { index: 0, header: 'Код' }, purchasePrice: { index: 3, header: 'Ціна з ПДВ' } },
       pricesIncludeVat: false,
+      rrpIncludesVat: true,
       currency: 'UAH',
       skipRowsWithoutPrice: true,
       markMissing: false,

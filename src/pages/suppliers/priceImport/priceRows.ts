@@ -2,7 +2,7 @@
 // Чисті функції (без DOM) — покриті тестами.
 import { PRICE_COLUMN_ROLES, type CurrencyCode, type PriceColumnRole } from '@shared/enums';
 import { normalizeUnit, parseCurrency, parseLocaleNumber } from '@shared/parse';
-import { normalizeInputPrice, round4 } from '@shared/pricing';
+import { normalizeInputPrice, normalizeInputRrp } from '@shared/pricing';
 import type { PriceImportRow } from '@shared/types';
 import { parseStockText } from './stock';
 
@@ -153,6 +153,8 @@ export function detectHeaderCurrency(header: string | null | undefined): Currenc
 export interface BuildRowsOptions {
   /** Колонка ціни закупівлі — з ПДВ (ділимо на 1 + ПДВ). */
   pricesIncludeVat: boolean;
+  /** Колонка РРЦ — з ПДВ (інакше множимо на 1 + ПДВ: у каталозі РРЦ зберігається з ПДВ). */
+  rrpIncludesVat: boolean;
   vatRatePct: number;
   /** Валюта, якщо в прайсі немає колонки валюти. */
   currency: CurrencyCode;
@@ -162,6 +164,7 @@ export interface BuildRowsOptions {
 
 export const DEFAULT_BUILD_OPTIONS: BuildRowsOptions = {
   pricesIncludeVat: false,
+  rrpIncludesVat: true,
   vatRatePct: 20,
   currency: 'UAH',
   skipRowsWithoutPrice: true,
@@ -241,7 +244,10 @@ export function buildPriceRows(
 
     const rawRrp = text(raw, mapping.rrp);
     const parsedRrp = parseLocaleNumber(rawRrp);
-    const rrp = parsedRrp.valid && parsedRrp.value != null && parsedRrp.value > 0 ? round4(parsedRrp.value) : null;
+    const rrp =
+      parsedRrp.valid && parsedRrp.value != null && parsedRrp.value > 0
+        ? normalizeInputRrp(parsedRrp.value, options.rrpIncludesVat, options.vatRatePct)
+        : null;
     if (rawRrp && rrp == null && !parsedRrp.valid) warnings.push('РРЦ не число');
 
     if (purchasePrice != null) stats.withPrice++;
@@ -261,6 +267,11 @@ export function buildPriceRows(
       stats.duplicates++;
     }
 
+    // валюту з колонки не розпізнали — рядок не імпортуємо: інакше ціна потрапить у каталог не в тій валюті (ІМП-3)
+    const rawCurrency = mapping.currency != null ? text(raw, mapping.currency) : '';
+    const rowCurrency = rawCurrency ? parseCurrency(rawCurrency) : null;
+    if (rawCurrency && !rowCurrency) errors.push('Невідома валюта');
+
     // колонку наявності не вибрано — наявність у каталозі не чіпаємо (null), а не скидаємо на «невідомо»
     const stock = mapping.stock != null ? parseStockText(text(raw, mapping.stock)) : { stockQty: null, availability: null };
     const unitRaw = text(raw, mapping.unit);
@@ -271,7 +282,7 @@ export function buildPriceRows(
       brand: text(raw, mapping.brand) || null,
       unitCode: unitRaw ? (normalizeUnit(unitRaw) ?? unitRaw) : null,
       purchasePrice,
-      currency: parseCurrency(text(raw, mapping.currency)) ?? options.currency,
+      currency: rowCurrency ?? options.currency,
       rrp,
       stockQty: stock.stockQty,
       availability: stock.availability,

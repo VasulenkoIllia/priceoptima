@@ -9,6 +9,7 @@ import {
   lastScheduledAt,
   priceFileStoredPath,
   rolesFor,
+  vatNormalizedRows,
 } from '../modules/price-updates/priceUpdates.rules';
 
 describe('ролі джерела прайсу', () => {
@@ -78,5 +79,32 @@ describe('шлях файлу прайсу', () => {
     expect(priceFileStoredPath('sup-1', '../../etc/passwd')).toMatch(/^price-lists\/sup-1\/[0-9a-f-]{36}\.bin$/u);
     expect(priceFileStoredPath('sup-1', 'прайс.x;rm -rf')).toMatch(/\.bin$/u);
     expect(priceFileStoredPath('sup-1', null)).toMatch(/\.bin$/u);
+  });
+});
+
+describe('ПДВ у цінах вигрузки (ІМП-2)', () => {
+  const row = (patch: Partial<{ purchasePrice: number | null; rrp: number | null }>) =>
+    ({ code: 'A-1', purchasePrice: null, rrp: null, imageUrls: [], ...patch }) as never;
+
+  it('прайс без ПДВ і РРЦ з ПДВ — ціни не чіпаємо', () => {
+    const rows = [row({ purchasePrice: 100, rrp: 180 })];
+    expect(vatNormalizedRows(rows, { pricesIncludeVat: false, rrpIncludesVat: true }, 20)).toMatchObject([
+      { purchasePrice: 100, rrp: 180 },
+    ]);
+  });
+
+  it('РРЦ у прайсі без ПДВ — у каталозі стає з ПДВ', () => {
+    const rows = [row({ purchasePrice: 100, rrp: 150 })];
+    expect(vatNormalizedRows(rows, { pricesIncludeVat: false, rrpIncludesVat: false }, 20)).toMatchObject([
+      { purchasePrice: 100, rrp: 180 },
+    ]);
+  });
+
+  it('вхідна ціна у прайсі з ПДВ — у каталозі без ПДВ; порожні ціни лишаються порожніми', () => {
+    const rows = [row({ purchasePrice: 120, rrp: 180 }), row({})];
+    expect(vatNormalizedRows(rows, { pricesIncludeVat: true, rrpIncludesVat: true }, 20)).toMatchObject([
+      { purchasePrice: 100, rrp: 180 },
+      { purchasePrice: null, rrp: null },
+    ]);
   });
 });
