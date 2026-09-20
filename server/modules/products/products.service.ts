@@ -3,6 +3,7 @@
 // остаточний порядок і ваги — products.search.
 import { Prisma, type Product, type User } from '@prisma/client';
 import { planName1cImport } from '@shared/catalog/name1c';
+import { toIsoDate } from '@shared/format';
 import { normalizeSku } from '@shared/parse';
 import { normalizeInputPrice } from '@shared/pricing';
 import type {
@@ -20,6 +21,7 @@ import { prisma } from '../../db';
 import { duplicate, notFound } from '../../http/errors';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
+import { getEffectiveRates } from '../rates/rates.service';
 import { getSettings } from '../settings/settings.service';
 import { toPriceHistoryEntry, toProductDetail, toProductListItem, type CatalogContext } from './products.mapper';
 import { availabilityOf, priceChanged, productOrderBy, searchTextOf, staleBefore, likePattern } from './products.rules';
@@ -55,17 +57,9 @@ const LOOKUP_PREFIX_ROWS = 500;
 /** Постачальники, налаштування й курси НБУ читаємо один раз на запит, а не на кожен рядок. */
 async function catalogContext(): Promise<CatalogContext> {
   const now = new Date();
-  const [settings, suppliers, rates] = await Promise.all([
-    getSettings(),
-    prisma.supplier.findMany(),
-    prisma.currencyRate.findMany({
-      where: { source: 'nbu', rateDate: { lte: now } },
-      orderBy: { rateDate: 'desc' },
-      distinct: ['currency'],
-    }),
-  ]);
-  const nbu: RatesPair = { USD: null, EUR: null };
-  for (const r of rates) if (r.currency !== 'UAH') nbu[r.currency] = r.rate.toNumber();
+  // курс як у заявці: прайс → ручний курс постачальника → загальний ручний курс → НБУ (ДОВ-3)
+  const [settings, suppliers, effective] = await Promise.all([getSettings(), prisma.supplier.findMany(), getEffectiveRates(toIsoDate(now))]);
+  const nbu: RatesPair = { USD: effective.USD?.rate ?? null, EUR: effective.EUR?.rate ?? null };
   return {
     now,
     staleDays: settings.priceStaleDays,
