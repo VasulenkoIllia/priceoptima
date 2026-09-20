@@ -344,6 +344,14 @@ class FakeTab {
     return { results };
   }
 
+  async updateProductPrice(id: UUID, input: { currency: string; purchasePrice: number | null; rrp: number | null }): Promise<{ product: ProductDetail; historyEntry: null }> {
+    const p = this.srv.products.get(id);
+    if (!p) throw new DataSourceError('NOT_FOUND', 'Товар не знайдено');
+    const next = { ...p, purchasePrice: input.purchasePrice, rrp: input.rrp, priceUpdatedAt: this.srv.now().toISOString() };
+    this.srv.addProducts(next);
+    return { product: { ...next, version: 1, minOrderQty: null, notes: null, priceSource: 'manual', lastImportId: null, createdAt: next.priceUpdatedAt!, updatedAt: next.priceUpdatedAt! } as ProductDetail, historyEntry: null };
+  }
+
   async createProduct(input: ProductInput): Promise<ProductDetail> {
     const at = this.srv.now().toISOString();
     const p = pickProduct(`p-new-${this.srv.products.size + 1}`, input.supplierId, { sku: input.sku, nameWork: input.nameWork, purchasePrice: input.purchasePrice ?? null });

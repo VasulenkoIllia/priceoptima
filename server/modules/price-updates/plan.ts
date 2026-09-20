@@ -415,7 +415,8 @@ export function planApply(input: PlanInput): PlanResult {
       note(report.relinked, { code, previousSku: current.sku, by: match.by });
     }
 
-    if ((roles.purchasePrice || roles.rrp !== 'none') && current.priceOrigin === 'import') {
+    // ціну веде прайс: навіть якщо її правили вручну, нове завантаження її замінює (ІМП-6)
+    if (roles.purchasePrice || roles.rrp !== 'none') {
       if (roles.purchasePrice) {
         // валюту веде джерело вхідної ціни; «ціну перевірено» — теж лише воно
         next.purchasePrice = price(row.purchasePrice) ?? current.purchasePrice;

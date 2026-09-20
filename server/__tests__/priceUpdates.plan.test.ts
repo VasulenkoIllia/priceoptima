@@ -191,13 +191,12 @@ describe('звірка: ціни', () => {
     expect(result.historyEntries[0]).toMatchObject({ currency: 'USD', purchasePrice: 3 });
   });
 
-  it('ціну товару з ручною ціною прайс не чіпає, а наявність — оновлює', () => {
+  it('ручну ціну наступне завантаження прайсу замінює (ІМП-6)', () => {
     const manual = product({ priceOrigin: 'manual', purchasePrice: 500, stockQty: 1 });
-    const result = plan({ existing: [manual], rows: [rowOf(manual, { purchasePrice: 1, rrp: 2, stockQty: 30 })] });
-    expect(result.counters).toMatchObject({ changed: 0, stockChanged: 1, productsTotal: 0, skipped: 0 });
-    expect(result.updates[0]).toMatchObject({ purchasePrice: 500, rrp: 150, stockQty: 30 });
-    expect(result.priceConfirmedIds).toEqual([]);
-    expect(result.historyEntries).toEqual([]);
+    const result = plan({ existing: [manual], rows: [rowOf(manual, { purchasePrice: 400, rrp: 600, stockQty: 30 })] });
+    expect(result.updates[0]).toMatchObject({ purchasePrice: 400, rrp: 600, stockQty: 30 });
+    expect(result.priceConfirmedIds).toEqual([manual.id]);
+    expect(result.historyEntries.length).toBe(1);
   });
 
   it('одна велика зміна застосовується, але потрапляє у звіт', () => {

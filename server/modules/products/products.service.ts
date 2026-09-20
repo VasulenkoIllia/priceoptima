@@ -22,7 +22,7 @@ import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
 import { getSettings } from '../settings/settings.service';
 import { toPriceHistoryEntry, toProductDetail, toProductListItem, type CatalogContext } from './products.mapper';
-import { assertManualPrice, availabilityOf, priceChanged, productOrderBy, searchTextOf, staleBefore, likePattern } from './products.rules';
+import { availabilityOf, priceChanged, productOrderBy, searchTextOf, staleBefore, likePattern } from './products.rules';
 import {
   compareHits,
   isEmptyPlan,
@@ -409,7 +409,6 @@ export async function updateProductPrice(
   actor: User,
 ): Promise<ProductPriceUpdateResult> {
   const current = await productOrFail(id);
-  assertManualPrice(current.priceOrigin);
   // вхід, введений з ПДВ, зберігається без ПДВ (Ф1)
   const purchasePrice =
     input.priceIncludesVat && input.purchasePrice != null
@@ -433,7 +432,8 @@ export async function updateProductPrice(
   const result = await prisma.$transaction(async (tx) => {
     const product = await tx.product.update({
       where: { id },
-      data: { ...after, priceUpdatedAt: now, priceOrigin: 'manual', updatedById: actor.id },
+      // джерело ціни лишаємо як було: товар із прайсу оновиться при наступному завантаженні (ІМП-6)
+      data: { ...after, priceUpdatedAt: now, updatedById: actor.id },
     });
     if (!changed) return { product, entry: null };
     const entry = await tx.priceHistory.create({

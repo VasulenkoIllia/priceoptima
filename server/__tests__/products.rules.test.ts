@@ -1,9 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { isPriceStale, priceAgeDays } from '@shared/pricing';
-import { ApiError } from '../http/errors';
 import {
-  assertManualPrice,
   availabilityOf,
   likePattern,
   priceChanged,
@@ -13,16 +11,6 @@ import {
 } from '../modules/products/products.rules';
 
 const DAY_MS = 86_400_000;
-
-function errorOf(fn: () => unknown): ApiError {
-  try {
-    fn();
-  } catch (e) {
-    if (e instanceof ApiError) return e;
-    throw e;
-  }
-  throw new Error('очікували помилку');
-}
 
 describe('текст пошуку', () => {
   it('складається з артикула, назв і бренду', () => {
@@ -82,15 +70,6 @@ describe('зміна ціни', () => {
     expect(priceChanged(before, { ...before, currency: 'USD' })).toBe(true);
     expect(priceChanged(before, { ...before, stockQty: null })).toBe(true);
     expect(priceChanged(before, { ...before, availability: 'out_of_stock' })).toBe(true);
-  });
-});
-
-describe('ручна зміна ціни', () => {
-  it('дозволена лише товару, доданому вручну', () => {
-    expect(() => assertManualPrice('manual')).not.toThrow();
-    const e = errorOf(() => assertManualPrice('import'));
-    expect(e.code).toBe('FORBIDDEN');
-    expect(e.message).toContain('прайс постачальника');
   });
 });
 

@@ -4,8 +4,9 @@ import { produce, type Draft } from 'immer';
 import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { RequestStatus } from '@shared/enums';
-import { toIsoDate } from '@shared/format';
+import { formatRequestNumber, toIsoDate } from '@shared/format';
 import {
+  catalogSnapshotOf,
   computeRequest,
   createOfferFromProduct,
   createRequestLine,
@@ -13,6 +14,7 @@ import {
   initialOfferQty,
   isCatalogChanged,
   offerMultiplicity,
+  offerWithManualPrice,
   refreshOfferFromCatalog,
   type ProductForOffer,
 } from '@shared/pricing';
@@ -189,6 +191,11 @@ export interface RequestDocActions {
   applyMix(): number;
   /** Ціна змінилась у каталозі — оновити знімок з прайсу постачальника (вхідні ціни вручну не змінюються). */
   refreshOfferPrice(offerId: UUID): boolean;
+  /**
+   * Ручна ціна входу (РЕД-10): у цій заявці завжди, у каталозі — на вибір.
+   * У каталозі ціну веде прайс, тож наступне завантаження прайсу її замінить.
+   */
+  setOfferPurchasePrice(offerId: UUID, purchasePriceCur: number | null, options?: { updateCatalog?: boolean }): Promise<boolean>;
   createProductAndOffer(lineId: UUID, blockId: UUID | null, input: ProductInput): Promise<ProductDetail>;
 
   setMarkupDefaults(patch: Partial<MarkupSettings>): void;
@@ -1058,6 +1065,31 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         const next = refreshOfferFromCatalog(offer, offer.catalog, rate, new Date(), 'catalog_refresh', markup);
         editOffer(offerId, (o) => {
           Object.assign(o, next);
+        });
+        return true;
+      },
+
+      async setOfferPurchasePrice(offerId, purchasePriceCur, options) {
+        const s = get();
+        const offer = s.doc?.offers.find((o) => o.id === offerId);
+        if (!s.doc || s.readOnly || !offer) return false;
+        const rate = selectComputed(s)?.offers[offerId]?.rate ?? null;
+        const supplierMarkupPct = s.doc.blocks.find((b) => b.id === offer.blockId)?.supplierMarkupPct ?? 0;
+        editOffer(offerId, (o) => {
+          Object.assign(o, offerWithManualPrice(o, purchasePriceCur, rate, new Date(), supplierMarkupPct));
+        });
+        if (!options?.updateCatalog || !offer.productId) return true;
+        const { product } = await ds.updateProductPrice(offer.productId, {
+          currency: offer.currency,
+          purchasePrice: purchasePriceCur,
+          rrp: offer.rrpCur,
+          source: 'manual',
+          note: `Змінено з заявки № ${formatRequestNumber(s.doc.header.number)}`,
+        });
+        // знімок каталогу оновлюємо, щоб не світилось «ціна в каталозі змінилась»
+        editOffer(offerId, (o) => {
+          o.catalog = catalogSnapshotOf(product);
+          o.priceDate = product.priceUpdatedAt;
         });
         return true;
       },

@@ -2,6 +2,7 @@
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
+  EditOutlined,
   GlobalOutlined,
   SearchOutlined,
   StopOutlined,
@@ -10,11 +11,11 @@ import {
   UndoOutlined,
 } from '@ant-design/icons';
 import { Button, Descriptions, Drawer, Empty, Input, Space, Switch, Tag, Tooltip, Typography } from 'antd';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AVAILABILITY_LABELS, CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatMoney, formatMoneyUah, formatPct, formatQty, formatRate, formatWarning } from '@shared/format';
 import { offerDisplayName } from '@shared/pricing';
-import type { UUID } from '@shared/types';
+import type { Offer, UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
 import { siteSearchUrl } from '@/components/ProductPicker';
@@ -23,6 +24,7 @@ import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { SEMANTIC_COLORS } from '@/theme';
 import { rateSourceLabel } from './BlockHeader';
 import { EXCLUDE_HINT } from './cells';
+import { OfferPriceDialog } from './OfferPriceDialog';
 import { useSourcingUi } from './sourcingUiStore';
 import { useSourcingActions } from './useSourcingActions';
 
@@ -41,6 +43,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
   const setOfferNote = useRequestDoc((s) => s.setOfferNote);
   const setOfferNoRounding = useRequestDoc((s) => s.setOfferNoRounding);
   const computed = useRequestComputed();
+  const [priceOffer, setPriceOffer] = useState<Offer | null>(null);
 
   if (!line || !block) return <Empty description="Рядок або блок видалено" />;
   const oc = offer ? computed?.offers[offer.id] : undefined;
@@ -122,6 +125,11 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
           {catalogChanged && !readOnly ? (
             <Typography.Link onClick={() => actions.refreshOfferPrice(lineId, blockId)} title="Взяти актуальну ціну з прайсу постачальника">
               <SyncOutlined /> Оновити з прайсу
+            </Typography.Link>
+          ) : null}
+          {!readOnly ? (
+            <Typography.Link onClick={() => setPriceOffer(offer)} title="Постачальник дав іншу ціну на цей запит">
+              <EditOutlined /> Змінити ціну
             </Typography.Link>
           ) : null}
         </Space>
@@ -250,6 +258,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
           Очистити
         </Button>
       </div>
+      <OfferPriceDialog offer={priceOffer} onClose={() => setPriceOffer(null)} />
     </div>
   );
 }

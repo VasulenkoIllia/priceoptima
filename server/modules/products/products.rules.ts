@@ -4,7 +4,6 @@ import type { Prisma } from '@prisma/client';
 import { buildSearchText } from '@shared/parse';
 import type { AvailabilityStatus, CurrencyCode } from '@shared/enums';
 import type { ProductSortField } from '@shared/types';
-import { forbidden } from '../../http/errors';
 
 const DAY_MS = 86_400_000;
 
@@ -51,11 +50,6 @@ export function priceChanged(before: PriceState, after: PriceState): boolean {
 }
 
 /** Ціну з прайсу вручну не правлять: інакше наступне оновлення прайсу її мовчки перезапише. */
-export function assertManualPrice(priceOrigin: 'import' | 'manual'): void {
-  if (priceOrigin === 'manual') return;
-  throw forbidden('Ціну цього товару оновлює прайс постачальника. Скоригувати ціну для клієнта можна в заявці');
-}
-
 /** Екранування % і _ для LIKE (артикул може містити «%»). */
 export function likePattern(value: string): string {
   return value.replace(/[\\%_]/gu, (ch) => `\\${ch}`);
