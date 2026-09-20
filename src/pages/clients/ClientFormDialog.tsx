@@ -41,22 +41,27 @@ function toFormValues(c: ClientDetail | null): FormValues {
     name: c.name,
     note: c.note,
     responsibleUserId: c.responsibleUserId,
-    counterparties: c.counterparties.map((cp) => ({
-      id: cp.id,
-      nameShort: cp.nameShort,
-      nameFull: cp.nameFull,
-      edrpou: cp.edrpou,
-      isVatPayer: cp.isVatPayer,
-      addressLegal: cp.addressLegal,
-    })),
-    contacts: c.contacts.map((ct) => ({
-      id: ct.id,
-      fullName: ct.fullName,
-      position: ct.position,
-      phone: ct.phone,
-      email: ct.email,
-      counterpartyId: ct.counterpartyId,
-    })),
+    // архівні (прибрані раніше) у формі не показуємо — вони лишаються лише в старих заявках
+    counterparties: c.counterparties
+      .filter((cp) => cp.isActive)
+      .map((cp) => ({
+        id: cp.id,
+        nameShort: cp.nameShort,
+        nameFull: cp.nameFull,
+        edrpou: cp.edrpou,
+        isVatPayer: cp.isVatPayer,
+        addressLegal: cp.addressLegal,
+      })),
+    contacts: c.contacts
+      .filter((ct) => ct.isActive)
+      .map((ct) => ({
+        id: ct.id,
+        fullName: ct.fullName,
+        position: ct.position,
+        phone: ct.phone,
+        email: ct.email,
+        counterpartyId: ct.counterpartyId,
+      })),
   };
 }
 

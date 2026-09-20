@@ -120,10 +120,12 @@ export function CreateRequestDialog({ open, onClose, onCreated }: CreateRequestD
               disabled={!clientId}
               loading={client.isFetching}
               placeholder="Юрособа клієнта"
-              options={detail?.counterparties.map((cp) => ({
-                value: cp.id,
-                label: cp.edrpou ? `${cp.nameShort} (${cp.edrpou})` : cp.nameShort,
-              }))}
+              options={detail?.counterparties
+                .filter((cp) => cp.isActive)
+                .map((cp) => ({
+                  value: cp.id,
+                  label: cp.edrpou ? `${cp.nameShort} (${cp.edrpou})` : cp.nameShort,
+                }))}
             />
           </Form.Item>
           <Form.Item name="contactId" label="Контакт">

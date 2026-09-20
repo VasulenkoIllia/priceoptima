@@ -152,8 +152,11 @@ export function EditorHeader() {
 
   // поки довідники вантажаться — показуємо значення з refs документа
   const clientOptions = clients.data?.map((c) => ({ value: c.id, label: c.name })) ?? (refs.client ? [{ value: refs.client.id, label: refs.client.name }] : []);
+  // архівні контрагенти в нових заявках не пропонуємо, але в цій заявці лишається той, що вже обраний
   const counterpartyOptions =
-    detail?.counterparties.map((cp) => ({ value: cp.id, label: cp.edrpou ? `${cp.nameShort} (${cp.edrpou})` : cp.nameShort })) ??
+    detail?.counterparties
+      .filter((cp) => cp.isActive || cp.id === header.counterpartyId)
+      .map((cp) => ({ value: cp.id, label: cp.edrpou ? `${cp.nameShort} (${cp.edrpou})` : cp.nameShort })) ??
     (refs.counterparty ? [{ value: refs.counterparty.id, label: refs.counterparty.nameShort }] : []);
   const contactOptions = detail
     ? contactsFor(detail, header.counterpartyId).map((c) => ({ value: c.id, label: c.fullName }))

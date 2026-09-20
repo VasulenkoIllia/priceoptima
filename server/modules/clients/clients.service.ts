@@ -108,8 +108,9 @@ function whereMatches(tokens: readonly string[]): Prisma.ClientWhereInput {
 }
 
 interface NestedRows {
-  counterparties: Omit<Prisma.CounterpartyCreateManyInput, 'clientId'>[];
-  contacts: Omit<Prisma.ClientContactCreateManyInput, 'clientId'>[];
+  // id завжди відомий (див. prepareNested): за ним оновлюємо наявні рядки й лишаємо посилання заявок цілими
+  counterparties: (Omit<Prisma.CounterpartyCreateManyInput, 'clientId'> & { id: string })[];
+  contacts: (Omit<Prisma.ClientContactCreateManyInput, 'clientId'> & { id: string })[];
 }
 
 /** Готує вкладені рядки: нові ідентифікатори, позначки «основний» і зв'язок контактів із контрагентами. */
@@ -151,14 +152,20 @@ function prepareNested(counterparties: readonly CounterpartyInputBody[], contact
   };
 }
 
+/**
+ * Контрагентів і контакти не видаляємо (ДОВ-6): на них посилаються збережені заявки й КП.
+ * Прибрані з картки ховаємо в архів — у списках вибору їх немає, у старих заявках вони лишаються видимими.
+ */
 async function saveNested(tx: Prisma.TransactionClient, clientId: string, nested: NestedRows): Promise<void> {
-  await tx.clientContact.deleteMany({ where: { clientId } });
-  await tx.counterparty.deleteMany({ where: { clientId } });
-  if (nested.counterparties.length) {
-    await tx.counterparty.createMany({ data: nested.counterparties.map((cp) => ({ ...cp, clientId })) });
+  const keptCounterparties = nested.counterparties.map((cp) => cp.id);
+  const keptContacts = nested.contacts.map((ct) => ct.id);
+  await tx.clientContact.updateMany({ where: { clientId, id: { notIn: keptContacts } }, data: { isActive: false } });
+  await tx.counterparty.updateMany({ where: { clientId, id: { notIn: keptCounterparties } }, data: { isActive: false } });
+  for (const cp of nested.counterparties) {
+    await tx.counterparty.upsert({ where: { id: cp.id }, create: { ...cp, clientId }, update: cp });
   }
-  if (nested.contacts.length) {
-    await tx.clientContact.createMany({ data: nested.contacts.map((ct) => ({ ...ct, clientId })) });
+  for (const ct of nested.contacts) {
+    await tx.clientContact.upsert({ where: { id: ct.id }, create: { ...ct, clientId }, update: ct });
   }
 }
 
