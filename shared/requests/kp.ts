@@ -41,6 +41,8 @@ export interface KpBuildInput {
   ctx: PricingContext;
   parties: KpParties;
   defaultTerms: readonly KpTerm[] | null;
+  /** Головні фото товарів для бланка (потрібні, лише коли settings.showImages). */
+  images?: ReadonlyMap<UUID, string>;
 }
 
 export interface KpBuilt {
@@ -59,7 +61,7 @@ export function buildKpVersion(i: KpBuildInput): KpBuilt {
   }
   // рядки без ціни продажу в КП не входять (інтерфейс попереджає перед формуванням)
   const computed = computeRequest(i.state, i.ctx);
-  const rows = buildKpRows(i.state, computed, { ...i.settings, onlyApproved: false }, i.ctx);
+  const rows = buildKpRows(i.state, computed, { ...i.settings, onlyApproved: false }, i.ctx, i.images);
   if (!rows.length) throw new KpBuildError('VALIDATION_ERROR', 'Немає позицій з ціною продажу — підберіть товари й задайте націнку');
   const snapshot = buildKpSnapshot({
     kpNumber: i.kpNumber,

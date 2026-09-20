@@ -8,6 +8,7 @@ import { isEditableStatus } from '@shared/status';
 import type { KpDocumentDto, UUID } from '@shared/types';
 import { prisma } from '../../db';
 import { ApiError, notFound } from '../../http/errors';
+import { mainImagesFor } from '../images/images.service';
 import { listOwnCompanies } from '../own-companies/ownCompanies.service';
 import { assertLockHolder } from './locks.service';
 import { pricingEnv, productsByIds } from './requests.context';
@@ -48,6 +49,8 @@ export async function createKp(requestId: UUID, body: KpCreateInput, actor: User
     if (!own) throw new ApiError('VALIDATION_ERROR', 'Спершу додайте нашу юрособу в Налаштуваннях');
     const manager = await tx.user.findUnique({ where: { id: state.header.managerId }, select: { shortName: true, phone: true } });
     const kps = await kpsOf(requestId, tx);
+    // фото беремо лише коли їх додають у бланк: перше звернення зберігає фото з прайсу в наше сховище
+    const images = body.settings.showImages ? await mainImagesFor(state.offers.map((o) => o.productId).filter((id): id is string => !!id)) : undefined;
 
     let built;
     try {
@@ -60,6 +63,7 @@ export async function createKp(requestId: UUID, body: KpCreateInput, actor: User
         date: toIsoDate(now),
         ctx: env.ctx,
         parties: { ownCompanyId: own.id, seller: own, buyer: kpBuyerOf(cp, client?.name, contact), managerName: kpManagerName(manager) },
+        images,
         defaultTerms: env.settings.kpTerms,
       });
     } catch (e) {

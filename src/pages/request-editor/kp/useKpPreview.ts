@@ -23,7 +23,12 @@ export function useKpPreview(): { snapshot: KpSnapshot | null; checks: KpChecks 
     const { header, refs } = doc;
     const seller = own.data?.find((c) => c.id === header.ownCompanyId);
     if (!seller) return { snapshot: null, checks };
-    const rows = buildKpRows(doc, computed, { ...header.kpSettings, onlyApproved: false }, ctx);
+    // у перегляді фото беремо з каталогу (у збереженому КП — копія в нашому сховищі)
+    const images = new Map<string, string>();
+    if (header.kpSettings.showImages) {
+      for (const o of doc.offers) if (o.productId && o.catalog?.imageUrl) images.set(o.productId, o.catalog.imageUrl);
+    }
+    const rows = buildKpRows(doc, computed, { ...header.kpSettings, onlyApproved: false }, ctx, images);
     const snapshot = buildKpSnapshot({
       kpNumber,
       requestNumber: header.number,

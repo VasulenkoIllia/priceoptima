@@ -5,13 +5,15 @@ import type { ProductImageDto, UUID } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
 import { notFound } from '../../http/errors';
+import { logger } from '../../logger';
 import { productOrFail } from '../products/products.service';
-import { imageUrlOf, toProductImageDto } from './images.mapper';
+import { imageUrlOf, servedImageUrl, toProductImageDto } from './images.mapper';
 import { nextMainId } from './images.rules';
 import type { ProductImagePatchBody, ProductImageUrlBody } from './images.schemas';
 import {
   assertUploadedImage,
   imageFileSize,
+  MAX_IMAGE_BYTES,
   removeImageFile,
   resolveStoredPath,
   safeFileName,
@@ -26,6 +28,71 @@ const IMAGE_ORDER: Prisma.ProductImageOrderByWithRelationInput[] = [
   { sortOrder: 'asc' },
   { createdAt: 'asc' },
 ];
+
+/** Скільки чекаємо фото з сайту постачальника — КП не має через нього зависати. */
+const FEED_IMAGE_TIMEOUT_MS = 10_000;
+
+/**
+ * Головні фото товарів для КП: посилання на файл у нашому сховищі.
+ * Фото з прайсу зберігаємо локально при першій потребі — бланк не має залежати від сайту постачальника.
+ */
+export async function mainImagesFor(productIds: readonly UUID[]): Promise<Map<UUID, string>> {
+  const ids = [...new Set(productIds)];
+  const out = new Map<UUID, string>();
+  if (!ids.length) return out;
+  const rows = await prisma.productImage.findMany({ where: { productId: { in: ids }, isMain: true }, orderBy: IMAGE_ORDER });
+  for (const row of rows) {
+    const stored = row.storedPath ? row : await storeFeedImage(row);
+    if (stored) out.set(row.productId, servedImageUrl(stored.id));
+  }
+  return out;
+}
+
+/** Фото з прайсу → файл у сховищі (один раз). Не вийшло — КП просто буде без фото. */
+async function storeFeedImage(row: ProductImage): Promise<ProductImage | null> {
+  if (!row.url) return null;
+  try {
+    const file = await downloadImage(row.url);
+    const storedPath = storedPathFor(row.productId, file.type);
+    await saveImageFile(config.uploadsDir, storedPath, file.data);
+    return await prisma.productImage.update({
+      where: { id: row.id },
+      data: { storedPath, mimeType: file.type, sizeBytes: file.data.length },
+    });
+  } catch (e) {
+    logger.warn({ err: e, imageId: row.id }, 'Не вдалося зберегти фото з прайсу');
+    return null;
+  }
+}
+
+async function downloadImage(url: string): Promise<{ data: Buffer; type: ImageMimeType }> {
+  if (!/^https?:\/\//iu.test(url)) throw new Error('Фото беремо лише за http(s)');
+  const response = await fetch(url, { signal: AbortSignal.timeout(FEED_IMAGE_TIMEOUT_MS), redirect: 'follow' });
+  if (!response.ok) throw new Error(`Фото недоступне (HTTP ${response.status})`);
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) throw new Error('Фото завелике');
+  const data = await readLimited(response, MAX_IMAGE_BYTES);
+  return { data, type: assertUploadedImage(data) };
+}
+
+/** Читаємо потоком і обриваємо, щойно перевищено межу: заявлений розмір буває брехливим. */
+async function readLimited(response: Response, maxBytes: number): Promise<Buffer> {
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('Порожня відповідь');
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error('Фото завелике');
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
+}
 
 export async function listImages(productId: UUID): Promise<ProductImageDto[]> {
   await productOrFail(productId);
@@ -145,7 +212,8 @@ export interface ImageFile {
 /** Файл для віддачі: шлях беремо лише з бази й перевіряємо, що він усередині сховища. */
 export async function getImageFile(imageId: UUID): Promise<ImageFile> {
   const row = await prisma.productImage.findUnique({ where: { id: imageId } });
-  if (!row || row.source !== 'upload' || !row.storedPath) throw notFound('Фото не знайдено');
+  // фото з прайсу теж віддаємо з файлу, щойно воно збережене (див. mainImagesFor)
+  if (!row?.storedPath) throw notFound('Фото не знайдено');
   const absolutePath = resolveStoredPath(config.uploadsDir, row.storedPath);
   const sizeBytes = row.sizeBytes ?? (await imageFileSize(absolutePath));
   if (sizeBytes === null) throw notFound('Фото не знайдено');

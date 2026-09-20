@@ -110,6 +110,8 @@ export function buildKpRows(
   computed: Pick<RequestComputed, 'markup'>,
   settings: KpSettings,
   ctx: Pick<PricingContext, 'settings'>,
+  /** Головні фото товарів (лише коли в КП додають фото). */
+  images?: ReadonlyMap<UUID, string>,
 ): KpRow[] {
   const offersById = new Map<UUID, Offer>(doc.offers.map((o) => [o.id, o]));
   const lines = [...doc.lines].sort((a, b) => a.position - b.position);
@@ -126,7 +128,7 @@ export function buildKpRows(
       n: rows.length + 1,
       lineId: line.id,
       code: offer?.sku ?? null,
-      imagePath: null,
+      imagePath: (settings.showImages && offer?.productId ? images?.get(offer.productId) : null) ?? null,
       name: names.name,
       nameSecondary: names.nameSecondary,
       unit: offer?.unitCode ?? line.clientUnit ?? 'шт',

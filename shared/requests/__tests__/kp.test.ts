@@ -91,6 +91,16 @@ describe('версія КП', () => {
     expect(built.snapshot.rows.find((r) => r.lineId === 'L1')?.name).toBe('Назва з 1С для КП');
   });
 
+  it('фото: лише коли ввімкнено «Додати фото», і лише для товарів каталогу', () => {
+    const s = state();
+    const images = new Map([['p-L1-A', '/api/images/photo-1']]);
+    const settings = s.header.kpSettings as KpSettings;
+    expect(buildKpVersion(input(s, [], { images })).snapshot.rows.map((r) => r.imagePath)).toEqual([null, null]);
+    const withPhotos = buildKpVersion(input(s, [], { images, settings: { ...settings, showImages: true } })).snapshot;
+    expect(withPhotos.columns.showImages).toBe(true);
+    expect(withPhotos.rows.map((r) => r.imagePath)).toEqual(['/api/images/photo-1', null]);
+  });
+
   it('фінальне: лише погоджені рядки КП-основи з погодженою к-стю; без основи чи без погоджених — помилка', () => {
     const s = state();
     expect(() => buildKpVersion(input(s, [], { final: true }))).toThrow('Спершу сформуйте КП');

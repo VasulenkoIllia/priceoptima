@@ -43,6 +43,7 @@ export function toProductForOffer(p: Product): ProductForOffer {
     availability: oneOf(AVAILABILITY_STATUSES, p.availability, 'unknown'),
     priceUpdatedAt: p.priceUpdatedAt ? p.priceUpdatedAt.toISOString() : null,
     isArchived: p.isArchived,
+    imageUrl: p.imageUrl,
   };
 }
 

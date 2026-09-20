@@ -100,7 +100,7 @@ function KpSettingsForm() {
           onChange={(v) => patch({ nameSource: v })}
         />
       </Field>
-      <Field label="Фото товарів" hint="Поки що в КП буде місце під фото — самі фото товарів у бланк ще не підставляються">
+      <Field label="Фото товарів" hint="Головне фото товару з каталогу. Друкується в PDF; в Excel КП іде без фото">
         <Checkbox checked={k.showImages} disabled={readOnly} onChange={(e) => patch({ showImages: e.target.checked })}>
           Додати фото в КП
         </Checkbox>

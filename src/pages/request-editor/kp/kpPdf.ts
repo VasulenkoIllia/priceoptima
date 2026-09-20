@@ -45,10 +45,58 @@ async function logoContent(url: string | null): Promise<Content | null> {
   }
 }
 
+/** Фото товару в бланку: сторона клітинки, пікселі растру — щоб файл не важив зайвого. */
+const PHOTO_PT = 26;
+const PHOTO_PX = 96;
+
+/**
+ * Фото рядків КП як data URL. Беремо з нашого сховища (знімок КП зберігає саме такі посилання),
+ * стискаємо до PHOTO_PX і приводимо до JPEG: pdfmake розуміє лише JPEG і PNG, а WebP — ні.
+ */
+async function loadRowPhotos(paths: readonly string[]): Promise<Map<string, string>> {
+  const photos = new Map<string, string>();
+  const unique = [...new Set(paths)];
+  await Promise.all(
+    unique.map(async (path) => {
+      try {
+        const blob = await (await fetch(path, { credentials: 'include' })).blob();
+        photos.set(path, await shrinkToJpeg(blob));
+      } catch {
+        // немає фото — у бланку лишиться місце під нього
+      }
+    }),
+  );
+  return photos;
+}
+
+async function shrinkToJpeg(blob: Blob): Promise<string> {
+  const bitmap = await createImageBitmap(blob);
+  const side = Math.max(bitmap.width, bitmap.height) || 1;
+  const scale = Math.min(1, PHOTO_PX / side);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Канвас недоступний');
+  // прозорий фон у JPEG стає чорним — підкладаємо білий
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL('image/jpeg', 0.82);
+}
+
 /** Місце під фото товару. */
 const PHOTO_PLACEHOLDER =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect x="0.5" y="0.5" width="23" height="23" rx="3" fill="#F0F2F5" stroke="#D5DAE1"/>' +
   '<g fill="none" stroke="#A0A8B4" stroke-width="1.4"><rect x="5" y="7" width="14" height="10" rx="1.5"/><circle cx="9.5" cy="10.5" r="1.4"/><path d="M6 16l4-4 3 3 2-2 3 3"/></g></svg>';
+
+/** Клітинка з фото; фото немає або не завантажилось — місце під нього. */
+function photoCell(image: string | undefined): TableCell {
+  return image
+    ? ({ image, fit: [PHOTO_PT, PHOTO_PT], alignment: 'center' } as TableCell)
+    : ({ svg: PHOTO_PLACEHOLDER, width: 22, alignment: 'center' } as TableCell);
+}
 
 const GRID: CustomTableLayout = {
   hLineWidth: () => 0.5,
@@ -63,7 +111,8 @@ const GRID: CustomTableLayout = {
 
 /** PDF-документ зі знімка (без завантаження — для файлу й перевірок). */
 export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['createPdf']>> {
-  const [lib, logo] = await Promise.all([loadPdfMake(), logoContent(s.header.logoPath)]);
+  const photoPaths = s.columns.showImages ? s.rows.map((r) => r.imagePath).filter((p): p is string => !!p) : [];
+  const [lib, logo, rowPhotos] = await Promise.all([loadPdfMake(), logoContent(s.header.logoPath), loadRowPhotos(photoPaths)]);
 
   const parties: TableCell[][] = kpPartyRows(s).map((r) => [
     { text: r.label, bold: true, color: '#555555' },
@@ -76,7 +125,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
   const items: TableCell[][] = s.rows.map((r) => [
     { text: String(r.n), alignment: 'center' },
     { text: r.code ?? '' },
-    ...(photos ? [{ svg: PHOTO_PLACEHOLDER, width: 22, alignment: 'center' } as TableCell] : []),
+    ...(photos ? [photoCell(r.imagePath ? rowPhotos.get(r.imagePath) : undefined)] : []),
     r.nameSecondary ? { stack: [{ text: r.name }, { text: r.nameSecondary, fontSize: 7.5, color: '#777777' }] } : { text: r.name },
     { text: r.unit, alignment: 'center' },
     { text: formatQty(r.qty), alignment: 'right' },
@@ -115,7 +164,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
       { text: kpTitle(s), bold: true, fontSize: 13, alignment: 'center', margin: [0, 0, 0, s.final ? 2 : 10] },
       ...(s.final ? [{ text: 'Фінальна: погоджені позиції і кількості', alignment: 'center', color: '#6A1B9A', margin: [0, 0, 0, 10] } as Content] : []),
       { table: { widths: [88, '*'], body: parties }, layout: 'noBorders', margin: [0, 0, 0, 10] },
-      { table: { headerRows: 1, widths: [18, 60, ...(photos ? [30] : []), '*', 28, 44, 60, 68], body: [head, ...items] }, layout: GRID },
+      { table: { headerRows: 1, widths: [18, 60, ...(photos ? [PHOTO_PT + 8] : []), '*', 28, 44, 60, 68], body: [head, ...items] }, layout: GRID },
       {
         columns: [
           { width: '*', text: '' },
