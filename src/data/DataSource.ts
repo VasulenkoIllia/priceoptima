@@ -2,6 +2,7 @@
 import type { UserRole } from '@shared/enums';
 import type {
   AttachmentDto,
+  ProductListQuery,
   AppSettings,
   AppSettingsPatch,
   ClientDetail,
@@ -150,6 +151,8 @@ export interface DataSource {
   // ── Каталог ─────────────────────────────────────────────────────
   /** Сторінка номенклатури з загальною кількістю: пошук, фільтри й сортування виконує сервер. */
   listProductsPage(query: ProductPageQuery): Promise<ProductPage>;
+  /** Excel із номенклатурою за поточними фільтрами (до 100 000 позицій). */
+  exportProducts(query: ProductListQuery): Promise<Blob>;
   searchProducts(query: ProductSearchQuery): Promise<ProductPickDto[]>;
   lookupSkus(body: SkuLookupBody): Promise<SkuLookupResult>;
   getProduct(id: UUID): Promise<ProductDetail>;

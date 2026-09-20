@@ -46,6 +46,20 @@ function url(path: string, query?: Record<string, QueryValue>): string {
   return `${BASE}${path}${qs ? `?${qs}` : ''}`;
 }
 
+/** Файл з API (вивантаження): помилку сервер повертає звичайним JSON. */
+export async function apiFile(path: string, query?: Record<string, QueryValue>): Promise<Blob> {
+  let res: Response;
+  try {
+    res = await fetch(url(path, query), { credentials: 'include', headers: { 'X-Session-Id': SESSION_ID } });
+  } catch (e) {
+    throw new DataSourceError('INTERNAL', 'Сервер недоступний — перевірте зʼєднання', e);
+  }
+  if (res.ok) return await res.blob();
+  const data: unknown = safeJson(await res.text());
+  const err = (data as ApiErrorBody | null)?.error;
+  throw new DataSourceError(err?.code ?? codeOfStatus(res.status), err?.message ?? `Помилка сервера (${res.status})`, err?.details);
+}
+
 /** Запит до API; помилка — DataSourceError з кодом і повідомленням сервера. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const { method = options.body || options.form ? 'POST' : 'GET', body, form, query, signal } = options;

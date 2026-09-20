@@ -5,6 +5,7 @@ import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseParams, parseQuery } from '../../http/validate';
 import { currentUser, requireAuth } from '../auth/middleware';
 import { productImagesRouter } from '../images/images.routes';
+import { exportProducts } from './products.export';
 import {
   name1cImportSchema,
   productIdSchema,
@@ -36,6 +37,14 @@ productsRouter.get(
   '/search',
   asyncHandler(async (req, res) => {
     res.json(await searchProducts(parseQuery(productSearchQuerySchema, req)));
+  }),
+);
+
+// вивантаження — окремим маршрутом до '/:id'
+productsRouter.get(
+  '/export',
+  asyncHandler(async (req, res) => {
+    await exportProducts(parseQuery(productListQuerySchema, req), res);
   }),
 );
 

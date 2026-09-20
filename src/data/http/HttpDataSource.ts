@@ -27,6 +27,7 @@ import type {
   ProductInput,
   ProductPatch,
   ProductPage,
+  ProductListQuery,
   ProductPageQuery,
   ProductPickDto,
   ProductPriceUpdateInput,
@@ -72,7 +73,7 @@ import type {
 import type { UserRole } from '@shared/enums';
 import type { CallOptions, DataSource, LockAcquireResult } from '../DataSource';
 import { isDataSourceError } from '../errors';
-import { api, SESSION_ID } from './client';
+import { api, apiFile, SESSION_ID } from './client';
 
 export class HttpDataSource implements DataSource {
   /** Ідентифікатор вкладки — той самий, що в заголовку X-Session-Id. */
@@ -256,6 +257,19 @@ export class HttpDataSource implements DataSource {
   }
 
   // ── каталог ───────────────────────────────────────────────────────
+
+  exportProducts(query: ProductListQuery): Promise<Blob> {
+    return apiFile('/products/export', {
+      supplierId: query.supplierId,
+      availability: query.availability?.join(','),
+      stale: query.stale,
+      archived: query.archived,
+      manual: query.manual,
+      missing: query.missing,
+      currency: query.currency,
+      q: query.search,
+    });
+  }
 
   listProductsPage(query: ProductPageQuery): Promise<ProductPage> {
     return api<ProductPage>('/products/page', {

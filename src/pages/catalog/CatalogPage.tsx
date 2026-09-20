@@ -1,4 +1,4 @@
-import { DownOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { DownOutlined, FileExcelOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Checkbox, Dropdown, Input, Select, Space, Tag } from 'antd';
 import type { ColDef, GridApi, ICellRendererParams, IDatasource } from 'ag-grid-community';
@@ -10,6 +10,7 @@ import type { ProductDetail, ProductPageQuery, ProductSortField, SupplierListIte
 import { PageHeader, SupplierLogo } from '@/components';
 import { NewProductDialog } from '@/components/ProductPicker';
 import { ds, errorMessage, qk } from '@/data';
+import { saveBlob } from '@/lib/files';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
@@ -89,16 +90,20 @@ export default function CatalogPage() {
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
   const supplierById = useMemo(() => new Map<UUID, SupplierListItem>((suppliers.data ?? []).map((s) => [s.id, s])), [suppliers.data]);
 
-  // нові фільтри — нове джерело рядків: таблиця скидає підвантажене й читає з першої сторінки
-  const datasource = useMemo<IDatasource>(() => {
-    const filters: Omit<ProductPageQuery, 'offset' | 'limit'> = {
+  const filters = useMemo<Omit<ProductPageQuery, 'offset' | 'limit'>>(
+    () => ({
       search: q || undefined,
       supplierId: supplierId !== 'all' ? supplierId : undefined,
       availability: availability !== 'all' ? [availability] : undefined,
       stale: staleOnly || undefined,
       manual: manualOnly || undefined,
       missing: missingOnly || undefined,
-    };
+    }),
+    [q, supplierId, availability, staleOnly, manualOnly, missingOnly],
+  );
+
+  // нові фільтри — нове джерело рядків: таблиця скидає підвантажене й читає з першої сторінки
+  const datasource = useMemo<IDatasource>(() => {
     return {
       getRows: (params) => {
         const sort = params.sortModel[0];
@@ -124,7 +129,7 @@ export default function CatalogPage() {
         );
       },
     };
-  }, [q, supplierId, availability, staleOnly, manualOnly, missingOnly]);
+  }, [filters]);
 
   // каталог змінився деінде (прайс, новий товар, ціна) — інвалідується весь ['products'], разом із цією позначкою;
   // перечитуємо підвантажені сторінки, не скидаючи прокрутку
@@ -135,6 +140,20 @@ export default function CatalogPage() {
     if (seenVersion.current != null && seenVersion.current !== version.data) gridApi.current?.refreshInfiniteCache();
     seenVersion.current = version.data;
   }, [version.data]);
+
+  const [exporting, setExporting] = useState(false);
+  /** Вивантаження — те саме, що на екрані: поточні фільтри й пошук (НОМ-7). */
+  const exportToExcel = async () => {
+    setExporting(true);
+    try {
+      const blob = await ds.exportProducts(filters);
+      saveBlob(blob, `Номенклатура ${formatDate(new Date().toISOString())}.xlsx`);
+    } catch (e) {
+      message.error(errorMessage(e));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const vatRatePct = useVatRate();
   const columns = useMemo<ColDef<ProductDetail>[]>(
@@ -286,6 +305,14 @@ export default function CatalogPage() {
                 Назви 1С з Excel <DownOutlined />
               </Button>
             </Dropdown>
+            <Button
+              icon={<FileExcelOutlined />}
+              loading={exporting}
+              title="Excel із позиціями за поточними фільтрами"
+              onClick={() => void exportToExcel()}
+            >
+              Вивантажити в Excel
+            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
               Створити товар
             </Button>
