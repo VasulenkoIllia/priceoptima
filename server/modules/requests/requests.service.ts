@@ -287,6 +287,7 @@ export async function createRequest(body: CreateRequestInput, actor: User, now =
       purchaseNote: null,
       rates,
       vatRatePct: env.settings.vatRatePct,
+      discountFormula: env.settings.discountFormula,
       kpSettings: defaultKpSettings(env.settings, own),
       cancelReason: null,
     };

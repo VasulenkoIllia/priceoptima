@@ -1,23 +1,12 @@
 // Дельта між збереженою й поточною версією документа. Завдяки immer незмінені об'єкти мають ті самі посилання,
 // тож порівняння за посиланням точне й дешеве.
-import type { DocumentPatch, MarkupSettings, Offer, OfferInput, RequestDocument, RequestHeaderEditable, UUID } from '@shared/types';
+import { EDITABLE_HEADER_KEYS } from '@shared/requests';
+import type { DocumentPatch, MarkupSettings, Offer, OfferInput, RequestDocument, UUID } from '@shared/types';
 
 export type DocumentChanges = Omit<DocumentPatch, 'baseVersion' | 'sessionId'>;
 
-const HEADER_KEYS: readonly (keyof RequestHeaderEditable)[] = [
-  'requestDate',
-  'title',
-  'clientId',
-  'counterpartyId',
-  'contactId',
-  'ownCompanyId',
-  'managerId',
-  'notes',
-  'purchaseNote',
-  'rates',
-  'vatRatePct',
-  'kpSettings',
-];
+/** Поля шапки — один перелік на застосунок і сервер (shared/requests): інакше зміна мовчки не доїжджала б. */
+const HEADER_KEYS = EDITABLE_HEADER_KEYS;
 const MARKUP_KEYS: readonly (keyof MarkupSettings)[] = ['method', 'value', 'rounding', 'excludeUnavailable'];
 
 function changedKeys<T extends object, K extends keyof T>(prev: T, next: T, keys: readonly K[]): Partial<Pick<T, K>> | null {

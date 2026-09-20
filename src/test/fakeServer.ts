@@ -213,6 +213,7 @@ function emptyHeader(number: number, s: AppSettings): RequestDocState['header'] 
     purchaseNote: null,
     rates: { USD: 45, EUR: 52.1, date: '2026-09-11' },
     vatRatePct: s.vatRatePct,
+    discountFormula: s.discountFormula,
     kpSettings: { vatMode: 'without_vat', nameSource: 'work', showSku: true, showImages: false, validityDays: 3, extraInfo: null, onlyApproved: false },
     approvalKpId: null,
     cancelReason: null,

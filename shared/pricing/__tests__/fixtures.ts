@@ -59,6 +59,7 @@ export function makeHeader(patch: Partial<RequestHeader> = {}): RequestHeader {
     purchaseNote: null,
     rates: { USD: 45, EUR: 52.1, date: '2026-09-11' },
     vatRatePct: 20,
+    discountFormula: 'percent_off',
     kpSettings: {
       vatMode: 'without_vat',
       nameSource: 'work',

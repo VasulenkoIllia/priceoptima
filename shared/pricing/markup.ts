@@ -5,7 +5,6 @@ import type {
   MarkupTotals,
   Offer,
   OfferComputed,
-  PricingContext,
   RequestHeader,
   RequestLine,
   Warning,
@@ -105,7 +104,6 @@ export function computeMarkupRow(
   offer: Offer | null,
   markup: MarkupSettings,
   header: RequestHeader,
-  ctx: PricingContext,
 ): MarkupRowComputed {
   const rule = resolveMarkupRule(line, markup);
   const costNet = eff?.unitNetUah ?? null;
@@ -121,7 +119,7 @@ export function computeMarkupRow(
     manualPriceGross: rule.manualPriceGross,
     vatRatePct: header.vatRatePct,
     rounding: markup.rounding,
-    discountFormula: ctx.settings.discountFormula,
+    discountFormula: header.discountFormula,
   });
 
   const qty = eff?.qtyEffective ?? line.qty; // F26

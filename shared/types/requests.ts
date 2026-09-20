@@ -129,6 +129,8 @@ export interface RequestHeader {
   purchaseNote: string | null;
   rates: HeaderRates;
   vatRatePct: number;
+  /** Формула знижки від РРЦ — зафіксована в заявці (глобальна лишається пресетом для нових). */
+  discountFormula: DiscountFormula;
   kpSettings: KpSettings;
   /** КП, яку погоджує клієнт; null/немає — остання звичайна версія. */
   approvalKpId?: UUID | null;

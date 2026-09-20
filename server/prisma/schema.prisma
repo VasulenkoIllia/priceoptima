@@ -595,6 +595,8 @@ model Request {
   rateEur            Float?
   ratesDate          DateTime?     @db.Date
   vatRatePct         Float
+  /// Формула знижки від РРЦ на момент створення заявки (глобальна лишається пресетом для нових).
+  discountFormula    String        @default("percent_off")
   kpSettings         Json
   approvalKpId       String?
   cancelReason       String?

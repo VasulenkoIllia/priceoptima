@@ -81,7 +81,7 @@ export function computeRequest(doc: RequestDocInput, ctx: PricingContext): Reque
     const effId = comparisons[line.id]?.effectiveOfferId ?? null;
     const eff = effId ? (offers[effId] ?? null) : null;
     const offer = effId ? (offerById.get(effId) ?? null) : null;
-    const row = computeMarkupRow(line, eff, offer, doc.markup, doc.header, ctx);
+    const row = computeMarkupRow(line, eff, offer, doc.markup, doc.header);
     markupRows[line.id] = row;
     if (isActiveLine(line)) activeRows.push(row);
   }
@@ -91,7 +91,7 @@ export function computeRequest(doc: RequestDocInput, ctx: PricingContext): Reque
     fopPriceBasis: ctx.settings.fopPriceBasis,
   };
   const markup = { rows: markupRows, totals: computeMarkupTotals(activeRows, mode) };
-  const supplierProfit = computeSupplierProfit(lines, blocks, offers, offerIndex, markupRows, doc.markup, doc.header, ctx);
+  const supplierProfit = computeSupplierProfit(lines, blocks, offers, offerIndex, markupRows, doc.markup, doc.header);
 
   const partial: Omit<RequestComputed, 'totals'> = {
     offers,

@@ -24,6 +24,7 @@ export const EDITABLE_HEADER_KEYS: readonly (keyof RequestHeaderEditable)[] = [
   'purchaseNote',
   'rates',
   'vatRatePct',
+  'discountFormula',
   'kpSettings',
   'approvalKpId',
 ];

@@ -16,6 +16,7 @@ import {
   refreshOfferFromCatalog,
   type ProductForOffer,
 } from '@shared/pricing';
+import { EDITABLE_HEADER_KEYS } from '@shared/requests';
 import { isEditableStatus } from '@shared/status';
 import type {
   AppSettings,
@@ -266,21 +267,8 @@ function moveItem<T>(list: T[], from: number, to: number): void {
   list.splice(Math.max(0, Math.min(to, list.length)), 0, item);
 }
 
-const EDITABLE_HEADER_KEYS = new Set<keyof RequestHeaderEditable>([
-  'requestDate',
-  'title',
-  'clientId',
-  'counterpartyId',
-  'contactId',
-  'ownCompanyId',
-  'managerId',
-  'notes',
-  'purchaseNote',
-  'rates',
-  'vatRatePct',
-  'kpSettings',
-  'approvalKpId',
-]);
+/** Перелік один на застосунок і сервер (shared/requests): інакше нове поле шапки мовчки не зберігалося б. */
+const EDITABLE_HEADER_FIELDS = new Set<keyof RequestHeaderEditable>(EDITABLE_HEADER_KEYS);
 
 // ── стор ────────────────────────────────────────────────────────────
 export interface RequestDocStoreDeps {
@@ -780,7 +768,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         edit((d) => {
           const header = d.header as unknown as Record<string, unknown>;
           for (const [k, v] of Object.entries(patch)) {
-            if (EDITABLE_HEADER_KEYS.has(k as keyof RequestHeaderEditable) && v !== undefined) header[k] = v;
+            if (EDITABLE_HEADER_FIELDS.has(k as keyof RequestHeaderEditable) && v !== undefined) header[k] = v;
           }
           if (refs) Object.assign(d.refs, refs);
         });

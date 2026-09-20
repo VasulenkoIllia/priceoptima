@@ -221,7 +221,7 @@ describe('F26–F29 рядки і підсумки націнки', () => {
     expect(noRrp.markup.totals.linesUnpriced).toBe(1);
 
     // рядок без пропозиції: NO_RRP не показуємо
-    const empty = computeMarkupRow(makeLine('L9', 1), null, null, MARKUP, header, makeCtx());
+    const empty = computeMarkupRow(makeLine('L9', 1), null, null, MARKUP, header);
     expect(empty.warnings).toEqual([]);
     expect(empty.qty).toBe(1);
   });
@@ -232,15 +232,15 @@ describe('F26–F29 рядки і підсумки націнки', () => {
     expect(t.markupPct).toBeNull();
   });
 
-  it('excel_divisor з налаштувань контексту', () => {
-    const r = computeRequest(
-      makeDoc({
-        lines: [makeLine('L1', 1, { markup: { method: 'discount_from_rrp', value: 4, manualPriceNet: null } })],
-        blocks: [makeBlock('A', 0)],
-        offers: [uah('L1', 'A', 15200, { rrpCur: 18880 })],
-      }),
-      makeCtx([], { settings: { ...SETTINGS, discountFormula: 'excel_divisor' } }),
-    );
+  it('формула знижки — із самої заявки, а не з поточних налаштувань', () => {
+    const doc = makeDoc({
+      header: makeHeader({ discountFormula: 'excel_divisor' }),
+      lines: [makeLine('L1', 1, { markup: { method: 'discount_from_rrp', value: 4, manualPriceNet: null } })],
+      blocks: [makeBlock('A', 0)],
+      offers: [uah('L1', 'A', 15200, { rrpCur: 18880 })],
+    });
+    // у налаштуваннях інша формула — заявка лишається на своїй
+    const r = computeRequest(doc, makeCtx([], { settings: { ...SETTINGS, discountFormula: 'percent_off' } }));
     expect(r.markup.rows.L1!.saleNet).toBe(15128.21);
   });
 });

@@ -268,6 +268,16 @@ describe('requestDocStore', () => {
     expect(reverted.lines.find((l) => l.id === line.id)!.clientName).toBe(line.clientName);
   });
 
+  it('зміни шапки доїжджають на сервер: формула знижки й КП для погодження', async () => {
+    const tab = setup();
+    const store = await openStore(tab);
+    store.getState().setHeader({ discountFormula: 'excel_divisor', approvalKpId: 'kp-1' });
+    await store.getState().flush();
+    const saved = await tab.getRequestDocument(REQ1);
+    expect(saved.header.discountFormula).toBe('excel_divisor');
+    expect(saved.header.approvalKpId).toBe('kp-1');
+  });
+
   it('readOnly без блокування: друга сесія лише переглядає; адмін забирає редагування — власник дізнається при збереженні', async () => {
     const koval = setup(USERS.koval, 'a');
     const bondar = setup(USERS.bondar, 'b', false);

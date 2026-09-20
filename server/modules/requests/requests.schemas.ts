@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   AVAILABILITY_STATUSES,
   CURRENCY_CODES,
+  DISCOUNT_FORMULAS,
   KP_NAME_SOURCES,
   KP_VAT_MODES,
   MARKUP_METHODS,
@@ -77,6 +78,7 @@ const headerPatchSchema = z
     purchaseNote: nullableText(5000),
     rates: z.object({ USD: nullableNum, EUR: nullableNum, date: isoDate.nullable() }),
     vatRatePct: num.min(0).max(100),
+    discountFormula: z.enum(DISCOUNT_FORMULAS),
     kpSettings: kpSettingsSchema,
     approvalKpId: uuid('КП').nullable(),
   })

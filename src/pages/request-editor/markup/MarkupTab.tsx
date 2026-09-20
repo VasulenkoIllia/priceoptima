@@ -6,7 +6,7 @@ import type { CellEditRequestEvent, ColDef, ICellRendererParams, RowClassParams 
 import { AgGridReact } from 'ag-grid-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { DISCOUNT_FORMULA_LABELS, MARKUP_METHOD_LABELS, MARKUP_METHODS, type KpVatMode, type MarkupMethod } from '@shared/enums';
+import { DISCOUNT_FORMULAS, DISCOUNT_FORMULA_LABELS, MARKUP_METHOD_LABELS, MARKUP_METHODS, type DiscountFormula, type KpVatMode, type MarkupMethod } from '@shared/enums';
 import { formatMoney, formatPct, formatQty } from '@shared/format';
 import { parseLocaleNumber } from '@shared/parse';
 import { isActiveLine, kpChecks, offerDisplayName } from '@shared/pricing';
@@ -437,9 +437,16 @@ export default function MarkupTab() {
         {isPctMethod(markup.method) ? (
           <PctInput value={markup.value} disabled={readOnly} onCommit={(v) => store.setMarkupDefaults({ value: v })} />
         ) : null}
-        {markup.method === 'discount_from_rrp' && pricing ? (
-          <Tooltip title="Формула знижки задається в налаштуваннях">
-            <span className="po-muted po-num">({DISCOUNT_FORMULA_LABELS[pricing.discountFormula]})</span>
+        {markup.method === 'discount_from_rrp' ? (
+          <Tooltip title="Формула цієї заявки. Нові заявки беруть формулу з налаштувань; тут її можна змінити під особливі умови">
+            <Select<DiscountFormula>
+              size="small"
+              value={header.discountFormula}
+              disabled={readOnly}
+              style={{ width: 150 }}
+              options={DISCOUNT_FORMULAS.map((f) => ({ value: f, label: DISCOUNT_FORMULA_LABELS[f] }))}
+              onChange={(f) => store.setHeader({ discountFormula: f })}
+            />
           </Tooltip>
         ) : null}
         {overrides ? (

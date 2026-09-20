@@ -1,6 +1,6 @@
 // Рядки бази ↔ документ заявки (shared/types). Числа документа — double, дати — ISO.
 import type { KpDocument, Prisma, Request, RequestBlock, RequestEvent, RequestLine, RequestLock, RequestOffer } from '@prisma/client';
-import { AVAILABILITY_STATUSES, CURRENCY_CODES, PRODUCT_NAME_KINDS, RATE_POLICIES, REQUEST_STATUSES } from '@shared/enums';
+import { AVAILABILITY_STATUSES, CURRENCY_CODES, DISCOUNT_FORMULAS, PRODUCT_NAME_KINDS, RATE_POLICIES, REQUEST_STATUSES } from '@shared/enums';
 import { formatRequestNumber } from '@shared/format';
 import type { RequestDocState } from '@shared/requests';
 import type {
@@ -43,6 +43,7 @@ export function toHeader(r: Request): RequestHeader {
     purchaseNote: r.purchaseNote,
     rates: { USD: r.rateUsd, EUR: r.rateEur, date: isoDate(r.ratesDate) },
     vatRatePct: r.vatRatePct,
+    discountFormula: oneOf(DISCOUNT_FORMULAS, r.discountFormula, 'percent_off'),
     kpSettings: json<KpSettings>(r.kpSettings),
     approvalKpId: r.approvalKpId,
     cancelReason: r.cancelReason,
@@ -65,6 +66,7 @@ export function headerData(h: RequestHeader) {
     rateEur: h.rates.EUR,
     ratesDate: h.rates.date ? dateOnly(h.rates.date) : null,
     vatRatePct: h.vatRatePct,
+    discountFormula: h.discountFormula,
     kpSettings: h.kpSettings as unknown as Prisma.InputJsonValue,
     approvalKpId: h.approvalKpId ?? null,
     cancelReason: h.cancelReason,
