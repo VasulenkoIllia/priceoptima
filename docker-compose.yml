@@ -65,9 +65,10 @@ services:
     healthcheck:
       # остання копія не вдалася — контейнер «unhealthy», причина в data/backups/last-error
       test: ["CMD-SHELL", "test ! -f /backups/last-error"]
-      interval: 1h
+      interval: 5m
       timeout: 5s
       retries: 1
+      start_period: 30s
     restart: unless-stopped
     networks:
       - internal
