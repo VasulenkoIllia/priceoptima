@@ -1,5 +1,5 @@
 // Наші юрособи: реквізити для заявок і КП.
-import { EditOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Alert, Button, Card, Descriptions, Result, Spin, Tag } from 'antd';
 import { useState, type ReactNode } from 'react';
@@ -54,10 +54,27 @@ export function OwnCompaniesTab() {
   const [editing, setEditing] = useState<OwnCompanyDto | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const add = () => {
+    setEditing(null);
+    setDialogOpen(true);
+  };
+  const addButton = (
+    <Button type="primary" icon={<PlusOutlined />} onClick={add}>
+      Додати юрособу
+    </Button>
+  );
+
   let body: ReactNode;
   if (companies.isPending) body = <Spin style={{ display: 'block', margin: '48px auto' }} />;
   else if (companies.isError) body = <Result status="error" title="Не вдалося завантажити юрособи" subTitle={errorMessage(companies.error)} />;
-  else if (!companies.data.length) body = <EmptyState title="Юросіб ще немає" />;
+  else if (!companies.data.length)
+    body = (
+      <EmptyState
+        title="Юросіб ще немає"
+        description="Додайте юрособу, від імені якої виставляєте КП: її реквізити й логотип потрапляють у бланк."
+        action={addButton}
+      />
+    );
   else
     body = (
       <div className="po-set-companies">
@@ -77,8 +94,9 @@ export function OwnCompaniesTab() {
   return (
     <>
       <Alert className="po-set-note" type="info" showIcon message="Сформовані КП не змінюються — у них збережено реквізити на момент формування." />
+      {companies.data?.length ? <div className="po-set-toolbar">{addButton}</div> : null}
       {body}
-      {editing ? <OwnCompanyDialog open={dialogOpen} company={editing} onClose={() => setDialogOpen(false)} /> : null}
+      {dialogOpen ? <OwnCompanyDialog open company={editing} isFirst={!companies.data?.length} onClose={() => setDialogOpen(false)} /> : null}
     </>
   );
 }

@@ -177,8 +177,8 @@ export class HttpDataSource implements DataSource {
     return api<OwnCompanyDto[]>('/own-companies');
   }
 
-  saveOwnCompany(id: UUID, input: OwnCompanyInput): Promise<OwnCompanyDto> {
-    return api<OwnCompanyDto>(`/own-companies/${id}`, { method: 'PUT', body: input });
+  saveOwnCompany(id: UUID | null, input: OwnCompanyInput): Promise<OwnCompanyDto> {
+    return id ? api<OwnCompanyDto>(`/own-companies/${id}`, { method: 'PUT', body: input }) : api<OwnCompanyDto>('/own-companies', { body: input });
   }
 
   listSuppliers(): Promise<SupplierListItem[]> {

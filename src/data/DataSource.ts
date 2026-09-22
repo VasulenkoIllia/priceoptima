@@ -121,7 +121,8 @@ export interface DataSource {
   updateSettings(patch: AppSettingsPatch): Promise<AppSettings>;
   listOwnCompanies(): Promise<OwnCompanyDto[]>;
   /** Лише адміністратор. */
-  saveOwnCompany(id: UUID, input: OwnCompanyInput): Promise<OwnCompanyDto>;
+  /** id === null — нова юрособа. */
+  saveOwnCompany(id: UUID | null, input: OwnCompanyInput): Promise<OwnCompanyDto>;
 
   // ── Клієнти ─────────────────────────────────────────────────────
   listClients(query?: ListQuery): Promise<ClientListItem[]>;

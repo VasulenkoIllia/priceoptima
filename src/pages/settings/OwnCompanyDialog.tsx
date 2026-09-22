@@ -7,6 +7,7 @@ import { ds, errorMessage, isDataSourceError, qk } from '@/data';
 
 type FormValues = Pick<
   OwnCompanyDto,
+  | 'code'
   | 'nameShort'
   | 'nameFull'
   | 'edrpou'
@@ -28,12 +29,15 @@ const noSpaces = (v: string) => v.replace(/\s/gu, '');
 const GRID_2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 12 } as const;
 const GRID_3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 12 } as const;
 
-/** Повний OwnCompanyInput: поля, яких немає у формі (код, підвал КП), — без змін. */
-function toInput(c: OwnCompanyDto, v: FormValues): OwnCompanyInput {
-  const { id: _id, ...rest } = c;
+/** Повний OwnCompanyInput: поля, яких немає у формі (підвал КП, бренд), — без змін. */
+function toInput(c: OwnCompanyDto | null, v: FormValues): OwnCompanyInput {
+  const rest: Omit<OwnCompanyInput, 'version'> = c
+    ? (({ id: _id, version: _version, ...keep }) => keep)(c)
+    : { code: '', nameShort: '', nameFull: '', edrpou: null, ipn: null, isVatPayer: true, iban: null, bankName: null, addressLegal: null, phone: null, email: null, website: null, slogan: null, logoUrl: null, kpFooter: null, isDefault: false, isActive: true };
   return {
     ...rest,
-    version: c.version,
+    ...(c ? { version: c.version } : {}),
+    code: v.code.trim(),
     nameShort: v.nameShort.trim(),
     nameFull: v.nameFull.trim(),
     edrpou: text(v.edrpou),
@@ -53,20 +57,25 @@ function toInput(c: OwnCompanyDto, v: FormValues): OwnCompanyInput {
 
 export interface OwnCompanyDialogProps {
   open: boolean;
-  company: OwnCompanyDto;
+  /** null — нова юрособа. */
+  company: OwnCompanyDto | null;
+  /** Юросіб ще немає: перша стає основною в будь-якому разі. */
+  isFirst?: boolean;
   onClose: () => void;
 }
 
-export function OwnCompanyDialog({ open, company, onClose }: OwnCompanyDialogProps) {
+const NEW_COMPANY: Partial<FormValues> = { code: 'ТОВ', isVatPayer: true };
+
+export function OwnCompanyDialog({ open, company, isFirst = false, onClose }: OwnCompanyDialogProps) {
   const { message } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<FormValues>();
 
   const save = useMutation({
-    mutationFn: (v: FormValues) => ds.saveOwnCompany(company.id, toInput(company, v)),
+    mutationFn: (v: FormValues) => ds.saveOwnCompany(company?.id ?? null, toInput(company, v)),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: qk.ownCompanies });
-      message.success('Реквізити збережено');
+      message.success(company ? 'Реквізити збережено' : 'Юрособу додано');
       onClose();
     },
     onError: (e) => {
@@ -79,7 +88,7 @@ export function OwnCompanyDialog({ open, company, onClose }: OwnCompanyDialogPro
   return (
     <Modal
       open={open}
-      title={`Реквізити: ${company.nameShort}`}
+      title={company ? `Реквізити: ${company.nameShort}` : 'Нова юрособа'}
       okText="Зберегти"
       cancelText="Скасувати"
       confirmLoading={save.isPending}
@@ -93,11 +102,19 @@ export function OwnCompanyDialog({ open, company, onClose }: OwnCompanyDialogPro
         layout="vertical"
         requiredMark={false}
         preserve={false}
-        initialValues={company}
+        initialValues={company ?? { ...NEW_COMPANY, isDefault: isFirst }}
         onFinish={(v) => save.mutate(v)}
         style={{ marginTop: 12 }}
       >
-        <div style={GRID_2}>
+        <div style={GRID_3}>
+          <Form.Item
+            name="code"
+            label="Позначка"
+            extra="Коротко: ТОВ, ФОП"
+            rules={[{ required: true, whitespace: true, message: 'Вкажіть позначку' }]}
+          >
+            <Input maxLength={20} />
+          </Form.Item>
           <Form.Item name="nameShort" label="Коротка назва" rules={[{ required: true, whitespace: true, message: 'Вкажіть коротку назву' }]}>
             <Input />
           </Form.Item>
@@ -148,8 +165,10 @@ export function OwnCompanyDialog({ open, company, onClose }: OwnCompanyDialogPro
           </Form.Item>
         </div>
         <Form.Item name="isDefault" valuePropName="checked" style={{ marginBottom: 0 }}>
-          <Checkbox disabled={company.isDefault}>
-            <Tooltip title={company.isDefault ? 'Щоб змінити, позначте іншу юрособу' : undefined}>За замовчуванням у нових заявках</Tooltip>
+          <Checkbox disabled={company?.isDefault || isFirst}>
+            <Tooltip title={isFirst ? 'Перша юрособа стає основною' : company?.isDefault ? 'Щоб змінити, позначте іншу юрособу' : undefined}>
+              За замовчуванням у нових заявках
+            </Tooltip>
           </Checkbox>
         </Form.Item>
       </Form>
