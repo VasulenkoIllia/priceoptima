@@ -7,6 +7,7 @@ import type {
   RequestLine,
   UUID,
 } from '../types';
+import { FALLBACK_UNIT } from '../parse/unit';
 import { defaultKpVatMode } from './kp-totals';
 
 /** Типові умови КП (п.3 правок; тексти — з ТЗ, ❓15); змінюються в Налаштуваннях. */
@@ -85,7 +86,7 @@ export function defaultKpSettings(s: AppSettings, ownCompany: { id: UUID; isVatP
   };
 }
 
-/** Новий рядок заявки без вибору, націнки й погодження. */
+/** Новий рядок заявки без вибору, націнки й погодження. Одиниця за замовчуванням — «шт» (ТЗ РЕД-1). */
 export function createRequestLine(init: {
   id: UUID;
   position: number;
@@ -98,7 +99,7 @@ export function createRequestLine(init: {
     id: init.id,
     position: init.position,
     clientName: init.clientName ?? '',
-    clientUnit: init.clientUnit ?? null,
+    clientUnit: init.clientUnit ?? FALLBACK_UNIT,
     qty: init.qty ?? 0,
     clientNote: init.clientNote ?? null,
     selection: { blockId: null },

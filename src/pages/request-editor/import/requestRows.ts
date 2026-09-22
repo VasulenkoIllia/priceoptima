@@ -132,9 +132,10 @@ export function buildRequestRows(data: readonly string[][], map: RequestColumnMa
     }
     const q = parseQtyCell(rawQty);
     const rawUnit = cell(r, map.unit) || q.unit || '';
-    const unit = rawUnit ? (normalizeUnit(rawUnit) ?? rawUnit) : null;
+    // колонки «Од.» у файлі клієнта може не бути — тоді рядок отримає типове «шт»
+    const unit = rawUnit ? (normalizeUnit(rawUnit) ?? rawUnit) : undefined;
     const note = cell(r, map.note) || null;
-    const line: NewLineInput = { clientName: name, clientUnit: unit, qty: q.valid ? (q.qty ?? 0) : 0, clientNote: note };
+    const line: NewLineInput = { clientName: name, ...(unit ? { clientUnit: unit } : {}), qty: q.valid ? (q.qty ?? 0) : 0, clientNote: note };
     if (!q.valid) badQty++;
     rows.push({ rowNumber, status: q.valid ? 'ok' : 'bad_qty', line, rawQty });
     lines.push(line);

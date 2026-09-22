@@ -84,7 +84,8 @@ function patchFromCells(cells: string[], fields: readonly LineField[]): { patch:
 function newLineFrom(patch: LinePatch): NewLineInput {
   return {
     clientName: patch.clientName ?? '',
-    clientUnit: patch.clientUnit ?? null,
+    // порожню клітинку «Од.» не передаємо — спрацює типове «шт»
+    ...(patch.clientUnit ? { clientUnit: patch.clientUnit } : {}),
     ...(patch.qty !== undefined ? { qty: patch.qty } : {}),
   };
 }

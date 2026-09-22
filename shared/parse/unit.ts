@@ -16,6 +16,9 @@ export const DEFAULT_UNITS: UnitDto[] = [
   { code: 'рул', name: 'Рулон', aliases: ['рул.', 'рулон', 'рулони'], sortOrder: 10, isActive: true },
 ];
 
+/** Одиниця за замовчуванням: коли в рядку заявки чи в прайсі її не вказали. */
+export const FALLBACK_UNIT = 'шт';
+
 function unitKey(raw: string): string {
   return raw
     .toLocaleLowerCase('uk')

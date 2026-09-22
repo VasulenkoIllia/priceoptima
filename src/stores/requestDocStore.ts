@@ -790,7 +790,8 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
               id: ids[i],
               position: 0,
               clientName: r.clientName ?? '',
-              clientUnit: r.clientUnit ?? null,
+              // одиницю не задали (ручний рядок або файл без колонки) — лишаємо «шт» з createRequestLine
+              ...(r.clientUnit ? { clientUnit: r.clientUnit } : {}),
               qty: r.qty != null && Number.isFinite(r.qty) && r.qty >= 0 ? r.qty : 0,
               clientNote: r.clientNote ?? null,
             }),

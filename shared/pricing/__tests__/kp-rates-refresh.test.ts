@@ -261,8 +261,11 @@ describe('Дефолти (§4 поправки)', () => {
     expect(kp).toMatchObject({ ownCompanyId: 'fop', vatMode: 'no_vat', nameSource: 'work', showSku: true, onlyApproved: false });
     expect(createRequestLine({ id: 'x', position: 2, clientName: 'Кран' })).toMatchObject({
       qty: 0,
+      // одиниця за замовчуванням — «шт» (ТЗ РЕД-1)
+      clientUnit: 'шт',
       selection: { blockId: null },
       approval: { approved: false, approvedQty: null },
     });
+    expect(createRequestLine({ id: 'x', position: 2, clientName: 'Труба', clientUnit: 'м' }).clientUnit).toBe('м');
   });
 });

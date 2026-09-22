@@ -55,7 +55,8 @@ describe('planPaste — колонки клієнта', () => {
 
   it('одна колонка з «Найменування» — лише назви; од. і к-сть наявних рядків не чіпаються', () => {
     const plan = planPaste({ text: 'А\nБ\n', colId: COL.line('clientName'), lineIds: ['l1'] });
-    expect(plan).toEqual({ kind: 'lines', updates: [{ id: 'l1', patch: { clientName: 'А' } }], newRows: [{ clientName: 'Б', clientUnit: null }], invalid: 0 });
+    // одиницю не передаємо — новий рядок отримає типове «шт» у createRequestLine
+    expect(plan).toEqual({ kind: 'lines', updates: [{ id: 'l1', patch: { clientName: 'А' } }], newRows: [{ clientName: 'Б' }], invalid: 0 });
   });
 
   it('з «К-сть»: лише кількість; некоректні числа пропускаються й рахуються', () => {
@@ -84,7 +85,7 @@ describe('planPaste — колонки клієнта', () => {
 
   it('з «№» — як з «Найменування»; рядки без даних не створюються', () => {
     const plan = planPaste({ text: 'Новий 1\nНовий 2', colId: COL.pos, lineIds: [] });
-    expect(plan).toEqual({ kind: 'lines', updates: [], newRows: [{ clientName: 'Новий 1', clientUnit: null }, { clientName: 'Новий 2', clientUnit: null }], invalid: 0 });
+    expect(plan).toEqual({ kind: 'lines', updates: [], newRows: [{ clientName: 'Новий 1' }, { clientName: 'Новий 2' }], invalid: 0 });
   });
 });
 
