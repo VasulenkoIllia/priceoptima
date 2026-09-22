@@ -100,9 +100,15 @@ describe('клієнт у списку', () => {
     expect(item.counterparties).toEqual([{ id: CP_ID, nameShort: counterparty.nameShort, edrpou: '44305608' }]);
     expect(item.contactsCount).toBe(1);
     expect(item.responsible).toEqual({ id: responsible.id, shortName: 'Коваль О.В.' });
-    // заявки з'являться в модулі 2
+    // без підрахунку заявок — нулі
     expect(item.requestsCount).toBe(0);
     expect(item.lastRequestDate).toBeNull();
+  });
+
+  it('лічильник заявок і дата останньої — з підрахунку', () => {
+    const item = toClientListItem(row, { count: 3, lastDate: new Date('2026-09-22T00:00:00.000Z') });
+    expect(item.requestsCount).toBe(3);
+    expect(item.lastRequestDate).toBe('2026-09-22');
   });
 
   it('без відповідального — null, а не порожній об’єкт', () => {

@@ -10,7 +10,7 @@ import { withSingleDefault } from '../../lib/defaults';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
 import { toClientDetail, toClientListItem, toLookupItems, lookupTokens } from './clients.mapper';
-import type { ClientRow } from './clients.mapper';
+import type { ClientRequestStats, ClientRow } from './clients.mapper';
 import { withSingleDefaultPerCounterparty } from './clients.rules';
 import type { ClientInputBody, ContactInputBody, CounterpartyInputBody } from './clients.schemas';
 
@@ -29,7 +29,20 @@ export async function listClients(search: string): Promise<ClientListItem[]> {
     include: INCLUDE,
     orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
   });
-  return rows.map(toClientListItem);
+  const stats = await requestStats(rows.map((r) => r.id));
+  return rows.map((r) => toClientListItem(r, stats.get(r.id)));
+}
+
+/** «Заявок» і «Остання заявка» для списку клієнтів: один groupBy замість запиту на рядок. */
+async function requestStats(clientIds: string[]): Promise<Map<string, ClientRequestStats>> {
+  if (!clientIds.length) return new Map();
+  const rows = await prisma.request.groupBy({
+    by: ['clientId'],
+    where: { clientId: { in: clientIds } },
+    _count: { _all: true },
+    _max: { requestDate: true },
+  });
+  return new Map(rows.filter((r) => r.clientId).map((r) => [r.clientId!, { count: r._count._all, lastDate: r._max.requestDate }]));
 }
 
 export async function getClient(id: string): Promise<ClientDetail> {

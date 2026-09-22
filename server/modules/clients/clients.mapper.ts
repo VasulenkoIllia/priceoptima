@@ -2,6 +2,7 @@
 // під яким лежать юрособи-контрагенти й контакти.
 import type { Client, ClientContact, Counterparty, User } from '@prisma/client';
 import type { ClientDetail, ClientListItem, ClientLookupItem, ContactDto, CounterpartyDto } from '@shared/types';
+import { toIsoDate } from '@shared/format';
 
 export type ClientRow = Client & {
   counterparties: Counterparty[];
@@ -56,16 +57,21 @@ export function toClientDetail(row: ClientRow): ClientDetail {
   };
 }
 
-export function toClientListItem(row: ClientRow): ClientListItem {
+/** Скільки заявок у клієнта й коли остання — рахуємо одним запитом на весь список. */
+export interface ClientRequestStats {
+  count: number;
+  lastDate: Date | null;
+}
+
+export function toClientListItem(row: ClientRow, stats?: ClientRequestStats): ClientListItem {
   return {
     id: row.id,
     name: row.name,
     counterparties: row.counterparties.map((cp) => ({ id: cp.id, nameShort: cp.nameShort, edrpou: cp.edrpou })),
     contactsCount: row.contacts.length,
     responsible: row.responsibleUser ? { id: row.responsibleUser.id, shortName: row.responsibleUser.shortName } : null,
-    // заявок у базі ще немає — з'являться в модулі 2 разом із документами
-    requestsCount: 0,
-    lastRequestDate: null,
+    requestsCount: stats?.count ?? 0,
+    lastRequestDate: stats?.lastDate ? toIsoDate(stats.lastDate) : null,
     isActive: row.isActive,
   };
 }
