@@ -21,8 +21,8 @@ export const MAX_PRICE_FILE_MB = 25;
 export const MAX_PRICE_ROWS_MB = 100;
 
 /**
- * JSON-парсер із більшою межею саме для завантаження прайсу: загальний парсер /api обмежений 1 МБ.
- * Ставиться в app.ts перед загальним — тоді той бачить уже розібране тіло й пропускає його.
+ * JSON-парсер із більшою межею саме для завантаження прайсу: загальний парсер /api обмежений 1 МБ і цей маршрут пропускає
+ * (http/bodyLimits). Стоїть у маршруті після requireAuth — тіло розбирається лише для того, хто увійшов.
  */
 export const priceImportJsonParser: RequestHandler = express.json({ limit: `${MAX_PRICE_ROWS_MB}mb` });
 
@@ -78,6 +78,7 @@ priceUpdatesRouter.post(
 
 priceUpdatesRouter.post(
   '/import',
+  priceImportJsonParser,
   priceForm,
   asyncHandler(async (req, res) => {
     const file = req.file ?? null;

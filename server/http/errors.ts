@@ -89,6 +89,14 @@ export function toApiError(e: unknown): MappedError {
     const { code, message } = PRISMA_ERRORS[prisma];
     return { status: statusOf(code), body: { error: { code, message } }, internal: false };
   }
+  // тіло більше за межу маршруту (body-parser: type 'entity.too.large') — зрозуміла відмова замість 500
+  if (typeof e === 'object' && e !== null && (e as { type?: unknown }).type === 'entity.too.large') {
+    return {
+      status: 413,
+      body: { error: { code: 'VALIDATION_ERROR', message: 'Завеликий обсяг даних за один раз. Внесіть зміни частинами' } },
+      internal: false,
+    };
+  }
   // некоректний JSON у тілі запиту — express.json кидає SyntaxError зі статусом 400
   if (e instanceof SyntaxError && (e as { status?: number }).status === 400) {
     return {

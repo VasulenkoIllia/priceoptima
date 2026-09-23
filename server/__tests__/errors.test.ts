@@ -55,3 +55,12 @@ describe('помилки API', () => {
     expect(mapped.internal).toBe(true);
   });
 });
+
+describe('завелике тіло запиту', () => {
+  it('body-parser entity.too.large → 413 з поясненням, не 500', () => {
+    const mapped = toApiError(Object.assign(new Error('request entity too large'), { type: 'entity.too.large', status: 413 }));
+    expect(mapped.status).toBe(413);
+    expect(mapped.internal).toBe(false);
+    expect(mapped.body.error.message).toMatch(/Завеликий/u);
+  });
+});

@@ -1,6 +1,6 @@
 // /api/requests — заявки: реєстр, документ, збереження дельти, статус, копія, КП, історія, файли, блокування.
 // Працюють обидві ролі; забрати редагування в іншого може лише адміністратор. Вкладку визначає заголовок X-Session-Id.
-import { Router, type Request, type RequestHandler } from 'express';
+import express, { Router, type Request, type RequestHandler } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { asyncHandler } from '../../http/asyncHandler';
@@ -61,6 +61,13 @@ function uploadSingle(field: string): RequestHandler {
 
 const uploadFieldsSchema = z.object({ kind: z.string().max(40).optional(), note: z.string().max(500).optional() });
 
+/**
+ * Збереження заявки — дельта змін одним JSON: імпорт кількох тисяч рядків або масова зміна пропозицій буває понад 1 МБ.
+ * Загальний парсер /api цей маршрут пропускає (http/bodyLimits); тут він після requireAuth.
+ */
+export const REQUEST_DOC_JSON_MB = 15;
+const requestDocJsonParser = express.json({ limit: `${REQUEST_DOC_JSON_MB}mb` });
+
 export const requestsRouter = Router();
 requestsRouter.use(requireAuth);
 
@@ -90,6 +97,7 @@ requestsRouter.get(
 
 requestsRouter.patch(
   '/:id',
+  requestDocJsonParser,
   asyncHandler(async (req, res) => {
     const { id } = parseParams(requestIdSchema, req);
     res.json(await saveRequestDocument(id, parseBody(documentPatchSchema, req), currentUser(req)));
