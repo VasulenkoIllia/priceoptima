@@ -7,7 +7,7 @@ import { useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { KP_NAME_SOURCE_LABELS, KP_NAME_SOURCES, KP_VAT_MODE_LABELS, type KpNameSource, type KpVatMode } from '@shared/enums';
 import { formatDateTime, formatKpNumber, formatMoney } from '@shared/format';
-import { DEFAULT_KP_TERMS, defaultKpVatMode, latestBaseKp, resolveKpTerms, type KpChecks } from '@shared/pricing';
+import { DEFAULT_KP_TERMS, defaultKpVatMode, kpBlockReason, latestBaseKp, resolveKpTerms, type KpChecks } from '@shared/pricing';
 import type { KpDocumentDto, KpSettings, UUID } from '@shared/types';
 import { KpTermsEditor } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
@@ -158,7 +158,8 @@ function ChecksList({ checks: c }: { checks: KpChecks }) {
       {c.notApproved ? <li className="po-kp-check-warn">Не затверджено ✔: {c.notApproved} — з мінімальною ціною</li> : null}
       {c.notPicked ? <li className="po-muted">Не підібрано: {c.notPicked} — у КП не увійдуть</li> : null}
       {c.belowCost ? <li className="po-kp-check-err">Продаж нижче входу: {c.belowCost}</li> : null}
-      {c.noPrice ? <li className="po-kp-check-err">Без ціни продажу: {c.noPrice} — не увійдуть; задайте ціну на вкладці «Націнка»</li> : null}
+      {c.noPrice ? <li className="po-kp-check-err">Без ціни продажу: {c.noPrice}. Задайте ціну на вкладці «Націнка»</li> : null}
+      {c.nonPositive ? <li className="po-kp-check-err">Ціна продажу 0 або менше: {c.nonPositive}. Змініть націнку чи знижку</li> : null}
     </ul>
   );
 }
@@ -197,6 +198,7 @@ export default function KpTab() {
   const requestId = useRequestDoc((s) => s.requestId);
   const readOnly = useRequestDoc((s) => s.readOnly);
   const setHeader = useRequestDoc((s) => s.setHeader);
+  const hasBuyer = useRequestDoc((s) => !!(s.doc?.header.clientId || s.doc?.header.counterpartyId));
   const own = useQuery({ queryKey: qk.ownCompanies, queryFn: () => ds.listOwnCompanies() });
   const { snapshot: preview, checks } = useKpPreview();
   const kps = useQuery({ queryKey: qk.kps(requestId ?? ''), queryFn: () => ds.listKps(requestId!), enabled: !!requestId });
@@ -245,9 +247,7 @@ export default function KpTab() {
     ? 'Заявка відкрита лише для перегляду'
     : !checks
       ? 'Зачекайте…'
-      : !checks.inKp
-        ? 'Немає позицій з ціною продажу'
-        : null;
+      : kpBlockReason(checks);
   const kpPrefix = appSettings.data?.nextKpNumber;
   const requestNumber = useRequestDoc((s) => s.doc?.header.number);
 
@@ -262,16 +262,16 @@ export default function KpTab() {
     message.info(`Налаштування взято з КП № ${kp.numberLabel} — перевірте перегляд і натисніть «Сформувати КП»`, 5);
   };
 
-  // позиції без ціни продажу в КП не увійдуть — лише з підтвердженням
+  // без клієнта КП можна сформувати (напр., на роздрук), але лише свідомо
   const onCreate = () => {
-    if (!checks?.noPrice) {
+    if (hasBuyer) {
       create.mutate();
       return;
     }
     modal.confirm({
-      title: `Без ціни продажу: ${checks.noPrice} поз.`,
-      content: 'Ці позиції не увійдуть у КП. Щоб включити — задайте спосіб націнки або ціну вручну на вкладці «Націнка».',
-      okText: 'Сформувати без них',
+      title: 'Не вибрано клієнта',
+      content: 'У КП не буде покупця. Сформувати КП без покупця?',
+      okText: 'Сформувати без покупця',
       cancelText: 'Скасувати',
       onOk: () => create.mutate(),
     });

@@ -39,6 +39,12 @@ export function resolveMarkupRule(line: Pick<RequestLine, 'markup'>, defaults: M
   };
 }
 
+/** Найбільше значення % для способу: знижка від РРЦ — до 99 % (100 % і більше дає ціну 0 або відʼємну). */
+export const MAX_DISCOUNT_PCT = 99;
+export function markupValueMax(method: MarkupMethod): number {
+  return method === 'discount_from_rrp' ? MAX_DISCOUNT_PCT : 1000;
+}
+
 export interface SalePriceInput {
   costNet: number | null;
   rrpGross: number | null;
@@ -69,10 +75,13 @@ export function computeSalePrice(input: SalePriceInput): SalePriceResult {
     warnings,
   });
   const fromGross = (gross: number): SalePriceResult => {
+    // «як в Excel» при знижці −100 % ділить на нуль
+    if (!Number.isFinite(gross)) return none('gross');
     const saleGross = roundSale(gross, input.rounding);
     return { saleGross, saleNet: round2(saleGross / k), priceBasis: 'gross', warnings: [] };
   };
   const fromNet = (net: number): SalePriceResult => {
+    if (!Number.isFinite(net)) return none('net');
     const saleNet = roundSale(net, input.rounding);
     return { saleNet, saleGross: round2(saleNet * k), priceBasis: 'net', warnings: [] };
   };
@@ -110,17 +119,21 @@ export function computeMarkupRow(
   const costGross = eff?.unitGrossUah ?? null;
   const rrpGross = eff?.rrpGrossUah ?? null;
   const rrpNet = eff?.rrpNetUah ?? null;
-  const sale = computeSalePrice({
-    costNet,
-    rrpGross,
-    method: rule.method,
-    value: rule.value,
-    manualPriceNet: rule.manualPriceNet,
-    manualPriceGross: rule.manualPriceGross,
-    vatRatePct: header.vatRatePct,
-    rounding: markup.rounding,
-    discountFormula: header.discountFormula,
-  });
+  // без обраної пропозиції рядок не продається навіть із ручною ціною: ціна рядка лишається й повернеться,
+  // щойно рядок знову підберуть (у КП не йде рядок без коду й собівартості)
+  const sale: SalePriceResult = eff
+    ? computeSalePrice({
+        costNet,
+        rrpGross,
+        method: rule.method,
+        value: rule.value,
+        manualPriceNet: rule.manualPriceNet,
+        manualPriceGross: rule.manualPriceGross,
+        vatRatePct: header.vatRatePct,
+        rounding: markup.rounding,
+        discountFormula: header.discountFormula,
+      })
+    : { saleNet: null, saleGross: null, priceBasis: 'net', warnings: [] };
 
   const qty = eff?.qtyEffective ?? line.qty; // F26
   const sumNet = sale.saleNet != null ? round2(sale.saleNet * qty) : null;

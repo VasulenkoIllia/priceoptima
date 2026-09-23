@@ -12,6 +12,7 @@ import {
   RATE_POLICIES,
   REQUEST_STATUSES,
 } from '@shared/enums';
+import { MAX_DISCOUNT_PCT } from '@shared/pricing';
 
 const id = z.string().min(1).max(64);
 const uuid = (label: string) => z.uuid(`Невірний ідентифікатор: ${label}`);
@@ -87,7 +88,7 @@ const headerPatchSchema = z
 const markupPatchSchema = z
   .object({
     method: z.enum(MARKUP_METHODS),
-    value: num.min(-100).max(10_000),
+    value: num.min(-99, 'Націнка: не менше −99 %').max(1000, 'Націнка: не більше 1000 %'),
     rounding: z.enum(PRICE_ROUNDINGS),
     excludeUnavailable: z.boolean(),
   })
@@ -101,12 +102,16 @@ const lineSchema = z.object({
   qty: num.min(0).max(1e9),
   clientNote: nullableText(2000),
   selection: z.object({ blockId: id.nullable() }),
-  markup: z.object({
-    method: z.enum(MARKUP_METHODS).nullable(),
-    value: nullableNum,
-    manualPriceNet: nullableNum,
-    manualPriceGross: nullableNum.optional(),
-  }),
+  markup: z
+    .object({
+      method: z.enum(MARKUP_METHODS).nullable(),
+      value: num.min(-99, 'Націнка: не менше −99 %').max(1000, 'Націнка: не більше 1000 %').nullable(),
+      manualPriceNet: num.min(0, 'Ціна продажу не може бути відʼємною').nullable(),
+      manualPriceGross: num.min(0, 'Ціна продажу не може бути відʼємною').nullable().optional(),
+    })
+    .refine((m) => m.method !== 'discount_from_rrp' || m.value == null || (m.value >= 0 && m.value <= MAX_DISCOUNT_PCT), {
+      message: `Знижка від РРЦ: від 0 до ${MAX_DISCOUNT_PCT} %`,
+    }),
   approval: z.object({ approved: z.boolean(), approvedQty: nullableNum }),
   kpName: nullableText(1000),
 });

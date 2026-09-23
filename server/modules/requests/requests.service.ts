@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma, type RequestEvent, type User } from '@prisma/client';
 import { REQUEST_STATUS_LABELS } from '@shared/enums';
 import { formatRequestNumber, toIsoDate } from '@shared/format';
-import { catalogSnapshotOf, defaultKpSettings, defaultMarkupSettings, pricingSettingsFrom } from '@shared/pricing';
+import { catalogSnapshotOf, defaultKpSettings, defaultMarkupSettings, MAX_DISCOUNT_PCT, pricingSettingsFrom } from '@shared/pricing';
 import {
   applyDocumentPatch,
   contactRef,
@@ -39,7 +39,7 @@ import type {
   UUID,
 } from '@shared/types';
 import { prisma } from '../../db';
-import { ApiError, notFound } from '../../http/errors';
+import { ApiError, notFound, validationError } from '../../http/errors';
 import { audit, userRefs } from '../audit/audit.service';
 import { getClient } from '../clients/clients.service';
 import { listOwnCompanies } from '../own-companies/ownCompanies.service';
@@ -382,6 +382,10 @@ export async function saveRequestDocument(id: UUID, patch: DocumentPatch, actor:
 
     const before = toDocState(r);
     const after = applyDocumentPatch(before, patch);
+    // спосіб і % можуть прийти окремими змінами, тож межу знижки перевіряємо на зібраному документі
+    if (after.markup.method === 'discount_from_rrp' && (after.markup.value < 0 || after.markup.value > MAX_DISCOUNT_PCT)) {
+      throw validationError(`Знижка від РРЦ: від 0 до ${MAX_DISCOUNT_PCT} %`);
+    }
     const last = await tx.requestEvent.findFirst({ where: { requestId: id }, orderBy: { id: 'desc' } });
     const lastUser = last?.userId ? ((await userRefs([last.userId])).get(last.userId) ?? null) : null;
     const log = createEventLog(last ? toDraft(last, lastUser) : null);

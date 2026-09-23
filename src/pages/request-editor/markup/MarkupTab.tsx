@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router';
 import { DISCOUNT_FORMULAS, DISCOUNT_FORMULA_LABELS, MARKUP_METHOD_LABELS, MARKUP_METHODS, type DiscountFormula, type KpVatMode, type MarkupMethod } from '@shared/enums';
 import { formatMoney, formatPct, formatQty } from '@shared/format';
 import { parseLocaleNumber } from '@shared/parse';
-import { isActiveLine, kpChecks, offerDisplayName } from '@shared/pricing';
+import { isActiveLine, kpChecks, markupValueMax, offerDisplayName } from '@shared/pricing';
 import type { MarkupRowComputed, Offer, RequestComputed, RequestDocument, RequestLine, SupplierProfit, SupplierRef, UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
@@ -102,7 +102,7 @@ function WarnCell({ data }: P) {
 }
 
 /** Значення % для заявки: зберігається при втраті фокусу або Enter (одна дія для undo). */
-function PctInput({ value, disabled, onCommit }: { value: number; disabled: boolean; onCommit(v: number): void }) {
+function PctInput({ value, max, disabled, onCommit }: { value: number; max: number; disabled: boolean; onCommit(v: number): void }) {
   const [draft, setDraft] = useState<number | null>(value);
   useEffect(() => setDraft(value), [value]);
   const commit = () => {
@@ -113,7 +113,7 @@ function PctInput({ value, disabled, onCommit }: { value: number; disabled: bool
     <InputNumber
       size="small"
       min={0}
-      max={1000}
+      max={max}
       decimalSeparator=","
       value={draft}
       disabled={disabled}
@@ -397,6 +397,10 @@ export default function MarkupTab() {
     const s = getRequestDocStore().getState();
     const col = e.column.getColId();
     if (col === 'value') {
+      if (v != null && v > markupValueMax(row.mr.method)) {
+        message.warning(`Не більше ${markupValueMax(row.mr.method)} %`);
+        return;
+      }
       s.setLineMarkup(row.id, v == null ? { value: null } : { method: row.mr.method, value: v, manualPriceNet: null, manualPriceGross: null });
     } else if (col === 'saleNet' || col === 'saleGross') {
       if (v == null) s.setLineMarkup(row.id, { method: null, value: null, manualPriceNet: null, manualPriceGross: null });
@@ -435,7 +439,12 @@ export default function MarkupTab() {
           onChange={(m) => store.setMarkupDefaults({ method: m })}
         />
         {isPctMethod(markup.method) ? (
-          <PctInput value={markup.value} disabled={readOnly} onCommit={(v) => store.setMarkupDefaults({ value: v })} />
+          <PctInput
+            value={markup.value}
+            max={markupValueMax(markup.method)}
+            disabled={readOnly}
+            onCommit={(v) => store.setMarkupDefaults({ value: v })}
+          />
         ) : null}
         {markup.method === 'discount_from_rrp' ? (
           <Tooltip title="Формула цієї заявки. Нові заявки беруть формулу з налаштувань; тут її можна змінити під особливі умови">
@@ -489,9 +498,16 @@ export default function MarkupTab() {
           </Tag>
         ) : null}
         {checks.noPrice ? (
-          <Tooltip title="Немає ціни продажу (напр., «по РРЦ», а РРЦ немає) — у КП не увійдуть. Задайте рядку інший спосіб або ціну вручну">
+          <Tooltip title="Немає ціни продажу (напр., «по РРЦ», а РРЦ немає): поки такі рядки є, КП не сформується. Задайте рядку інший спосіб або ціну вручну">
             <Tag color="red" bordered={false}>
               без ціни: {checks.noPrice}
+            </Tag>
+          </Tooltip>
+        ) : null}
+        {checks.nonPositive ? (
+          <Tooltip title="Ціна продажу 0 або менше: поки такі рядки є, КП не сформується">
+            <Tag color="red" bordered={false}>
+              ціна ≤ 0: {checks.nonPositive}
             </Tag>
           </Tooltip>
         ) : null}

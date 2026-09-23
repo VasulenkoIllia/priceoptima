@@ -84,6 +84,31 @@ describe('версія КП', () => {
     expect(() => buildKpVersion(input(s))).toThrow(KpBuildError);
   });
 
+  it('рядок із товаром, але без ціни продажу, не дає сформувати КП (НАЦ-4)', () => {
+    const s = state();
+    s.lines = s.lines.map((l) => (l.id === 'L2' ? { ...l, markup: { method: 'rrp', value: null, manualPriceNet: null } } : l));
+    expect(() => buildKpVersion(input(s))).toThrow('Без ціни продажу: 1 поз.');
+  });
+
+  it('знижка 100 % від РРЦ дає ціну 0 — КП не формується', () => {
+    const s = state();
+    s.markup = { ...s.markup, method: 'discount_from_rrp', value: 100 };
+    s.offers = s.offers.map((o) => ({ ...o, rrpCur: 200 }));
+    expect(() => buildKpVersion(input(s))).toThrow('Ціна продажу 0 або менше: 2 поз.');
+  });
+
+  it('ручна ціна рядка без обраної пропозиції в КП і суми не йде, а повертається, щойно рядок знову підібрано', () => {
+    const s = state();
+    s.lines = s.lines.map((l) => (l.id === 'L1' ? { ...l, markup: { method: 'manual', value: null, manualPriceNet: 300 } } : l));
+    s.offers = s.offers.map((o) => (o.lineId === 'L1' ? { ...o, excluded: true } : o));
+    const built = buildKpVersion(input(s));
+    expect(built.snapshot.rows.map((r) => r.lineId)).toEqual(['L2']);
+
+    s.offers = s.offers.map((o) => ({ ...o, excluded: false }));
+    const again = buildKpVersion(input(s));
+    expect(again.snapshot.rows.find((r) => r.lineId === 'L1')).toMatchObject({ price: 300, code: expect.any(String) });
+  });
+
   it('«Назва 1С»: актуальна з каталогу, навіть якщо її завантажили після підбору товару', () => {
     const s = state();
     s.offers = s.offers.map((o) => (o.lineId === 'L1' ? { ...o, name1c: null, catalog: { name1c: 'Назва з 1С для КП' } as never } : o));

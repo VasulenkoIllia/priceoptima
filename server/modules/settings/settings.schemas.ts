@@ -25,7 +25,7 @@ export const settingsPatchSchema = z
     lockHeartbeatSeconds: int(1, 600, 'Період підтвердження блокування, с'),
     autosaveDebounceMs: int(100, 60_000, 'Затримка автозбереження, мс'),
     defaultMarkupMethod: enumOf(MARKUP_METHODS, 'спосіб націнки'),
-    defaultMarkupValue: z.number({ message: 'Націнка: вкажіть число' }).min(-100, 'Націнка: не менше −100').max(1000, 'Націнка: не більше 1000'),
+    defaultMarkupValue: z.number({ message: 'Націнка: вкажіть число' }).min(-99, 'Націнка: не менше −99').max(1000, 'Націнка: не більше 1000'),
     priceRounding: enumOf(PRICE_ROUNDINGS, 'округлення ціни'),
     discountFormula: enumOf(DISCOUNT_FORMULAS, 'формула знижки'),
     autoRoundMultiplicity: z.boolean(),

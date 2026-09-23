@@ -15,6 +15,7 @@ import {
   PRICE_ROUNDING_LABELS,
   type KpVatMode,
 } from '@shared/enums';
+import { markupValueMax } from '@shared/pricing';
 import type { AppSettings, AppSettingsPatch, KpTerm } from '@shared/types';
 import { KpTermsEditor } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
@@ -113,7 +114,7 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
             <Select options={options(MARKUP_METHODS, MARKUP_METHOD_LABELS)} />
           </Form.Item>
           <Form.Item name="defaultMarkupValue" label="Значення, %" extra={method === 'rrp' || method === 'manual' ? 'Для цього способу не використовується' : undefined}>
-            <InputNumber {...NUM} min={0} max={1000} precision={2} disabled={method === 'rrp' || method === 'manual'} />
+            <InputNumber {...NUM} min={0} max={markupValueMax(method ?? 'markup_on_cost')} precision={2} disabled={method === 'rrp' || method === 'manual'} />
           </Form.Item>
           <Form.Item name="discountFormula" label="Формула знижки від РРЦ">
             <Select options={options(DISCOUNT_FORMULAS, DISCOUNT_FORMULA_LABELS)} />

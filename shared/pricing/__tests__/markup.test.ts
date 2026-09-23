@@ -34,6 +34,12 @@ describe('F24 правило націнки рядка', () => {
 });
 
 describe('F25 ціна продажу', () => {
+  it('«як в Excel» зі знижкою −100 % не дає нескінченної ціни', () => {
+    const r = computeSalePrice({ ...base, discountFormula: 'excel_divisor', costNet: 100, rrpGross: 180, method: 'discount_from_rrp', value: -100 });
+    expect(r.saleNet).toBeNull();
+    expect(r.saleGross).toBeNull();
+  });
+
   it('T11: продаж по РРЦ', () => {
     const r = computeSalePrice({ ...base, costNet: 120, rrpGross: 180, method: 'rrp', value: 0 });
     expect(r).toEqual({ saleGross: 180, saleNet: 150, priceBasis: 'gross', warnings: [] });

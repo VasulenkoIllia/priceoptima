@@ -7,6 +7,8 @@ import {
   buildKpRows,
   buildKpSnapshot,
   computeRequest,
+  kpBlockReason,
+  kpChecks,
   resolveKpTerms,
   type KpBuyer,
   type KpSeller,
@@ -59,10 +61,12 @@ export function buildKpVersion(i: KpBuildInput): KpBuilt {
     if (!snapshot.rows.length) throw new KpBuildError('VALIDATION_ERROR', 'Немає погоджених позицій — відмітьте їх на вкладці «Погодження»');
     return { snapshot, ownCompanyId: base.ownCompanyId, settings: { ...base.settings, onlyApproved: true } };
   }
-  // рядки без ціни продажу в КП не входять (інтерфейс попереджає перед формуванням)
+  // рядок з обраним товаром, але без ціни продажу або з ціною ≤ 0 не дає сформувати КП (НАЦ-4); непідібрані лише не входять
   const computed = computeRequest(i.state, i.ctx);
+  const blocked = kpBlockReason(kpChecks(i.state.lines, computed));
+  if (blocked) throw new KpBuildError('VALIDATION_ERROR', blocked);
   const rows = buildKpRows(i.state, computed, { ...i.settings, onlyApproved: false }, i.ctx, i.images);
-  if (!rows.length) throw new KpBuildError('VALIDATION_ERROR', 'Немає позицій з ціною продажу — підберіть товари й задайте націнку');
+  if (!rows.length) throw new KpBuildError('VALIDATION_ERROR', 'Немає позицій з ціною продажу: підберіть товари й задайте націнку');
   const snapshot = buildKpSnapshot({
     kpNumber: i.kpNumber,
     requestNumber: i.state.header.number,
