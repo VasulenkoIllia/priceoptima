@@ -118,8 +118,8 @@ function whereMatches(tokens: readonly string[]): Prisma.ClientWhereInput {
     AND: tokens.map((token) => ({
       OR: [
         { name: { contains: token, mode: 'insensitive' as const } },
-        { counterparties: { some: { nameShort: { contains: token, mode: 'insensitive' as const } } } },
-        { counterparties: { some: { edrpou: { contains: token } } } },
+        { counterparties: { some: { isActive: true, nameShort: { contains: token, mode: 'insensitive' as const } } } },
+        { counterparties: { some: { isActive: true, edrpou: { contains: token } } } },
       ],
     })),
   };

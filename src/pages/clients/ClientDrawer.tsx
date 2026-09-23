@@ -21,7 +21,10 @@ function ClientCard({ client }: { client: ClientDetail }) {
   const requestsQuery = { clientId: client.id };
   const requests = useQuery({ queryKey: qk.requests(requestsQuery), queryFn: () => ds.listRequests(requestsQuery) });
   const responsible = users.data?.find((u) => u.id === client.responsibleUserId);
-  const cpName = new Map(client.counterparties.map((cp) => [cp.id, cp.nameShort] as const));
+  // архівні контрагенти й контакти лишаються лише в старих заявках — у картці їх не показуємо
+  const counterparties = client.counterparties.filter((cp) => cp.isActive);
+  const contacts = client.contacts.filter((c) => c.isActive);
+  const cpName = new Map(counterparties.map((cp) => [cp.id, cp.nameShort] as const));
 
   return (
     <>
@@ -34,7 +37,7 @@ function ClientCard({ client }: { client: ClientDetail }) {
 
       <div className="po-cli-section">Контрагенти</div>
       <div className="po-cli-items">
-        {client.counterparties.map((cp) => (
+        {counterparties.map((cp) => (
           <div key={cp.id} className="po-cli-item">
             <div className="po-cli-item-head">
               {cp.nameShort}
@@ -58,9 +61,9 @@ function ClientCard({ client }: { client: ClientDetail }) {
       </div>
 
       <div className="po-cli-section">Контакти</div>
-      {client.contacts.length ? (
+      {contacts.length ? (
         <div className="po-cli-items">
-          {client.contacts.map((c) => (
+          {contacts.map((c) => (
             <div key={c.id} className="po-cli-item">
               <div className="po-cli-item-head">
                 {c.fullName}

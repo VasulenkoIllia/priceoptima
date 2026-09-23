@@ -67,8 +67,9 @@ export function toClientListItem(row: ClientRow, stats?: ClientRequestStats): Cl
   return {
     id: row.id,
     name: row.name,
-    counterparties: row.counterparties.map((cp) => ({ id: cp.id, nameShort: cp.nameShort, edrpou: cp.edrpou })),
-    contactsCount: row.contacts.length,
+    // архівні (прибрані з картки) лишаються лише в старих заявках — у списку їх не показуємо
+    counterparties: row.counterparties.filter((cp) => cp.isActive).map((cp) => ({ id: cp.id, nameShort: cp.nameShort, edrpou: cp.edrpou })),
+    contactsCount: row.contacts.filter((c) => c.isActive).length,
     responsible: row.responsibleUser ? { id: row.responsibleUser.id, shortName: row.responsibleUser.shortName } : null,
     requestsCount: stats?.count ?? 0,
     lastRequestDate: stats?.lastDate ? toIsoDate(stats.lastDate) : null,
@@ -87,9 +88,10 @@ export function lookupTokens(query: string): string[] {
   return query.toLocaleLowerCase('uk').split(/\s+/u).filter(Boolean);
 }
 
-/** Рядки підказки для клієнта: по одному на контрагента (без контрагентів — сам клієнт). */
+/** Рядки підказки для клієнта: по одному на чинного контрагента (без контрагентів — сам клієнт). */
 export function toLookupItems(row: ClientRow, tokens: readonly string[]): ClientLookupItem[] {
-  const rows: (Counterparty | null)[] = row.counterparties.length ? row.counterparties : [null];
+  const active = row.counterparties.filter((cp) => cp.isActive);
+  const rows: (Counterparty | null)[] = active.length ? active : [null];
   const out: ClientLookupItem[] = [];
   for (const cp of rows) {
     const label = lookupLabel(row.name, cp);
