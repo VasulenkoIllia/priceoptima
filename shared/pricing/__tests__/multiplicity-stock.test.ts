@@ -123,6 +123,24 @@ describe('F20–F21 наявність і застарілість (T16)', () =>
     expect(computeOfferBase(changed, line, makeBlock('A', 0), makeHeader(), makeCtx([makeSupplier('A')])).stale.isStale).toBe(true);
   });
 
+  it('товару немає у прайсі — попередження з датою (4.4)', () => {
+    const offer = uah('L1', 'A', 100, {
+      catalog: {
+        productId: 'p-L1-A',
+        currency: 'UAH',
+        purchasePrice: 100,
+        rrp: null,
+        priceUpdatedAt: '2026-09-10T09:00:00Z',
+        stockQty: null,
+        availability: 'in_stock',
+        isArchived: false,
+        missingSince: '2026-09-08',
+      },
+    });
+    const r = computeOfferBase(offer, makeLine('L1', 1), makeBlock('A', 0), makeHeader(), makeCtx([makeSupplier('A')]));
+    expect(r.warnings.find((w) => w.code === 'NOT_IN_PRICE_LIST')?.params).toEqual({ since: '2026-09-08' });
+  });
+
   it('out_of_stock + excludeUnavailable → не кандидат, рекомендація переходить далі', () => {
     const lines = [makeLine('L1', 4)];
     const blocks = [makeBlock('A', 0), makeBlock('B', 1)];

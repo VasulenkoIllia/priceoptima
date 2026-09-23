@@ -15,6 +15,7 @@ export type WarningCode =
   | 'OUT_OF_STOCK'
   | 'PRICE_STALE' // params: ageDays, staleDays
   | 'CATALOG_PRICE_CHANGED' // знімок ≠ каталог (params: catalogPrice, snapshotPrice, catalogCurrency)
+  | 'NOT_IN_PRICE_LIST' // товару немає в останньому прайсі постачальника (params: since — дата)
   | 'INPUT_ABOVE_RRP' // вхід без ПДВ > РРЦ без ПДВ
   | 'UNIT_MISMATCH' // од. пропозиції ≠ од. клієнта (params: offerUnit, clientUnit)
   | 'SELECTED_EXCLUDED' // обрано виключену/порожню пропозицію

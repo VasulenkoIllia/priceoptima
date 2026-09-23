@@ -1,4 +1,5 @@
 import type { Warning, WarningCode } from '../types';
+import { formatDate } from './date';
 import { formatMoney, formatQty } from './number';
 
 type Params = NonNullable<Warning['params']>;
@@ -20,6 +21,7 @@ const MESSAGES: Record<WarningCode, (p: Params) => string> = {
   QTY_ROUNDED: (p) => `Округлено з ${formatQty(num(p, 'from'))}, кратно ${formatQty(num(p, 'multiplicity'))}`,
   INSUFFICIENT_STOCK: (p) => `Замовлено ${formatQty(num(p, 'qty'))}, у наявності ${formatQty(num(p, 'stock'))}`,
   OUT_OF_STOCK: () => 'Немає в наявності',
+  NOT_IN_PRICE_LIST: (p) => `Немає у прайсі постачальника з ${formatDate(str(p, 'since'))} — ціна остання відома, уточніть у постачальника`,
   PRICE_STALE: (p) => `Ціна застаріла: ${formatQty(num(p, 'ageDays'))} дн. (норма ${formatQty(num(p, 'staleDays'))}) — перевірте на сайті постачальника`,
   CATALOG_PRICE_CHANGED: (p) =>
     `Ціна в каталозі змінилась: ${formatMoney(num(p, 'snapshotPrice'))} → ${formatMoney(num(p, 'catalogPrice'))} ${str(p, 'catalogCurrency')}`.trim(),

@@ -18,8 +18,8 @@ export type ProductForOffer = Pick<
   | 'priceUpdatedAt'
   | 'isArchived'
 > &
-  // фото потрібне лише для КП з фото, тож необов'язкове
-  Partial<Pick<ProductListItem, 'imageUrl'>>;
+  // фото потрібне лише для КП з фото, «немає у прайсі» — лише для підказки в клітинці, тож необов'язкові
+  Partial<Pick<ProductListItem, 'imageUrl' | 'missingSince'>>;
 
 export function catalogSnapshotOf(product: ProductForOffer): CatalogSnapshot {
   return {
@@ -33,6 +33,7 @@ export function catalogSnapshotOf(product: ProductForOffer): CatalogSnapshot {
     isArchived: product.isArchived,
     name1c: product.name1c,
     imageUrl: product.imageUrl ?? null,
+    missingSince: product.missingSince ?? null,
   };
 }
 

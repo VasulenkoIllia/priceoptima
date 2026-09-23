@@ -120,6 +120,12 @@ describe('сума прописом', () => {
 });
 
 describe('тексти попереджень', () => {
+  it('немає у прайсі', () => {
+    expect(formatWarning({ code: 'NOT_IN_PRICE_LIST', params: { since: '2026-09-08' } })).toBe(
+      'Немає у прайсі постачальника з 08.09.2026 — ціна остання відома, уточніть у постачальника',
+    );
+  });
+
   it('кратність, мін. замовлення', () => {
     expect(formatWarning({ code: 'QTY_ROUNDED', params: { from: 118, to: 120, multiplicity: 4 } })).toBe('Округлено з 118, кратно 4');
     expect(formatWarning({ code: 'BELOW_MIN_ORDER', params: { selectedGross: 464.51, minOrderAmount: 1000 } })).toBe(

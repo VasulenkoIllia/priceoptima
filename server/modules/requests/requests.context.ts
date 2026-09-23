@@ -1,6 +1,7 @@
 // Що потрібно заявці з довідників: налаштування й постачальники для розрахунку, курси на дату, поточний стан товарів.
 import type { Product } from '@prisma/client';
 import { AVAILABILITY_STATUSES, CURRENCY_CODES } from '@shared/enums';
+import { toIsoDate } from '@shared/format';
 import { pricingSettingsFrom, type ProductForOffer } from '@shared/pricing';
 import { toSupplierRef } from '@shared/requests';
 import type { AppSettings, HeaderRates, ISODate, PricingContext, SupplierRef, UUID } from '@shared/types';
@@ -44,6 +45,7 @@ export function toProductForOffer(p: Product): ProductForOffer {
     priceUpdatedAt: p.priceUpdatedAt ? p.priceUpdatedAt.toISOString() : null,
     isArchived: p.isArchived,
     imageUrl: p.imageUrl,
+    missingSince: p.missingSince ? toIsoDate(p.missingSince) : null,
   };
 }
 

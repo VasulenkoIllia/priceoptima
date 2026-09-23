@@ -129,6 +129,11 @@ export function computeOfferBase(
     warnings.push({ ...ref, code: 'PRICE_STALE', severity: 'warning', params: { ageDays, staleDays } });
   }
 
+  // товару вже немає в прайсі постачальника — ціна остання відома
+  if (isFilled && offer.catalog?.missingSince) {
+    warnings.push({ ...ref, code: 'NOT_IN_PRICE_LIST', severity: 'warning', params: { since: offer.catalog.missingSince } });
+  }
+
   // F22: зміна в каталозі
   const catalogChanged = isCatalogChanged(offer);
   if (catalogChanged && offer.catalog) {

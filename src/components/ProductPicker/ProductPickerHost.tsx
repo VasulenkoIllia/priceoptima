@@ -225,6 +225,11 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
         <Tooltip title={r.product.matchKind === 'fuzzy' ? `${r.product.nameWork} (частковий збіг)` : r.product.nameWork} placement="topLeft" mouseEnterDelay={0.5}>
           <span>
             {r.inLine ? <Tag color="blue">уже в рядку</Tag> : null}
+            {r.product.missingSince ? (
+              <Tag color="red" bordered={false} title="Товару немає в останньому прайсі постачальника — ціна остання відома">
+                немає у прайсі з {formatDate(r.product.missingSince)}
+              </Tag>
+            ) : null}
             {r.product.nameWork}
           </span>
         </Tooltip>

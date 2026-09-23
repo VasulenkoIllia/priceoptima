@@ -85,13 +85,13 @@ export const ROW_FILTER_LABELS: Record<RowFilter, string> = {
   unapproved: 'Без затвердження',
   warnings: 'З попередженнями',
   stock: 'Наявність',
-  stale: 'Застарілі ціни',
+  stale: 'Застарілі ціни й немає у прайсі',
 };
 
 /** Коди попереджень пропозицій для фільтрів за видом. */
 export const WARNING_FILTER_CODES: Record<WarningFilter, readonly WarningCode[]> = {
   stock: ['OUT_OF_STOCK', 'INSUFFICIENT_STOCK'],
-  stale: ['PRICE_STALE'],
+  stale: ['PRICE_STALE', 'NOT_IN_PRICE_LIST'],
 };
 
 export interface BuildRowsInput {

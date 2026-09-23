@@ -21,7 +21,7 @@ export type BlockCellParams = { blockId: UUID; allWarnings?: boolean };
 export const FIELD_WARNINGS: Partial<Record<BlockField, readonly WarningCode[]>> = {
   unit: ['UNIT_MISMATCH'],
   qty: ['MULTIPLICITY_MISMATCH'],
-  net: ['RATE_MISSING', 'PRICE_MISSING', 'PRICE_STALE', 'CATALOG_PRICE_CHANGED', 'INPUT_ABOVE_RRP'],
+  net: ['RATE_MISSING', 'PRICE_MISSING', 'NOT_IN_PRICE_LIST', 'PRICE_STALE', 'CATALOG_PRICE_CHANGED', 'INPUT_ABOVE_RRP'],
   stock: ['OUT_OF_STOCK', 'INSUFFICIENT_STOCK'],
 };
 
