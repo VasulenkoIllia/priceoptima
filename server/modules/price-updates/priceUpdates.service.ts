@@ -256,6 +256,8 @@ async function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpd
     const details = result.report ? { counters: result.counters, report: result.report } : undefined;
     throw new ApiError('UNPROCESSABLE', result.rejected, details);
   }
+  // пояснення звірки йдуть у журнал поряд із попередженнями розбору
+  const withNotes: ParsedPrice = result.notes.length ? { ...price, warnings: [...price.warnings, ...result.notes] } : price;
   if (ctx.dryRun) {
     return toDryRunDetail({
       supplierId,
@@ -264,7 +266,7 @@ async function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpd
       fileName: ctx.fileName,
       user: ctx.user,
       rates: price.rates,
-      warnings: price.warnings,
+      warnings: withNotes.warnings,
       counters: result.counters,
       report: result.report,
     });
@@ -273,7 +275,7 @@ async function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpd
   const started = Date.now();
   let runId: number;
   try {
-    runId = await prisma.$transaction((tx) => writePlan(tx, ctx, price, result), {
+    runId = await prisma.$transaction((tx) => writePlan(tx, ctx, withNotes, result), {
       timeout: APPLY_TIMEOUT_MS,
       maxWait: APPLY_MAX_WAIT_MS,
     });
@@ -378,6 +380,9 @@ async function writePlan(tx: Prisma.TransactionClient, ctx: RunContext, price: P
 
   for (const ids of chunks(plan.priceConfirmedIds, ID_BATCH)) {
     await tx.product.updateMany({ where: { id: { in: ids } }, data: { priceUpdatedAt: now } });
+  }
+  for (const ids of chunks(plan.adoptedIds, ID_BATCH)) {
+    await tx.product.updateMany({ where: { id: { in: ids } }, data: { priceOrigin: 'import' } });
   }
   for (const ids of chunks(plan.missingClears, ID_BATCH)) {
     await tx.product.updateMany({ where: { id: { in: ids } }, data: { missingSince: null } });

@@ -3,9 +3,10 @@
 // а підозрілий прайс (обрізаний, масова зміна цін чи валюти) не застосовується зовсім.
 //
 // Ролі джерела:
-// - prices     — вхідна ціна, РРЦ і валюта (товари з ручною ціною не чіпаємо ніколи);
+// - prices     — вхідна ціна, РРЦ і валюта (ручну ціну наступний прайс замінює, ІМП-6);
 // - stock      — залишок і наявність (коли рядок щось про них каже);
-// - assortment — нові позиції, «немає у прайсі», повернення з архіву, заповнення описів і фото.
+// - assortment — нові позиції, «немає у прайсі», повернення з архіву, заповнення описів і фото;
+//                товар, доданий вручну, який з'явився в такому прайсі, далі веде прайс.
 import { randomUUID } from 'node:crypto';
 import type { AvailabilityStatus, CurrencyCode } from '@shared/enums';
 import { DEFAULT_UNITS, normalizeSku, normalizeUnit, type UnitAliasSource } from '@shared/parse';
@@ -170,6 +171,10 @@ export interface ApplyPlan {
   missingMarks: UUID[];
   /** Знову є у прайсі — позначку прибрати. */
   missingClears: UUID[];
+  /** Товари, додані вручну, які з'явились у прайсі, що веде асортимент: далі їх веде прайс. */
+  adoptedIds: UUID[];
+  /** Пояснення до звірки для журналу (поряд із попередженнями розбору). */
+  notes: string[];
 }
 
 export interface PlanRejection {
@@ -374,6 +379,8 @@ export function planApply(input: PlanInput): PlanResult {
     historyEntries: [],
     imageAttachments: [],
     missingMarks: [],
+    adoptedIds: [],
+    notes: [],
     missingClears: [],
   };
   const present = new Set<UUID>();
@@ -405,6 +412,9 @@ export function planApply(input: PlanInput): PlanResult {
     present.add(current.id);
     const next: ProductUpdate = stateOf(current);
     const code = row.code.trim();
+    // товар створили вручну наперед, а тепер він є в прайсі, що веде асортимент: далі його веде прайс
+    // (ціни, «немає у прайсі»); опис, як і в інших, лише доповнюється
+    if (roles.assortment && current.priceOrigin === 'manual') plan.adoptedIds.push(current.id);
 
     // код товару змінюємо лише джерелу, що веде асортимент: інакше вигрузка й файл із різними кодами
     // перечіплювали б товар туди-сюди при кожному оновленні
@@ -475,7 +485,10 @@ export function planApply(input: PlanInput): PlanResult {
   }
 
   counters.productsTotal =
-    input.existing.filter((p) => present.has(p.id) && p.priceOrigin === 'import').length + counters.added;
+    input.existing.filter((p) => present.has(p.id) && p.priceOrigin === 'import').length + plan.adoptedIds.length + counters.added;
+  if (plan.adoptedIds.length) {
+    plan.notes.push(`Товарів, доданих вручну, знайдено в прайсі: ${plan.adoptedIds.length}. Далі їх веде прайс`);
+  }
 
   if (roles.assortment && input.markMissing) {
     for (const p of input.existing) {

@@ -199,6 +199,18 @@ describe('звірка: ціни', () => {
     expect(result.historyEntries.length).toBe(1);
   });
 
+  it('товар, доданий вручну, з\'явився в прайсі, що веде асортимент: далі його веде прайс', () => {
+    const manual = product({ priceOrigin: 'manual', purchasePrice: 500 });
+    const full = plan({ existing: [manual], rows: [rowOf(manual, { purchasePrice: 400 })] });
+    expect(full.adoptedIds).toEqual([manual.id]);
+    expect(full.counters.productsTotal).toBe(1);
+    expect(full.notes).toEqual(['Товарів, доданих вручну, знайдено в прайсі: 1. Далі їх веде прайс']);
+    // файл лише з цінами (гібрид) асортимент не веде: ціни оновлює, але товар лишається «вручну»
+    const pricesOnly = plan({ existing: [manual], rows: [rowOf(manual, { purchasePrice: 400 })], roles: HYBRID_FILE });
+    expect(pricesOnly.adoptedIds).toEqual([]);
+    expect(pricesOnly.updates[0]).toMatchObject({ purchasePrice: 400 });
+  });
+
   it('одна велика зміна застосовується, але потрапляє у звіт', () => {
     const big = product({ purchasePrice: 100 });
     const others = Array.from({ length: 5 }, () => product());
