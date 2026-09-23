@@ -15,9 +15,12 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   /** Адреса, на якій слухаємо (у контейнері — усі інтерфейси). */
   HOST: z.string().min(1).default('0.0.0.0'),
-  DATABASE_URL: z.string().min(1, 'вкажіть рядок підключення до PostgreSQL'),
-  /** Ключ підпису cookie сесії. Зміна ключа розлогінює всіх. */
-  SESSION_SECRET: z.string().min(16, 'мінімум 16 символів'),
+  DATABASE_URL: z.string({ message: 'вкажіть рядок підключення до PostgreSQL' }).min(1, 'вкажіть рядок підключення до PostgreSQL'),
+  /**
+   * Ключ підпису cookie сесії й шифрування збережених токенів вигрузок постачальників.
+   * Зміна ключа розлогінює всіх і робить збережені токени нечитаними (їх треба ввести заново).
+   */
+  SESSION_SECRET: z.string({ message: 'задайте ключ (openssl rand -base64 32)' }).min(16, 'мінімум 16 символів'),
   /** Скільки живе сесія без активності. */
   SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
@@ -49,7 +52,8 @@ export type AppConfig = Readonly<Omit<z.infer<typeof schema>, 'COOKIE_SECURE'>> 
 
 /** Читає й перевіряє змінні середовища; кидає помилку зі списком проблемних змінних. */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const parsed = schema.safeParse(env);
+  // порожній рядок у .env (напр. «ADMIN_PASSWORD=») — те саме, що змінну не задано
+  const parsed = schema.safeParse(Object.fromEntries(Object.entries(env).filter(([, v]) => v !== '')));
   if (!parsed.success) {
     const lines = parsed.error.issues.map((i) => `  ${i.path.join('.') || '(env)'} — ${i.message}`);
     throw new Error(`Неправильні змінні середовища:\n${lines.join('\n')}`);
