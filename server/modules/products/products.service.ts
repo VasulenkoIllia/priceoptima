@@ -21,6 +21,7 @@ import type {
 import { prisma } from '../../db';
 import { ApiError, duplicate, notFound } from '../../http/errors';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
+import { dateOnly } from '../../lib/mapping';
 import { audit } from '../audit/audit.service';
 import { getEffectiveRates } from '../rates/rates.service';
 import { getSettings } from '../settings/settings.service';
@@ -97,7 +98,8 @@ const MIN_SKU_CONTAINS = 3;
 function listWhere(query: ProductListQueryInput, ctx: CatalogContext): Prisma.ProductWhereInput {
   const and: Prisma.ProductWhereInput[] = [];
   if (query.supplierId) and.push({ supplierId: query.supplierId });
-  if (!query.archived) and.push({ isArchived: false });
+  // «Архівні» — лише архівні (повернути в роботу); інакше лише чинні
+  and.push({ isArchived: !!query.archived });
   if (query.currency) and.push({ currency: query.currency });
   if (query.availability?.length) and.push({ availability: { in: query.availability } });
   if (query.manual) and.push({ priceOrigin: 'manual' });
@@ -121,7 +123,7 @@ function listWhere(query: ProductListQueryInput, ctx: CatalogContext): Prisma.Pr
 function listWhereSql(query: ProductListQueryInput, ctx: CatalogContext): Prisma.Sql {
   const and: Prisma.Sql[] = [];
   if (query.supplierId) and.push(Prisma.sql`"supplierId" = ${query.supplierId}`);
-  if (!query.archived) and.push(Prisma.sql`"isArchived" = false`);
+  and.push(Prisma.sql`"isArchived" = ${!!query.archived}`);
   if (query.currency) and.push(Prisma.sql`currency = ${query.currency}::"Currency"`);
   if (query.availability?.length) {
     and.push(Prisma.sql`availability IN (${Prisma.join(query.availability.map((a) => Prisma.sql`${a}::"Availability"`))})`);
@@ -159,7 +161,9 @@ async function countProducts(query: ProductListQueryInput, ctx: CatalogContext):
 
 /** Весь каталог у порядку за замовчуванням (без пошуку й фільтрів) — найчастіший і найважчий на мільйоні позицій список. */
 function isPlainListing(q: ProductListQueryInput): boolean {
-  return !q.sortField && !q.supplierId && !q.q && !q.currency && !q.availability?.length && !q.manual && !q.missing && !q.stale;
+  return (
+    !q.sortField && !q.supplierId && !q.q && !q.currency && !q.availability?.length && !q.manual && !q.missing && !q.stale && !q.archived
+  );
 }
 
 /**
@@ -169,13 +173,12 @@ function isPlainListing(q: ProductListQueryInput): boolean {
 const PLAIN_COUNTS_TTL_MS = 30_000;
 const plainCounts = new Map<string, { at: number; counts: Map<UUID, number> }>();
 
-async function supplierCounts(archived: boolean, fresh: boolean): Promise<Map<UUID, number>> {
-  const key = archived ? 'all' : 'active';
-  const cached = plainCounts.get(key);
+async function supplierCounts(fresh: boolean): Promise<Map<UUID, number>> {
+  const cached = plainCounts.get('active');
   if (!fresh && cached && Date.now() - cached.at < PLAIN_COUNTS_TTL_MS) return cached.counts;
-  const rows = await prisma.product.groupBy({ by: ['supplierId'], where: archived ? {} : { isArchived: false }, _count: { _all: true } });
+  const rows = await prisma.product.groupBy({ by: ['supplierId'], where: { isArchived: false }, _count: { _all: true } });
   const counts = new Map(rows.map((r) => [r.supplierId, r._count._all]));
-  plainCounts.set(key, { at: Date.now(), counts });
+  plainCounts.set('active', { at: Date.now(), counts });
   return counts;
 }
 
@@ -184,7 +187,7 @@ async function supplierCounts(archived: boolean, fresh: boolean): Promise<Map<UU
  * сторінка береться з індексу (постачальник, архів, назва) замість сортування всього каталогу.
  */
 async function plainPage(query: ProductListQueryInput, ctx: CatalogContext): Promise<ProductPage> {
-  const counts = await supplierCounts(!!query.archived, query.offset === 0);
+  const counts = await supplierCounts(query.offset === 0);
   const suppliers = [...ctx.suppliers.values()].sort(
     (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
   );
@@ -200,9 +203,8 @@ async function plainPage(query: ProductListQueryInput, ctx: CatalogContext): Pro
       continue;
     }
     // спершу лише id з індексу (пропущені позиції не читаються з таблиці), потім самі рядки
-    const archivedFilter = query.archived ? Prisma.empty : Prisma.sql`AND "isArchived" = false`;
     const ids = await prisma.$queryRaw<{ id: UUID }[]>`
-      SELECT id FROM "Product" WHERE "supplierId" = ${s.id} ${archivedFilter}
+      SELECT id FROM "Product" WHERE "supplierId" = ${s.id} AND "isArchived" = false
       ORDER BY "nameWork", id OFFSET ${skip} LIMIT ${query.limit - items.length}`;
     const rows = await prisma.product.findMany({ where: { id: { in: ids.map((r) => r.id) } } });
     const byId = new Map(rows.map((p) => [p.id, p]));
@@ -223,7 +225,7 @@ export async function productIdsForExport(input: ProductListQueryInput, max: num
   const query = catalogSortAllowed(input.sortField, !!input.supplierId || !!input.q) ? input : { ...input, sortField: undefined };
   const ctx = await catalogContext();
   const total = isPlainListing(query)
-    ? [...(await supplierCounts(!!query.archived, true)).values()].reduce((a, b) => a + b, 0)
+    ? [...(await supplierCounts(true)).values()].reduce((a, b) => a + b, 0)
     : await countProducts(query, ctx);
   if (total > max) return { total, ids: [] };
   const rows = await prisma.product.findMany({
@@ -492,6 +494,8 @@ export async function updateProduct(id: UUID, patch: ProductPatchBody, actor: Us
       ...(patch.productUrl !== undefined ? { productUrl: patch.productUrl } : {}),
       ...(patch.notes !== undefined ? { notes: patch.notes } : {}),
       ...(patch.isArchived !== undefined ? { isArchived: patch.isArchived } : {}),
+      // повернули з архіву товар, якого досі немає в прайсі: строк до автоархіву рахується заново від сьогодні
+      ...(patch.isArchived === false && current.isArchived && current.missingSince ? { missingSince: dateOnly(toIsoDate(new Date())) } : {}),
       updatedById: actor.id,
     },
   });

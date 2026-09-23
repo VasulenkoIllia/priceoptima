@@ -78,6 +78,7 @@ export default function CatalogPage() {
   const [staleOnly, setStaleOnly] = useState(false);
   const [manualOnly, setManualOnly] = useState(false);
   const [missingOnly, setMissingOnly] = useState(false);
+  const [archivedOnly, setArchivedOnly] = useState(false);
   const [total, setTotal] = useState<number | null>(null);
   const totalRef = useRef<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -101,8 +102,9 @@ export default function CatalogPage() {
       stale: staleOnly || undefined,
       manual: manualOnly || undefined,
       missing: missingOnly || undefined,
+      archived: archivedOnly || undefined,
     }),
-    [q, supplierId, availability, staleOnly, manualOnly, missingOnly],
+    [q, supplierId, availability, staleOnly, manualOnly, missingOnly, archivedOnly],
   );
 
   // нові фільтри — нове джерело рядків: таблиця скидає підвантажене й читає з першої сторінки;
@@ -373,6 +375,9 @@ export default function CatalogPage() {
         </Checkbox>
         <Checkbox checked={missingOnly} onChange={(e) => setMissingOnly(e.target.checked)}>
           Немає у прайсі
+        </Checkbox>
+        <Checkbox checked={archivedOnly} onChange={(e) => setArchivedOnly(e.target.checked)}>
+          <span title="Товари, прибрані в архів (давно немає у прайсі): відкрийте товар і натисніть «Повернути»">Архівні</span>
         </Checkbox>
         <span className="po-muted" style={{ marginLeft: 'auto' }}>
           {total != null ? `Товарів: ${formatQty(total)}` : ''}

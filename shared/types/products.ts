@@ -86,6 +86,7 @@ export interface ProductListQuery extends ListQuery {
   supplierId?: UUID;
   availability?: AvailabilityStatus[];
   stale?: boolean;
+  /** Лише архівні (щоб повернути в роботу); інакше — лише чинні. */
   archived?: boolean;
   currency?: CurrencyCode;
   /** Лише додані вручну (ціну ведуть вручну). */

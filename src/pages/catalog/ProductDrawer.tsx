@@ -63,6 +63,15 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
     },
     onError: (e) => message.error(errorMessage(e)),
   });
+  // архівний товар (зник із прайсу надовго або прибрано вручну) — повернути, щоб знову пропонувався в підборі
+  const restore = useMutation({
+    mutationFn: () => ds.updateProduct(product.id, { version: product.version, isArchived: false }),
+    onSuccess: () => {
+      for (const queryKey of [qk.productsAll, qk.product(product.id)]) void queryClient.invalidateQueries({ queryKey });
+      message.success('Товар повернуто з архіву — знову пропонується в підборі');
+    },
+    onError: (e) => message.error(errorMessage(e)),
+  });
 
   const items: { key: string; label: ReactNode; children: ReactNode; span?: number }[] = [
     {
@@ -128,6 +137,19 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
       <div className="po-cat-drawer-title" style={{ marginBottom: 10 }}>
         <SupplierLogo name={product.supplierName} logoUrl={supplier?.logoUrl} color={supplier?.color} size={24} showName />
       </div>
+      {product.isArchived ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 10 }}
+          message="Товар в архіві — у підборі не пропонується"
+          action={
+            <Button size="small" loading={restore.isPending} onClick={() => restore.mutate()}>
+              Повернути
+            </Button>
+          }
+        />
+      ) : null}
       <div className="po-cat-name-row">
         <h3 className="po-cat-name">{product.nameWork}</h3>
         <Button size="small" icon={<EditOutlined />} onClick={() => setEditOpen(true)}>
