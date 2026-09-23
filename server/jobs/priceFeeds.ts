@@ -1,6 +1,7 @@
 // Щоденне оновлення прайсів за посиланням: кожен постачальник — о своїй годині (за замовчуванням 06:00 за Києвом),
 // постачальники по черзі, не паралельно. Не вийшло — у журналі запис із помилкою, повтор за годину, не більше трьох разів.
-// Окремо о 03:30 — прибирання: товари, яких немає у прайсі понад 30 днів, ідуть в архів.
+// Окремо о 03:30 — прибирання: товари, яких немає у прайсі понад 30 днів, ідуть в архів; історія цін старша за 3 роки
+// (крім останнього запису товару) і журнал дій старший за рік видаляються.
 import { logger } from '../logger';
 import { ApiError } from '../http/errors';
 import {
@@ -11,6 +12,7 @@ import {
   type ScheduledFeed,
 } from '../modules/price-updates/priceUpdates.service';
 import { lastScheduledAt } from '../modules/price-updates/priceUpdates.rules';
+import { pruneAuditLog, prunePriceHistory } from '../modules/retention/retention.service';
 import { scheduleDaily, type ScheduledTask } from './schedule';
 
 export const HOUSEKEEPING_HOUR = 3;
@@ -90,5 +92,12 @@ async function housekeeping(): Promise<void> {
     if (archived) logger.info({ archived }, 'Товари, яких давно немає у прайсі, перенесено в архів');
   } catch (err) {
     logger.error({ err }, 'Не вдалося перенести в архів товари, яких давно немає у прайсі');
+  }
+  try {
+    const priceHistory = await prunePriceHistory();
+    const auditLog = await pruneAuditLog();
+    if (priceHistory || auditLog) logger.info({ priceHistory, auditLog }, 'Прибрано записи, старші за строк зберігання');
+  } catch (err) {
+    logger.error({ err }, 'Не вдалося прибрати старі записи історії цін і журналу дій');
   }
 }
