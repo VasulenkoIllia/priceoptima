@@ -23,7 +23,19 @@ export default defineConfig({
   build: {
     // сервер віддає зібраний застосунок із dist/client, сам сервер збирається в dist/server
     outDir: "dist/client",
-    chunkSizeWarningLimit: 4000
+    chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      output: {
+        // бібліотеки — окремими файлами: між релізами вони не змінюються й лишаються в кеші браузера
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (/[\\/]node_modules[\\/](ag-grid-community|ag-grid-react)[\\/]/.test(id)) return "vendor-grid";
+          if (/[\\/]node_modules[\\/](antd|@ant-design|rc-[^\\/]+|@rc-component)[\\/]/.test(id)) return "vendor-antd";
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|scheduler|@tanstack|zustand|immer|dayjs)[\\/]/.test(id)) return "vendor-core";
+          return undefined;
+        }
+      }
+    }
   },
   test: {
     environment: "jsdom",
