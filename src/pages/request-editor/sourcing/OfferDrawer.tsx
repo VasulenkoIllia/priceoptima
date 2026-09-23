@@ -14,7 +14,7 @@ import { Button, Descriptions, Drawer, Empty, Input, Space, Switch, Tag, Tooltip
 import { useState, type ReactNode } from 'react';
 import { AVAILABILITY_LABELS, CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatMoney, formatMoneyUah, formatPct, formatQty, formatRate, formatWarning } from '@shared/format';
-import { offerDisplayName } from '@shared/pricing';
+import { offerDisplayName, offerPriceDate } from '@shared/pricing';
 import type { Offer, UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
@@ -179,7 +179,8 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
       label: 'Дата ціни',
       children: (
         <Space size={6} wrap>
-          <span className="po-num">{formatDate(offer.priceDate)}</span>
+          <span className="po-num">{formatDate(offerPriceDate(offer))}</span>
+          {offerPriceDate(offer) !== offer.priceDate ? <span className="po-muted">(прайс підтвердив ціну)</span> : null}
           {oc?.stale.isStale ? <Tag color="orange">застаріла</Tag> : null}
           {webLink}
         </Space>

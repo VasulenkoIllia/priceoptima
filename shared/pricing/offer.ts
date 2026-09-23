@@ -22,6 +22,17 @@ export function isCatalogChanged(offer: Offer): boolean {
   return c.currency !== offer.currency || c.purchasePrice !== offer.purchasePriceCur || c.rrp !== offer.rrpCur;
 }
 
+/**
+ * F21: дата, від якої рахується застарілість. Прайс підтвердив ту саму ціну (у каталозі новіша дата, ціна не змінилась) —
+ * беремо дату з каталогу; ціна в каталозі змінилась — лишається дата знімка (про зміну окреме попередження).
+ */
+export function offerPriceDate(offer: Offer): Offer['priceDate'] {
+  const c = offer.catalog;
+  if (!c?.priceUpdatedAt || isCatalogChanged(offer)) return offer.priceDate;
+  if (!offer.priceDate) return c.priceUpdatedAt;
+  return Date.parse(c.priceUpdatedAt) > Date.parse(offer.priceDate) ? c.priceUpdatedAt : offer.priceDate;
+}
+
 /** Порівняння одиниць після нормалізації (невідомі — за текстом). */
 function unitsDiffer(offerUnit: string | null, clientUnit: string | null): boolean {
   if (!offerUnit || !clientUnit || clientUnit.trim() === '') return false;
@@ -112,7 +123,7 @@ export function computeOfferBase(
   // F21: застарілість
   const supplier = block.supplierId ? ctx.suppliers[block.supplierId] : undefined;
   const staleDays = supplier?.priceStaleDays ?? ctx.settings.priceStaleDays;
-  const ageDays = priceAgeDays(offer.priceDate, ctx.now);
+  const ageDays = priceAgeDays(offerPriceDate(offer), ctx.now);
   const isStale = isPriceStale(ageDays, staleDays);
   if (isFilled && isStale) {
     warnings.push({ ...ref, code: 'PRICE_STALE', severity: 'warning', params: { ageDays, staleDays } });

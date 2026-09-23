@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkMultiplicity, initialOfferQty } from '../multiplicity';
 import { createOfferFromProduct, offerDisplayName } from '../offer-factory';
-import { computeOfferBase } from '../offer';
+import { computeOfferBase, offerPriceDate } from '../offer';
 import { computeRequest } from '../request';
 import { isPriceStale, priceAgeDays } from '../staleness';
 import { checkStock } from '../stock';
@@ -99,6 +99,28 @@ describe('F20–F21 наявність і застарілість (T16)', () =>
     const r2 = computeOfferBase(offer, line, makeBlock('A', 0), makeHeader(), makeCtx([makeSupplier('A', { priceStaleDays: 14 })]));
     expect(r2.stale.isStale).toBe(false);
     expect(codes(r2.warnings)).not.toContain('PRICE_STALE');
+  });
+
+  it('застарілість — від дати в каталозі, якщо прайс підтвердив ту саму ціну (4.3)', () => {
+    const line = makeLine('L1', 1);
+    const catalog = {
+      productId: 'p-L1-A',
+      currency: 'UAH' as const,
+      purchasePrice: 100,
+      rrp: null,
+      priceUpdatedAt: '2026-09-10T09:00:00Z',
+      stockQty: null,
+      availability: 'in_stock' as const,
+      isArchived: false,
+    };
+    const confirmed = uah('L1', 'A', 100, { priceDate: '2026-09-01T09:00:00Z', catalog });
+    expect(offerPriceDate(confirmed)).toBe('2026-09-10T09:00:00Z');
+    const r = computeOfferBase(confirmed, line, makeBlock('A', 0), makeHeader(), makeCtx([makeSupplier('A')]));
+    expect(r.stale.isStale).toBe(false);
+    // у каталозі вже інша ціна — дата знімка лишається (окреме попередження про зміну)
+    const changed = uah('L1', 'A', 100, { priceDate: '2026-09-01T09:00:00Z', catalog: { ...catalog, purchasePrice: 110 } });
+    expect(offerPriceDate(changed)).toBe('2026-09-01T09:00:00Z');
+    expect(computeOfferBase(changed, line, makeBlock('A', 0), makeHeader(), makeCtx([makeSupplier('A')])).stale.isStale).toBe(true);
   });
 
   it('out_of_stock + excludeUnavailable → не кандидат, рекомендація переходить далі', () => {
