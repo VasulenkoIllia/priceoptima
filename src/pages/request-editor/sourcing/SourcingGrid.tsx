@@ -589,12 +589,27 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
     [],
   );
 
+  // повернулись до заявки — туди ж, де були в таблиці
+  const applyPendingScroll = useCallback(() => {
+    const api = apiRef.current;
+    const count = api?.getDisplayedRowCount() ?? 0;
+    if (!api || !count || useSourcingUi.getState().pendingScroll == null) return;
+    const row = useSourcingUi.getState().takePendingScroll()!;
+    api.ensureIndexVisible(Math.min(row, count - 1), 'top');
+  }, []);
+
+  const onRowDataUpdated = useCallback(() => {
+    applyPendingScroll();
+    applyFocusRequest();
+  }, [applyPendingScroll, applyFocusRequest]);
+
   const onGridReady = useCallback(
     (e: GridReadyEvent<SourcingRow>) => {
       apiRef.current = e.api;
+      applyPendingScroll();
       applyFocusRequest();
     },
-    [applyFocusRequest],
+    [applyPendingScroll, applyFocusRequest],
   );
 
   const comparison = mode === 'comparison';
@@ -630,7 +645,8 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
         onCellEditingStarted={resetCommitKey}
         onCellKeyDown={onCellKeyDown}
         onGridReady={onGridReady}
-        onRowDataUpdated={applyFocusRequest}
+        onRowDataUpdated={onRowDataUpdated}
+        onBodyScrollEnd={(e) => useSourcingUi.getState().rememberScroll(e.api.getFirstDisplayedRowIndex())}
         stopEditingWhenCellsLoseFocus
         enterNavigatesVerticallyAfterEdit
         suppressMovableColumns

@@ -1,4 +1,5 @@
 // Тимчасовий стан вкладки «Позиції і підбір» (не зберігається): фільтр, пошук, відкриті панелі й діалоги, невдалі артикули.
+// Фільтр, пошук і прокрутка запам'ятовуються для кожної заявки окремо (поки відкрита вкладка браузера).
 import { create } from 'zustand';
 import type { UUID } from '@shared/types';
 import { missKey, type RowFilter, type SkuMiss } from './rows';
@@ -12,7 +13,20 @@ export interface CreateProductTarget extends OfferTarget {
   sku: string;
 }
 
+/** Вигляд підбору конкретної заявки: повернулись до неї — той самий фільтр, пошук і місце в таблиці. */
+export interface SourcingView {
+  filter: RowFilter;
+  search: string;
+  /** Перший видимий рядок таблиці. */
+  firstRow: number;
+}
+
 export interface SourcingUiState {
+  /** Заявка, до якої належить стан. */
+  requestId: UUID | null;
+  views: Record<UUID, SourcingView>;
+  /** Прокрутити до цього рядка, щойно таблиця покаже рядки заявки. */
+  pendingScroll: number | null;
   filter: RowFilter;
   search: string;
   /** Бічна панель режиму «Порівняння». */
@@ -37,7 +51,10 @@ export interface SourcingUiState {
   setMisses(entries: { lineId: UUID; blockId: UUID; miss: SkuMiss | null }[]): void;
   setSelectedLineIds(ids: UUID[]): void;
   requestFocus(request: SourcingUiState['focusRequest']): void;
-  reset(): void;
+  rememberScroll(firstRow: number): void;
+  takePendingScroll(): number | null;
+  /** Інша заявка: чистий стан вкладки, а фільтр, пошук і прокрутка — як були в цій заявці. */
+  open(requestId: UUID | null): void;
 }
 
 const INITIAL = {
@@ -51,10 +68,21 @@ const INITIAL = {
   focusRequest: null,
 };
 
-export const useSourcingUi = create<SourcingUiState>()((set) => ({
+const DEFAULT_VIEW: SourcingView = { filter: 'all', search: '', firstRow: 0 };
+
+/** Запам'ятати частину вигляду поточної заявки. */
+function remember(s: SourcingUiState, patch: Partial<SourcingView>): Pick<SourcingUiState, 'views'> {
+  if (!s.requestId) return { views: s.views };
+  return { views: { ...s.views, [s.requestId]: { ...(s.views[s.requestId] ?? DEFAULT_VIEW), ...patch } } };
+}
+
+export const useSourcingUi = create<SourcingUiState>()((set, get) => ({
   ...INITIAL,
-  setFilter: (filter) => set({ filter }),
-  setSearch: (search) => set({ search }),
+  requestId: null,
+  views: {},
+  pendingScroll: null,
+  setFilter: (filter) => set((s) => ({ filter, ...remember(s, { filter }) })),
+  setSearch: (search) => set((s) => ({ search, ...remember(s, { search }) })),
   openDrawer: (drawer) => set({ drawer }),
   openCreateProduct: (createProduct) => set({ createProduct }),
   openAmbiguous: (ambiguous) => set({ ambiguous }),
@@ -80,5 +108,23 @@ export const useSourcingUi = create<SourcingUiState>()((set) => ({
     }),
   setSelectedLineIds: (selectedLineIds) => set({ selectedLineIds }),
   requestFocus: (focusRequest) => set({ focusRequest }),
-  reset: () => set({ ...INITIAL }),
+  rememberScroll: (firstRow) =>
+    set((s) => (s.requestId && s.views[s.requestId]?.firstRow === firstRow ? s : remember(s, { firstRow }))),
+  takePendingScroll: () => {
+    const row = get().pendingScroll;
+    if (row != null) set({ pendingScroll: null });
+    return row;
+  },
+  open: (requestId) =>
+    set((s) => {
+      const view = requestId ? s.views[requestId] : undefined;
+      return {
+        ...INITIAL,
+        requestId,
+        views: s.views,
+        filter: view?.filter ?? 'all',
+        search: view?.search ?? '',
+        pendingScroll: view?.firstRow || null,
+      };
+    }),
 }));

@@ -47,9 +47,9 @@ export default function SourcingTab() {
   const mode = useUiPrefs((s) => s.editorMode);
   const scenariosOpen = useUiPrefs((s) => s.scenariosPanelOpen);
 
-  // інша заявка — чистий стан вкладки
+  // інша заявка — чистий стан вкладки; фільтр, пошук і прокрутка — як були в цій заявці
   useEffect(() => {
-    useSourcingUi.getState().reset();
+    useSourcingUi.getState().open(requestId);
     closePicker();
   }, [requestId]);
 
