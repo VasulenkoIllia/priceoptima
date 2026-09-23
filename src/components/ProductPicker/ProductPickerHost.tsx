@@ -247,7 +247,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
     },
     {
       key: 'net',
-      title: 'Без ПДВ, грн',
+      title: 'Вх. без ПДВ, грн',
       width: 104,
       align: 'right',
       sorter: (a, b) => (a.unitNetUah ?? Number.POSITIVE_INFINITY) - (b.unitNetUah ?? Number.POSITIVE_INFINITY),
@@ -257,7 +257,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
         </span>
       ),
     },
-    { key: 'rrp', title: 'РРЦ, грн', width: 88, align: 'right', render: (_, r) => <span className="po-num">{formatMoney(r.rrpGrossUah)}</span> },
+    { key: 'rrp', title: 'РРЦ з ПДВ, грн', width: 96, align: 'right', render: (_, r) => <span className="po-num">{formatMoney(r.rrpGrossUah)}</span> },
     {
       key: 'stock',
       title: 'Наявність',

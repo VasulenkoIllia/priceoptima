@@ -1,10 +1,14 @@
 // Новий товар, доданий вручну (§6.7): спільна форма для «Номенклатури» і вікна вибору товару в заявці.
+import { useQuery } from '@tanstack/react-query';
 import { App, Col, Form, Input, InputNumber, Modal, Row, Select, Typography } from 'antd';
 import { useState, type ReactNode } from 'react';
 import { CURRENCY_CODES, CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
+import { formatMoney } from '@shared/format';
 import { DEFAULT_UNITS } from '@shared/parse';
+import { normalizeInputPrice } from '@shared/pricing';
 import type { ProductDetail, ProductInput, SupplierListItem, UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
+import { ds, qk } from '@/data';
 import { errorMessage, isDataSourceError } from '@/data/errors';
 
 export interface CreateProductInitial {
@@ -25,6 +29,8 @@ export interface NewProductDialogProps {
   intro: ReactNode;
   /** Вхідна ціна обов'язкова. */
   requirePrice?: boolean;
+  /** Куди піде ціна без ПДВ — підпис під ціною («піде в заявку» / «так зберігається в каталозі»). */
+  netHint?: string;
   onSubmit(input: ProductInput): Promise<ProductDetail>;
   onClose(): void;
   onCreated?(product: ProductDetail): void;
@@ -54,6 +60,7 @@ export function NewProductDialog({
   okText,
   intro,
   requirePrice,
+  netHint = 'так зберігається в каталозі',
   onSubmit,
   onClose,
   onCreated,
@@ -61,6 +68,10 @@ export function NewProductDialog({
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [busy, setBusy] = useState(false);
+  const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings(), enabled: open });
+  const vatRatePct = settings.data?.vatRatePct ?? 20;
+  const grossPrice = Form.useWatch('purchasePrice', form);
+  const currency = Form.useWatch('currency', form);
   const supplier = suppliers.find((s) => s.id === supplierId);
   const supplierOptions = suppliers
     .filter((s) => s.isActive || s.id === supplierId)
@@ -156,7 +167,16 @@ export function NewProductDialog({
             </Form.Item>
           </Col>
           <Col span={7}>
-            <Form.Item name="purchasePrice" label="Вхід з ПДВ" rules={requirePrice ? [{ required: true, message: 'Вкажіть ціну' }] : undefined}>
+            <Form.Item
+              name="purchasePrice"
+              label="Вхід з ПДВ"
+              rules={requirePrice ? [{ required: true, message: 'Вкажіть ціну' }] : undefined}
+              extra={
+                grossPrice != null && grossPrice > 0
+                  ? `без ПДВ: ${formatMoney(normalizeInputPrice(grossPrice, true, vatRatePct))} ${currency ? CURRENCY_LABELS[currency] : ''} (${netHint})`
+                  : undefined
+              }
+            >
               <InputNumber min={0} step={0.01} style={{ width: '100%' }} decimalSeparator="," />
             </Form.Item>
           </Col>
