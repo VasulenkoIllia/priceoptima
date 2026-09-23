@@ -2,6 +2,7 @@
 // за потреби, csv/tsv/txt (UTF-8 або Windows-1251). Формат визначаємо за сигнатурою файлу, а не за розширенням.
 // Чисті функції (крім читання File) — покриті тестами.
 import type { CellValue, Worksheet } from 'exceljs';
+import { MAX_IMPORT_ROWS } from '@shared/catalog/limits';
 import { parseTsv } from '@shared/parse';
 import { formatDate } from '@shared/format';
 import { loadExcelJs, loadXlsxReader } from '@/lib/files';
@@ -11,11 +12,16 @@ export interface SheetData {
   rows: string[][];
 }
 
-/** Найбільший прайс — ~18 тис. рядків; беремо із запасом. */
-const MAX_ROWS = 60000;
+/** Стільки ж, скільки приймає сервер: довший файл — помилка, а не мовчазне обрізання хвоста. */
+const MAX_ROWS = MAX_IMPORT_ROWS;
 const MAX_COLS = 60;
 
 export class SpreadsheetError extends Error {}
+
+function tooManyRows(count: number): SpreadsheetError {
+  const fmt = (n: number) => n.toLocaleString('uk-UA');
+  return new SpreadsheetError(`У файлі ${fmt(count)} рядків, а за раз можна завантажити до ${fmt(MAX_ROWS)}`);
+}
 
 /** Текст клітинки ExcelJS: формула → результат, rich text / гіперпосилання → текст, дата → ДД.ММ.РРРР. */
 export function cellText(v: CellValue | unknown): string {
@@ -107,7 +113,8 @@ export function columnLetter(index: number): string {
 function trimRows(rows: string[][]): string[][] {
   let end = rows.length;
   while (end > 0 && rows[end - 1].every((c) => c === '')) end--;
-  const out = rows.slice(0, Math.min(end, MAX_ROWS));
+  if (end > MAX_ROWS) throw tooManyRows(end);
+  const out = rows.slice(0, end);
   const width = out.reduce((w, r) => {
     let last = r.length;
     while (last > 0 && r[last - 1] === '') last--;
@@ -119,8 +126,10 @@ function trimRows(rows: string[][]): string[][] {
 const clean = (s: string) => s.replace(/\s+/gu, ' ').trim();
 
 function sheetRows(ws: Worksheet): string[][] {
+  // rowCount рахує й порожні відформатовані рядки, actualRowCount — лише рядки з даними
+  if (ws.actualRowCount > MAX_ROWS) throw tooManyRows(ws.actualRowCount);
   const rows: string[][] = [];
-  const last = Math.min(ws.rowCount, MAX_ROWS);
+  const last = Math.min(ws.rowCount, MAX_ROWS + 1);
   const cols = Math.min(ws.columnCount, MAX_COLS);
   for (let r = 1; r <= last; r++) {
     const row = ws.getRow(r);
@@ -151,14 +160,15 @@ async function readLegacyXls(buf: ArrayBuffer, fileName: string): Promise<SheetD
   const XLSX = await loadXlsxReader();
   let wb;
   try {
-    wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true, sheetRows: MAX_ROWS });
+    // BIFF вміщує до 65 536 рядків на аркуш, тож межа тут лише запобіжник
+    wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true, sheetRows: MAX_ROWS + 1 });
   } catch {
     throw new SpreadsheetError(`Не вдалося прочитати ${fileName} — файл пошкоджено або захищено паролем`);
   }
   return wb.SheetNames.map((name) => {
     const ws = wb.Sheets[name];
     const raw = ws ? (XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' }) as unknown[][]) : [];
-    const rows = raw.slice(0, MAX_ROWS).map((r) => r.slice(0, MAX_COLS).map((c) => clean(cellText(c))));
+    const rows = raw.map((r) => r.slice(0, MAX_COLS).map((c) => clean(cellText(c))));
     return { name, rows: trimRows(rows) };
   });
 }

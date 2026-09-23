@@ -1,14 +1,14 @@
 // Перевірка запитів оновлення прайсів. Файл приходить або JSON-ом (рядки розібрав браузер),
 // або формою multipart із тими самими полями (rows — JSON-рядок) і самим файлом.
 import { z } from 'zod';
+import { MAX_IMPORT_ROWS } from '@shared/catalog/limits';
 import { AVAILABILITY_STATUSES, CURRENCY_CODES } from '@shared/enums';
 import { ApiError } from '../../http/errors';
 import { optionalNumberField, optionalText, trimmed } from '../../lib/fields';
 
 /** Найбільше значення, яке вміщує Decimal(14,4) у базі. */
 const MONEY_MAX = 999_999_999;
-/** Скільки рядків приймаємо за раз (найбільший відомий прайс — близько 20 тис.). */
-export const MAX_IMPORT_ROWS = 200_000;
+export { MAX_IMPORT_ROWS };
 
 const supplierId = z.uuid('Невірний ідентифікатор постачальника');
 

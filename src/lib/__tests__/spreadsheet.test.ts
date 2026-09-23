@@ -51,6 +51,18 @@ describe('readSpreadsheetFile', () => {
   it('порожній файл — зрозуміла помилка', async () => {
     await expect(readSpreadsheetFile(textFile('', 'empty.csv'))).rejects.toThrow(SpreadsheetError);
   });
+
+  it('великий прайс читається повністю, без обрізання хвоста', async () => {
+    const lines = ['Код;Ціна', ...Array.from({ length: 70_000 }, (_, i) => `K${i};${i}`)];
+    const sheets = await readSpreadsheetFile(textFile(lines.join('\n'), 'big.csv'));
+    expect(sheets[0].rows).toHaveLength(70_001);
+    expect(sheets[0].rows[70_000]).toEqual(['K69999', '69999']);
+  });
+
+  it('понад 200 000 рядків — помилка, а не мовчазне обрізання', async () => {
+    const lines = Array.from({ length: 200_001 }, (_, i) => `K${i};${i}`);
+    await expect(readSpreadsheetFile(textFile(lines.join('\n'), 'huge.csv'))).rejects.toThrow(/200\s000/u);
+  });
 });
 
 describe('csv', () => {

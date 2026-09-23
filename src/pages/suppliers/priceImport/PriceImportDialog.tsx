@@ -383,7 +383,13 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               <Button
                 style={{ marginTop: 8 }}
                 disabled={!pasted.trim()}
-                onClick={() => takeSheets([sheetFromText(pasted)], 'Вставлено з буфера')}
+                onClick={() => {
+                  try {
+                    takeSheets([sheetFromText(pasted)], 'Вставлено з буфера');
+                  } catch (e) {
+                    setError(e instanceof SpreadsheetError ? e.message : 'Не вдалося розібрати вставлену таблицю');
+                  }
+                }}
               >
                 Розібрати
               </Button>
