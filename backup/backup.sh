@@ -1,6 +1,7 @@
 #!/bin/sh
-# Резервна копія: база (pg_dump) щодня, файли (фото, файли заявок, прайси) — архівом щонеділі.
-# Зберігаємо 14 щоденних і 4 щотижневі копії; якщо задано BACKUP_REMOTE — копіюємо все поза сервер (rclone).
+# Резервна копія щодня: база (pg_dump) і файли (фото, файли заявок, прайси) — дзеркалом, що лише додає нове
+# (видалене в застосунку лишається в копії). Щонеділі — ще й архів файлів на момент копії.
+# Зберігаємо 14 щоденних і 4 щотижневі копії бази; якщо задано BACKUP_REMOTE — копіюємо все поза сервер (rclone).
 set -eu
 
 DIR=/backups
@@ -36,6 +37,10 @@ mv "$tmp" "$DIR/daily/db-$STAMP.dump"
 log "база: db-$STAMP.dump ($(du -h "$DIR/daily/db-$STAMP.dump" | cut -f1))"
 keep_newest "$DIR/daily/db-*.dump" "$DAILY_KEEP"
 
+# ── файли щодня: лише нове й змінене, нічого не видаляємо ──
+rclone copy /uploads "$DIR/uploads" --local-no-check-updated || fail "копія файлів не вдалася"
+log "файли: $(du -sh "$DIR/uploads" | cut -f1) у $DIR/uploads"
+
 # ── щотижня (неділя): копія бази й архів файлів ──
 if [ "$(date +%u)" = "7" ] || [ "${BACKUP_FORCE_WEEKLY:-}" = "1" ]; then
   cp "$DIR/daily/db-$STAMP.dump" "$DIR/weekly/db-$STAMP.dump"
@@ -49,7 +54,7 @@ fi
 # ── поза сервер ──
 if [ -n "${BACKUP_REMOTE:-}" ]; then
   # копії — дзеркалом (старі зникають і там), файли — лише додаємо (видалене в застосунку лишається в копії)
-  rclone sync "$DIR" "$BACKUP_REMOTE/backups" --exclude ".*" --exclude "last-*" || fail "rclone: копії не вивантажено"
+  rclone sync "$DIR" "$BACKUP_REMOTE/backups" --exclude ".*" --exclude "last-*" --exclude "uploads/**" || fail "rclone: копії не вивантажено"
   rclone copy /uploads "$BACKUP_REMOTE/uploads" || fail "rclone: файли не вивантажено"
   log "поза сервер: $BACKUP_REMOTE"
 else

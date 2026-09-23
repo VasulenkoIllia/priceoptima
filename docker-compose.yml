@@ -50,7 +50,7 @@ services:
     networks:
       - internal
 
-  # резервні копії: база щодня, файли щотижня, 14 + 4 копії в ./data/backups і (якщо задано BACKUP_REMOTE) поза сервер
+  # резервні копії: база й файли щодня (архів файлів — щотижня), 14 + 4 копії в ./data/backups і (якщо задано BACKUP_REMOTE) поза сервер
   backup:
     build:
       context: ./backup
@@ -63,6 +63,9 @@ services:
       PGDATABASE: ${POSTGRES_DB:-priceoptima}
       TZ: ${TZ:-Europe/Kyiv}
       BACKUP_CRON: ${BACKUP_CRON:-30 2 * * *}
+      BACKUP_DAILY_KEEP: ${BACKUP_DAILY_KEEP:-14}
+      BACKUP_WEEKLY_KEEP: ${BACKUP_WEEKLY_KEEP:-4}
+      RESTORE_CHECK_CRON: ${RESTORE_CHECK_CRON:-0 4 1 * *}
       BACKUP_REMOTE: ${BACKUP_REMOTE:-}
       RCLONE_CONFIG: /config/rclone/rclone.conf
     volumes:
