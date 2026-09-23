@@ -78,6 +78,7 @@ export default function CatalogPage() {
   const [manualOnly, setManualOnly] = useState(false);
   const [missingOnly, setMissingOnly] = useState(false);
   const [total, setTotal] = useState<number | null>(null);
+  const totalRef = useRef<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const gridApi = useRef<GridApi<ProductDetail> | null>(null);
   const [selected, setSelected] = useState<ProductDetail | null>(null);
@@ -116,10 +117,12 @@ export default function CatalogPage() {
           sortDir: sortField ? (sort.sort ?? 'asc') : undefined,
         }).then(
           (page) => {
-            setTotal(page.total);
+            // загальну кількість сервер рахує лише для першої сторінки
+            if (page.total != null) totalRef.current = page.total;
+            setTotal(totalRef.current);
             setLoadError(null);
-            params.successCallback(page.items, page.total);
-            if (page.total === 0) gridApi.current?.showNoRowsOverlay();
+            params.successCallback(page.items, totalRef.current ?? undefined);
+            if (totalRef.current === 0) gridApi.current?.showNoRowsOverlay();
             else gridApi.current?.hideOverlay();
           },
           (e: unknown) => {

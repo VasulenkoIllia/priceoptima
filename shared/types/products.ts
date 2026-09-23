@@ -118,8 +118,8 @@ export interface ProductPageQuery extends ProductListQuery {
 
 export interface ProductPage {
   items: ProductDetail[];
-  /** Скільки всього позицій під фільтрами. */
-  total: number;
+  /** Скільки всього позицій під фільтрами; null — не рахували (не перша сторінка: кількість у клієнта вже є). */
+  total: number | null;
 }
 
 export interface ProductSearchQuery {

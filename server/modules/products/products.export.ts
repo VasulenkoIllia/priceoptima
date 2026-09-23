@@ -6,7 +6,7 @@ import { AVAILABILITY_LABELS } from '@shared/enums';
 import { formatDate } from '@shared/format';
 import type { ProductDetail } from '@shared/types';
 import { validationError } from '../../http/errors';
-import { listProductsPage } from './products.service';
+import { productDetailsByIds, productIdsForExport } from './products.service';
 import type { ProductListQueryInput } from './products.schemas';
 
 /** За раз вивантажуємо стільки позицій: більше — просимо уточнити фільтри. */
@@ -55,10 +55,10 @@ function contentDisposition(name: string): string {
 
 /** Пише книгу прямо у відповідь; кількість позицій перевіряємо до заголовків, щоб помилка лишилася звичайною відповіддю API. */
 export async function exportProducts(query: ProductListQueryInput, res: Response): Promise<void> {
-  const first = await listProductsPage({ ...query, offset: 0, limit: Math.min(BATCH, MAX_EXPORT_ROWS) });
-  if (first.total > MAX_EXPORT_ROWS) {
+  const { total, ids } = await productIdsForExport(query, MAX_EXPORT_ROWS);
+  if (total > MAX_EXPORT_ROWS) {
     throw validationError(
-      `Позицій ${first.total.toLocaleString('uk-UA')} — за раз вивантажуємо до ${MAX_EXPORT_ROWS.toLocaleString('uk-UA')}. Уточніть фільтри (постачальник, пошук).`,
+      `Позицій ${total.toLocaleString('uk-UA')} — за раз вивантажуємо до ${MAX_EXPORT_ROWS.toLocaleString('uk-UA')}. Уточніть фільтри (постачальник, пошук).`,
     );
   }
 
@@ -70,18 +70,12 @@ export async function exportProducts(query: ProductListQueryInput, res: Response
   ws.getRow(1).font = { bold: true };
   ws.getRow(1).commit();
 
-  let written = 0;
-  let items = first.items;
-  for (;;) {
-    for (const p of items) {
+  for (let i = 0; i < ids.length; i += BATCH) {
+    for (const p of await productDetailsByIds(ids.slice(i, i + BATCH))) {
       const row = ws.addRow(COLUMNS.map((c) => c.value(p)));
       for (const [index, format] of NUMERIC) row.getCell(index).numFmt = format;
       row.commit();
     }
-    written += items.length;
-    if (items.length < BATCH || written >= first.total) break;
-    items = (await listProductsPage({ ...query, offset: written, limit: BATCH })).items;
-    if (!items.length) break;
   }
   ws.commit();
   await wb.commit();

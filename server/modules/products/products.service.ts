@@ -71,8 +71,8 @@ async function catalogContext(): Promise<CatalogContext> {
 
 // ── списки ──────────────────────────────────────────────────────────
 
-/** «Ціна застаріла» для кожного постачальника окремо: у нього може бути власна норма. */
-function staleConditions(ctx: CatalogContext): Prisma.ProductWhereInput[] {
+/** Постачальники, згруповані за нормою застарілості ціни (у кожного може бути власна). */
+function staleGroups(ctx: CatalogContext): [Date, UUID[]][] {
   const byDays = new Map<number, UUID[]>();
   for (const s of ctx.suppliers.values()) {
     const days = s.priceStaleDays ?? ctx.staleDays;
@@ -80,11 +80,16 @@ function staleConditions(ctx: CatalogContext): Prisma.ProductWhereInput[] {
     if (ids) ids.push(s.id);
     else byDays.set(days, [s.id]);
   }
-  return [...byDays].map(([days, ids]) => ({
-    supplierId: { in: ids },
-    priceUpdatedAt: { lte: staleBefore(ctx.now, days) },
-  }));
+  return [...byDays].map(([days, ids]) => [staleBefore(ctx.now, days), ids]);
 }
+
+/** «Ціна застаріла» для кожного постачальника окремо: у нього може бути власна норма. */
+function staleConditions(ctx: CatalogContext): Prisma.ProductWhereInput[] {
+  return staleGroups(ctx).map(([before, ids]) => ({ supplierId: { in: ids }, priceUpdatedAt: { lte: before } }));
+}
+
+/** Частину артикула шукаємо від 3 символів: «12» з «1/2» як «містить» перебирав би весь каталог (індекс не допомагає). */
+const MIN_SKU_CONTAINS = 3;
 
 function listWhere(query: ProductListQueryInput, ctx: CatalogContext): Prisma.ProductWhereInput {
   const and: Prisma.ProductWhereInput[] = [];
@@ -98,11 +103,55 @@ function listWhere(query: ProductListQueryInput, ctx: CatalogContext): Prisma.Pr
   const plan = searchPlan(query.q);
   if (plan.tokens.length) {
     const or: Prisma.ProductWhereInput[] = [{ AND: plan.tokens.map((t) => ({ searchText: { contains: t } })) }];
-    if (plan.matchExact) or.unshift({ skuKey: { contains: plan.skuKey } });
+    if (plan.skuKey.length >= MIN_SKU_CONTAINS) or.unshift({ skuKey: { contains: plan.skuKey } });
+    else if (plan.matchExact) or.unshift({ skuKey: plan.skuKey });
     and.push({ OR: or });
   }
   if (query.stale) and.push({ OR: staleConditions(ctx) });
   return and.length ? { AND: and } : {};
+}
+
+/**
+ * Та сама умова, що й listWhere, сирим SQL — лише для підрахунку: count від Prisma обгортає запит
+ * у підзапит, і база не рахує паралельно (фільтр «в наявності» на мільйоні — 0,8 с замість 0,12 с).
+ */
+function listWhereSql(query: ProductListQueryInput, ctx: CatalogContext): Prisma.Sql {
+  const and: Prisma.Sql[] = [];
+  if (query.supplierId) and.push(Prisma.sql`"supplierId" = ${query.supplierId}`);
+  if (!query.archived) and.push(Prisma.sql`"isArchived" = false`);
+  if (query.currency) and.push(Prisma.sql`currency = ${query.currency}::"Currency"`);
+  if (query.availability?.length) {
+    and.push(Prisma.sql`availability IN (${Prisma.join(query.availability.map((a) => Prisma.sql`${a}::"Availability"`))})`);
+  }
+  if (query.manual) and.push(Prisma.sql`"priceOrigin" = 'manual'`);
+  if (query.missing) and.push(Prisma.sql`"missingSince" IS NOT NULL`);
+  const plan = searchPlan(query.q);
+  if (plan.tokens.length) {
+    const tokens = Prisma.join(
+      plan.tokens.map((t) => Prisma.sql`"searchText" LIKE ${`%${likePattern(t)}%`}`),
+      ' AND ',
+    );
+    const sku =
+      plan.skuKey.length >= MIN_SKU_CONTAINS
+        ? Prisma.sql`"skuKey" LIKE ${`%${likePattern(plan.skuKey)}%`}`
+        : plan.matchExact
+          ? Prisma.sql`"skuKey" = ${plan.skuKey}`
+          : null;
+    and.push(sku ? Prisma.sql`(${sku} OR (${tokens}))` : Prisma.sql`(${tokens})`);
+  }
+  if (query.stale) {
+    const groups = staleGroups(ctx).map(
+      ([before, ids]) =>
+        Prisma.sql`("supplierId" IN (${Prisma.join(ids)}) AND "priceUpdatedAt" <= (${before.toISOString()}::timestamptz AT TIME ZONE 'UTC'))`,
+    );
+    and.push(groups.length ? Prisma.sql`(${Prisma.join(groups, ' OR ')})` : Prisma.sql`false`);
+  }
+  return and.length ? Prisma.sql`WHERE ${Prisma.join(and, ' AND ')}` : Prisma.empty;
+}
+
+async function countProducts(query: ProductListQueryInput, ctx: CatalogContext): Promise<number> {
+  const [row] = await prisma.$queryRaw<{ n: bigint }[]>`SELECT count(*) AS n FROM "Product" ${listWhereSql(query, ctx)}`;
+  return Number(row?.n ?? 0);
 }
 
 /** Весь каталог у порядку за замовчуванням (без пошуку й фільтрів) — найчастіший і найважчий на мільйоні позицій список. */
@@ -163,15 +212,45 @@ async function plainPage(query: ProductListQueryInput, ctx: CatalogContext): Pro
   return { items, total };
 }
 
-/** Сторінка номенклатури разом із загальною кількістю — для гортання великого каталогу. */
+/**
+ * Вивантаження в Excel: спершу кількість (понад max — не вивантажуємо), потім id у порядку екрана одним сортуванням,
+ * далі рядки порціями за id — замість десятків сторінок зі зсувом, кожна з яких сортувала б увесь фільтр заново.
+ */
+export async function productIdsForExport(query: ProductListQueryInput, max: number): Promise<{ total: number; ids: UUID[] }> {
+  const ctx = await catalogContext();
+  const total = isPlainListing(query)
+    ? [...(await supplierCounts(!!query.archived, true)).values()].reduce((a, b) => a + b, 0)
+    : await countProducts(query, ctx);
+  if (total > max) return { total, ids: [] };
+  const rows = await prisma.product.findMany({
+    where: listWhere(query, ctx),
+    orderBy: productOrderBy(query.sortField, query.sortDir, !!query.supplierId),
+    select: { id: true },
+  });
+  return { total, ids: rows.map((r) => r.id) };
+}
+
+/** Товари за id у тому самому порядку. */
+export async function productDetailsByIds(ids: readonly UUID[]): Promise<ProductDetail[]> {
+  const [ctx, rows] = await Promise.all([catalogContext(), prisma.product.findMany({ where: { id: { in: [...ids] } } })]);
+  const byId = new Map(rows.map((p) => [p.id, p]));
+  return ids.flatMap((id) => {
+    const p = byId.get(id);
+    return p ? [toProductDetail(p, ctx)] : [];
+  });
+}
+
+/**
+ * Сторінка номенклатури для гортання великого каталогу. Загальну кількість рахуємо лише для першої сторінки
+ * (далі вона в клієнта вже є) — інакше кожна порція по 100 рядків перераховувала б увесь фільтр.
+ */
 export async function listProductsPage(query: ProductListQueryInput): Promise<ProductPage> {
   const ctx = await catalogContext();
   if (isPlainListing(query)) return plainPage(query, ctx);
-  const where = listWhere(query, ctx);
-  const [total, rows] = await prisma.$transaction([
-    prisma.product.count({ where }),
+  const [total, rows] = await Promise.all([
+    query.offset === 0 ? countProducts(query, ctx) : Promise.resolve(null),
     prisma.product.findMany({
-      where,
+      where: listWhere(query, ctx),
       orderBy: productOrderBy(query.sortField, query.sortDir, !!query.supplierId),
       skip: query.offset,
       take: query.limit,
