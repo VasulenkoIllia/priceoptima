@@ -409,6 +409,14 @@
 .po-appr-secondary {
   font-size: 12px;
 }
+/* велика заявка: таблиця на решту висоти вкладки, прокрутка всередині */
+.po-tab.po-appr:has(.po-appr-table-virtual) {
+  overflow: hidden;
+}
+.po-appr-table-virtual {
+  flex: 1;
+  min-height: 240px;
+}
 .po-appr-row-ok > td {
   background: #f3faf4 !important;
 }

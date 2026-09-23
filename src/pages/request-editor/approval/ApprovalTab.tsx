@@ -11,6 +11,7 @@ import { approvalBaseKp, approvedKpRows, approvedTotalsFromKp, checkMultiplicity
 import type { KpRow, RequestLine, UUID } from '@shared/types';
 import { EmptyState, LoadError } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
+import { useElementHeight } from '@/lib/useElementHeight';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { buildSupplierOrders, downloadSupplierOrders } from './supplierOrders';
 
@@ -67,6 +68,11 @@ function QtyDiff({ kpQty, approvedQty }: { kpQty: number; approvedQty: number })
   );
 }
 
+/** З такої кількості рядків таблиця віртуальна; висота шапки таблиці; мінімальна ширина колонки назви. */
+const VIRTUAL_FROM = 80;
+const TABLE_HEAD_PX = 40;
+const NAME_MIN_PX = 280;
+
 export default function ApprovalTab() {
   const { message } = App.useApp();
   const navigate = useNavigate();
@@ -80,6 +86,7 @@ export default function ApprovalTab() {
   const approvalKpId = useRequestDoc((s) => s.doc?.header.approvalKpId ?? null);
   const computed = useRequestComputed();
   const kps = useQuery({ queryKey: qk.kps(requestId ?? ''), queryFn: () => ds.listKps(requestId!), enabled: !!requestId });
+  const [tableBox, tableHeight] = useElementHeight<HTMLDivElement>();
 
   const createFinal = useMutation({
     mutationFn: async () => {
@@ -240,6 +247,9 @@ export default function ApprovalTab() {
     },
   ];
 
+  const virtual = rows.length > VIRTUAL_FROM;
+  const tableWidth = columns.reduce((w, c) => w + (typeof c.width === 'number' ? c.width : NAME_MIN_PX), 0);
+
   return (
     <div className="po-tab po-appr">
       <div className="po-appr-head">
@@ -293,7 +303,7 @@ export default function ApprovalTab() {
           </b>
         </span>
         <span>
-          Погоджена сума: <b className="po-num po-appr-sum">{approved ? formatMoneyUah(approved.totalGross) : ''}</b>
+          Погоджена сума: <b className="po-num po-appr-sum">{approved ? formatMoneyUah(approved.totalGross) : 'ще немає'}</b>
           {sharePct != null ? <span className="po-muted po-num"> ({formatPct(sharePct)} від КП)</span> : null}
         </span>
         {approved && base.vatMode !== 'no_vat' ? (
@@ -320,15 +330,20 @@ export default function ApprovalTab() {
         )
       ) : null}
 
-      <Table<ApprovalRow>
-        size="small"
-        rowKey="key"
-        pagination={false}
-        columns={columns}
-        dataSource={rows}
-        sticky
-        rowClassName={(r) => (r.line?.approval.approved ? 'po-appr-row-ok' : '')}
-      />
+      {/* велика заявка — віртуальна таблиця на решту висоти вкладки: малюються лише видимі рядки */}
+      <div ref={tableBox} className={virtual ? 'po-appr-table po-appr-table-virtual' : 'po-appr-table'}>
+        <Table<ApprovalRow>
+          size="small"
+          rowKey="key"
+          pagination={false}
+          columns={columns}
+          dataSource={rows}
+          sticky={!virtual}
+          virtual={virtual}
+          scroll={virtual ? { y: Math.max(200, tableHeight - TABLE_HEAD_PX), x: tableWidth } : undefined}
+          rowClassName={(r) => (r.line?.approval.approved ? 'po-appr-row-ok' : '')}
+        />
+      </div>
     </div>
   );
 }
