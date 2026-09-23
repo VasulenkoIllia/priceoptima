@@ -499,14 +499,17 @@ export function planApply(input: PlanInput): PlanResult {
   }
 
   const rejected =
-    massChangeRejection('currency', currencyChanges, pricedItems) ??
+    massChangeRejection('currency', currencyChanges, pricedItems, 1) ??
     massChangeRejection('price', report.bigPriceChanges.total, comparablePriced);
   return rejected ? { rejected, counters, report } : plan;
 }
 
-/** Масова зміна цін чи валюти — ознака, що змінився формат прайсу, а не самі ціни. */
-function massChangeRejection(kind: 'currency' | 'price', changes: number, of: number): string | null {
-  if (changes < MASS_CHANGE_MIN_ITEMS || changes <= of * MASS_CHANGE_SHARE) return null;
+/**
+ * Масова зміна цін чи валюти — ознака, що змінився формат прайсу, а не самі ціни.
+ * Валюта — від першої ж позиції: у малому прайсі зміна валюти в третини позицій так само підозріла.
+ */
+function massChangeRejection(kind: 'currency' | 'price', changes: number, of: number, minItems = MASS_CHANGE_MIN_ITEMS): string | null {
+  if (changes < minItems || changes <= of * MASS_CHANGE_SHARE) return null;
   const what = kind === 'currency' ? 'Валюта змінилась' : `Ціна змінилась більш ніж на ${BIG_PRICE_CHANGE * 100}%`;
   return (
     `${what} у ${changes} з ${of} позицій (${Math.round((changes / of) * 100)}%): ` +

@@ -177,6 +177,16 @@ function prepareNested(counterparties: readonly CounterpartyInputBody[], contact
 async function saveNested(tx: Prisma.TransactionClient, clientId: string, nested: NestedRows): Promise<void> {
   const keptCounterparties = nested.counterparties.map((cp) => cp.id);
   const keptContacts = nested.contacts.map((ct) => ct.id);
+  // ідентифікатори приходять із браузера: чужого контрагента чи контакт через цю картку не змінюємо
+  const [foreignCp, foreignCt] = await Promise.all([
+    tx.counterparty.count({ where: { id: { in: keptCounterparties }, clientId: { not: clientId } } }),
+    tx.clientContact.count({ where: { id: { in: keptContacts }, clientId: { not: clientId } } }),
+  ]);
+  if (foreignCp || foreignCt) throw new ApiError('VALIDATION_ERROR', 'Контрагент або контакт належить іншому клієнту');
+  const cpIds = new Set(keptCounterparties);
+  if (nested.contacts.some((ct) => ct.counterpartyId != null && !cpIds.has(ct.counterpartyId))) {
+    throw new ApiError('VALIDATION_ERROR', 'Контакт прив’язано до контрагента, якого немає в картці клієнта');
+  }
   await tx.clientContact.updateMany({ where: { clientId, id: { notIn: keptContacts } }, data: { isActive: false } });
   await tx.counterparty.updateMany({ where: { clientId, id: { notIn: keptCounterparties } }, data: { isActive: false } });
   for (const cp of nested.counterparties) {

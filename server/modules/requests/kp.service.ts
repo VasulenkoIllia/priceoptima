@@ -2,7 +2,7 @@
 import type { User } from '@prisma/client';
 import { REQUEST_STATUS_LABELS } from '@shared/enums';
 import { toIsoDate } from '@shared/format';
-import { catalogSnapshotOf, kpBuyerOf, kpManagerName } from '@shared/pricing';
+import { catalogSnapshotOf, kpBuyerOf, kpManagerName, kpVatModeFits } from '@shared/pricing';
 import { buildKpVersion, KpBuildError, kpEventSummary, requestTotals } from '@shared/requests';
 import { isEditableStatus } from '@shared/status';
 import type { KpDocumentDto, UUID } from '@shared/types';
@@ -55,6 +55,12 @@ export async function createKp(requestId: UUID, body: KpCreateInput, actor: User
     const contact = client?.contacts.find((c) => c.id === state.header.contactId);
     const own = owns.find((c) => c.id === state.header.ownCompanyId) ?? owns[0];
     if (!own) throw new ApiError('VALIDATION_ERROR', 'Спершу додайте нашу юрособу в Налаштуваннях');
+    if (!body.final && !kpVatModeFits(body.settings.vatMode, own.isVatPayer)) {
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        own.isVatPayer ? `${own.nameShort} платник ПДВ: оберіть у КП ціни з ПДВ або без ПДВ` : `${own.nameShort} не платник ПДВ: у КП ПДВ не виділяється`,
+      );
+    }
     const manager = await tx.user.findUnique({ where: { id: state.header.managerId }, select: { shortName: true, phone: true } });
     const kps = await kpsOf(requestId, tx);
 

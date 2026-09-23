@@ -186,9 +186,16 @@ describe('звірка: ціни', () => {
 
   it('зміна валюти — зміна ціни без напряму', () => {
     const p = product({ currency: 'UAH', purchasePrice: 100 });
-    const result = plan({ existing: [p], rows: [rowOf(p, { currency: 'USD', purchasePrice: 3 })] });
+    const others = Array.from({ length: 3 }, () => product());
+    const result = plan({ existing: [p, ...others], rows: [rowOf(p, { currency: 'USD', purchasePrice: 3 }), ...others.map((o) => rowOf(o))] });
     expect(result.counters).toMatchObject({ changed: 1, priceUp: 0, priceDown: 0 });
     expect(result.historyEntries[0]).toMatchObject({ currency: 'USD', purchasePrice: 3 });
+  });
+
+  it('малий прайс: зміна валюти в третини позицій — оновлення не застосовується', () => {
+    const items = [product({ currency: 'UAH', purchasePrice: 100 }), product({ currency: 'UAH', purchasePrice: 200 })];
+    const result = rejection({ existing: items, rows: [rowOf(items[0]!, { currency: 'EUR', purchasePrice: 2 }), rowOf(items[1]!)] });
+    expect(result.rejected).toMatch(/Валюта змінилась у 1 з 2/u);
   });
 
   it('ручну ціну наступне завантаження прайсу замінює (ІМП-6)', () => {

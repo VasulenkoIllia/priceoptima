@@ -21,6 +21,8 @@ const isoDateTime = z.string().max(40);
 const text = (max: number) => z.string().max(max, `Задовге значення (до ${max} символів)`);
 const nullableText = (max: number) => text(max).nullable();
 const num = z.number().finite();
+/** Кількість у рядку: більші числа вже втрачають копійки в сумах (і це явно помилка введення). */
+const MAX_QTY = 1_000_000;
 const nullableNum = num.nullable();
 
 // ── реєстр ────────────────────────────────────────────────────────
@@ -99,7 +101,7 @@ const lineSchema = z.object({
   position: z.number().int().min(0).max(100_000),
   clientName: text(1000),
   clientUnit: nullableText(40),
-  qty: num.min(0).max(1e9),
+  qty: num.min(0).max(MAX_QTY, `Кількість: не більше ${MAX_QTY.toLocaleString('uk-UA')}`),
   clientNote: nullableText(2000),
   selection: z.object({ blockId: id.nullable() }),
   markup: z
@@ -112,7 +114,7 @@ const lineSchema = z.object({
     .refine((m) => m.method !== 'discount_from_rrp' || m.value == null || (m.value >= 0 && m.value <= MAX_DISCOUNT_PCT), {
       message: `Знижка від РРЦ: від 0 до ${MAX_DISCOUNT_PCT} %`,
     }),
-  approval: z.object({ approved: z.boolean(), approvedQty: nullableNum }),
+  approval: z.object({ approved: z.boolean(), approvedQty: num.min(0).max(MAX_QTY, `Кількість: не більше ${MAX_QTY.toLocaleString('uk-UA')}`).nullable() }),
   kpName: nullableText(1000),
 });
 
@@ -153,7 +155,7 @@ const offerSchema = z.object({
   currency: z.enum(CURRENCY_CODES),
   purchasePriceCur: nullableNum,
   rrpCur: nullableNum,
-  qty: nullableNum,
+  qty: num.min(0).max(MAX_QTY, `Кількість: не більше ${MAX_QTY.toLocaleString('uk-UA')}`).nullable(),
   multiplicity: nullableNum,
   noRounding: z.boolean().optional(),
   stockQty: nullableNum,

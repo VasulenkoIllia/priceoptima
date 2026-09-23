@@ -27,6 +27,11 @@ export function defaultKpVatMode(ownCompanyIsVatPayer: boolean, settingsDefault:
   return settingsDefault === 'no_vat' ? 'without_vat' : settingsDefault;
 }
 
+/** Чи підходить режим ПДВ у КП нашій юрособі: платник ПДВ — з ПДВ або без; ФОП — лише «без виділення ПДВ». */
+export function kpVatModeFits(vatMode: KpVatMode, ownCompanyIsVatPayer: boolean): boolean {
+  return ownCompanyIsVatPayer ? vatMode !== 'no_vat' : vatMode === 'no_vat';
+}
+
 /** F30: ціна і сума рядка КП за режимом ПДВ; null — рядок не потрапляє в КП. */
 export function kpRowAmounts(
   row: MarkupRowComputed,

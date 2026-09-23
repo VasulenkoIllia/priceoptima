@@ -248,6 +248,20 @@ const EMPTY_TOTALS: RequestTotalsSummary = {
   approvedSaleGross: null,
 };
 
+/** Контрагент і контакт у шапці — лише цього клієнта (ідентифікатори приходять із браузера). */
+function assertPartiesOfClient(
+  header: { clientId: string | null; counterpartyId: string | null; contactId: string | null },
+  client: Awaited<ReturnType<typeof clientOrNull>>,
+): void {
+  if (header.clientId && !client) throw new ApiError('VALIDATION_ERROR', 'Клієнта не знайдено');
+  if (header.counterpartyId && !client?.counterparties.some((c) => c.id === header.counterpartyId)) {
+    throw new ApiError('VALIDATION_ERROR', 'Контрагент не належить обраному клієнту');
+  }
+  if (header.contactId && !client?.contacts.some((c) => c.id === header.contactId)) {
+    throw new ApiError('VALIDATION_ERROR', 'Контакт не належить обраному клієнту');
+  }
+}
+
 // ── створення ─────────────────────────────────────────────────────
 export async function createRequest(body: CreateRequestInput, actor: User, now = new Date()): Promise<CreateRequestResult> {
   const env = await pricingEnv(now);
@@ -260,12 +274,14 @@ export async function createRequest(body: CreateRequestInput, actor: User, now =
     const manager = await prisma.user.findUnique({ where: { id: body.managerId }, select: { isActive: true } });
     if (!manager?.isActive) throw new ApiError('VALIDATION_ERROR', 'Відповідального не знайдено або його заблоковано');
   }
-  const counterparty =
-    client?.counterparties.find((c) => c.id === body.counterpartyId) ?? client?.counterparties.find((c) => c.isDefault) ?? client?.counterparties[0];
+  // архівні (прибрані з картки) контрагенти й контакти в нову заявку не потрапляють
+  const activeCps = client?.counterparties.filter((c) => c.isActive) ?? [];
+  const activeContacts = client?.contacts.filter((c) => c.isActive) ?? [];
+  const counterparty = activeCps.find((c) => c.id === body.counterpartyId) ?? activeCps.find((c) => c.isDefault) ?? activeCps[0];
   const contact =
-    client?.contacts.find((c) => c.id === body.contactId) ??
-    client?.contacts.find((c) => c.counterpartyId === counterparty?.id && c.isPrimary) ??
-    client?.contacts.find((c) => c.counterpartyId === counterparty?.id);
+    activeContacts.find((c) => c.id === body.contactId) ??
+    activeContacts.find((c) => c.counterpartyId === counterparty?.id && c.isPrimary) ??
+    activeContacts.find((c) => c.counterpartyId === counterparty?.id);
   const requestDate = body.requestDate ?? toIsoDate(now);
   const rates = await headerRatesOn(requestDate);
 
@@ -401,6 +417,7 @@ export async function saveRequestDocument(id: UUID, patch: DocumentPatch, actor:
     const totals = requestTotals(after, env.ctx, kps);
     const headerChanged = stableJson(before.header) !== stableJson(after.header);
     const client = headerChanged ? await clientOrNull(after.header.clientId) : null;
+    if (headerChanged) assertPartiesOfClient(after.header, client);
     const manager = headerChanged ? await managerNames(tx, after.header.managerId) : null;
     const updated = await tx.request.update({
       where: { id },
