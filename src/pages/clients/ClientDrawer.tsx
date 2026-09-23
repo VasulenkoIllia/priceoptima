@@ -5,7 +5,7 @@ import { Button, Drawer, Spin, Table, Tag, Typography, type TableColumnsType } f
 import { useOpenTab } from '@/app/AppTabs';
 import { formatDate, formatMoney } from '@shared/format';
 import type { ClientDetail, RequestListItem, UUID } from '@shared/types';
-import { LoadError, StatusTag } from '@/components';
+import { LastChangeNote, LoadError, StatusTag } from '@/components';
 import { ds, qk } from '@/data';
 
 const REQUEST_COLUMNS: TableColumnsType<RequestListItem> = [
@@ -33,6 +33,7 @@ function ClientCard({ client }: { client: ClientDetail }) {
           <UserOutlined className="po-muted" /> Відповідальний: <b>{responsible?.shortName ?? '—'}</b>
         </span>
         {client.note ? <Typography.Paragraph type="secondary">{client.note}</Typography.Paragraph> : null}
+        <LastChangeNote change={client.lastChange} />
       </div>
 
       <div className="po-cli-section">Контрагенти</div>

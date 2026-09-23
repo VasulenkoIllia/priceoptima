@@ -8,7 +8,7 @@ import { prisma } from '../../db';
 import { ApiError, notFound } from '../../http/errors';
 import { withSingleDefault } from '../../lib/defaults';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
-import { audit } from '../audit/audit.service';
+import { audit, lastChangeOf } from '../audit/audit.service';
 import { toClientDetail, toClientListItem, toLookupItems, lookupTokens } from './clients.mapper';
 import type { ClientRequestStats, ClientRow } from './clients.mapper';
 import { withSingleDefaultPerCounterparty } from './clients.rules';
@@ -46,7 +46,8 @@ async function requestStats(clientIds: string[]): Promise<Map<string, ClientRequ
 }
 
 export async function getClient(id: string): Promise<ClientDetail> {
-  return toClientDetail(await getClientOrFail(id));
+  const [row, lastChange] = await Promise.all([getClientOrFail(id), lastChangeOf('client', id)]);
+  return { ...toClientDetail(row), lastChange };
 }
 
 /** Підказки для шапки заявки: клієнт + контрагент + ЄДРПОУ одним рядком. */

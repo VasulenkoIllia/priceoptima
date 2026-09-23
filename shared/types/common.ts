@@ -43,3 +43,10 @@ export interface UserRef {
   id: UUID;
   shortName: string;
 }
+
+/** Остання зміна картки з журналу дій: хто, коли й що. */
+export interface LastChange {
+  at: ISODateTime;
+  user: UserRef | null;
+  summary: string;
+}

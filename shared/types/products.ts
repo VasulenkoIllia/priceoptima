@@ -1,5 +1,5 @@
 import type { AvailabilityStatus, CurrencyCode, PriceSource } from '../enums';
-import type { ISODate, ISODateTime, ListQuery, UUID, UserRef } from './common';
+import type { ISODate, ISODateTime, LastChange, ListQuery, UUID, UserRef } from './common';
 
 export interface ProductListItem {
   id: UUID;
@@ -30,6 +30,8 @@ export interface ProductListItem {
 }
 
 export interface ProductDetail extends ProductListItem {
+  /** Хто й коли востаннє змінив картку чи ручну ціну (лише у відповіді на відкриття картки). */
+  lastChange?: LastChange | null;
   /** Версія картки: передається назад при збереженні, щоб не стерти чужі правки (ДОВ-6). */
   version: number;
   minOrderQty: number | null;

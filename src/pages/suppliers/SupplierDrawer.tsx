@@ -7,7 +7,7 @@ import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDateTime, formatMoneyUah, toIsoDate } from '@shared/format';
 import { webUrl } from '@shared/parse';
 import type { PriceUpdateDto, SupplierDetail, SupplierListItem } from '@shared/types';
-import { LoadError, SupplierLogo } from '@/components';
+import { LastChangeNote, LoadError, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { useIsAdmin } from '@/app/session';
@@ -189,6 +189,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
   return (
     <>
       <div className="po-sup-section">Картка</div>
+      <LastChangeNote change={detail.lastChange} />
       <Descriptions column={1} size="small" items={info} styles={{ label: { width: 190 } }} />
 
       <div className="po-sup-section">Умови для заявок</div>

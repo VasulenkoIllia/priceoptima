@@ -2,6 +2,8 @@ export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 export { KpTermsEditor } from './KpTermsEditor';
 export type { KpTermsEditorProps } from './KpTermsEditor';
+export { LastChangeNote } from './LastChangeNote';
+export type { LastChangeNoteProps } from './LastChangeNote';
 export { LoadError } from './LoadError';
 export type { LoadErrorProps } from './LoadError';
 export { LockBanner } from './LockBanner';

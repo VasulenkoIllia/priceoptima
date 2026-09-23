@@ -6,7 +6,7 @@ import type {
   RatePolicy,
   RateSource,
 } from '../enums';
-import type { ISODate, ISODateTime, UUID, UserRef } from './common';
+import type { ISODate, ISODateTime, LastChange, UUID, UserRef } from './common';
 
 export interface RatesPair {
   USD: number | null;
@@ -126,6 +126,8 @@ export interface SupplierContactDto {
 }
 
 export interface SupplierDetail extends SupplierListItem {
+  /** Хто й коли востаннє змінив картку (лише у відповіді на відкриття картки). */
+  lastChange?: LastChange | null;
   /** Версія картки: передається назад при збереженні, щоб не стерти чужі правки (ДОВ-6). */
   version: number;
   notes: string | null;

@@ -10,7 +10,7 @@ import { withSingleDefault } from '../../lib/defaults';
 import { dateOnly } from '../../lib/mapping';
 import { createSecretBox } from '../../lib/secretBox';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
-import { audit } from '../audit/audit.service';
+import { audit, lastChangeOf } from '../audit/audit.service';
 import type { SupplierDetailRow } from './suppliers.mapper';
 import { toPriceSourceSettings, toSupplierDetail, toSupplierListItem } from './suppliers.mapper';
 import { priceMappingSchema, type PriceMappingBody, type PriceSourceBody, type SupplierInputBody } from './suppliers.schemas';
@@ -42,8 +42,8 @@ function supplierRows() {
 }
 
 export async function getSupplier(id: string): Promise<SupplierDetail> {
-  const row = await getSupplierOrFail(id);
-  return toSupplierDetail(row, await productCount(id));
+  const [row, count, lastChange] = await Promise.all([getSupplierOrFail(id), productCount(id), lastChangeOf('supplier', id)]);
+  return { ...toSupplierDetail(row, count), lastChange };
 }
 
 export async function createSupplier(input: SupplierInputBody, actor: User): Promise<SupplierDetail> {

@@ -7,7 +7,7 @@ import { formatDate, formatRate, formatRequestNumber } from '@shared/format';
 import { defaultKpVatMode } from '@shared/pricing';
 import type { RequestHeaderEditable, UUID } from '@shared/types';
 import { useIsAdmin } from '@/app/session';
-import { LockBanner, SaveIndicator } from '@/components';
+import { LastChangeNote, LockBanner, SaveIndicator } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { contactRef, contactsFor, counterpartyRef, defaultContact, defaultCounterparty } from '@/lib/refs';
 import { useRequestDoc } from '@/stores/requestDocStore';
@@ -96,6 +96,7 @@ export function EditorHeader() {
   const undo = useRequestDoc((s) => s.undo);
   const redo = useRequestDoc((s) => s.redo);
   const describeUndo = useRequestDoc((s) => s.describeUndo);
+  const meta = useRequestDoc((s) => s.doc?.meta);
   const reopen = useRequestDoc((s) => s.reopen);
   const [reopening, setReopening] = useState(false);
   const onReopen = async () => {
@@ -277,6 +278,10 @@ export function EditorHeader() {
               </Tooltip>
             </Space.Compact>
           )}
+          {/* у перегляді видно, хто й коли востаннє змінив заявку (у редагуванні це ви самі) */}
+          {readOnly && meta ? (
+            <LastChangeNote change={{ at: meta.updatedAt, user: meta.updatedBy, summary: 'Остання зміна заявки' }} />
+          ) : null}
           <SaveIndicator
             state={save.state}
             savedAt={save.savedAt}

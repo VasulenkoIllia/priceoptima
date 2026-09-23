@@ -1,6 +1,6 @@
 // Журнал дій: хто, коли, що зробив. Запис — «найкраща спроба»: збій журналу не скасовує саму дію.
 import type { Prisma } from '@prisma/client';
-import type { AuditEventDto, AuditPage, UserRef } from '@shared/types';
+import type { AuditEventDto, AuditPage, LastChange, UserRef } from '@shared/types';
 import { prisma } from '../../db';
 import { logger } from '../../logger';
 import type { AuditQueryInput } from './audit.schemas';
@@ -44,6 +44,14 @@ export async function userRefs(ids: readonly (string | null | undefined)[]): Pro
   if (!unique.length) return new Map();
   const users = await prisma.user.findMany({ where: { id: { in: unique } }, select: { id: true, shortName: true } });
   return new Map(users.map((u) => [u.id, { id: u.id, shortName: u.shortName }]));
+}
+
+/** Остання зміна картки за журналом дій: хто, коли й що (для підпису «Змінено …» у картці). */
+export async function lastChangeOf(entityType: AuditEntity, entityId: string): Promise<LastChange | null> {
+  const row = await prisma.auditEvent.findFirst({ where: { entityType, entityId }, orderBy: { at: 'desc' } });
+  if (!row) return null;
+  const users = await userRefs([row.userId]);
+  return { at: row.at.toISOString(), user: row.userId ? (users.get(row.userId) ?? null) : null, summary: row.summary };
 }
 
 const DEFAULT_LIMIT = 100;

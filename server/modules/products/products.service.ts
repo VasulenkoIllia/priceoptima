@@ -22,7 +22,7 @@ import { prisma } from '../../db';
 import { ApiError, duplicate, notFound } from '../../http/errors';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { dateOnly } from '../../lib/mapping';
-import { audit } from '../audit/audit.service';
+import { audit, lastChangeOf } from '../audit/audit.service';
 import { getEffectiveRates } from '../rates/rates.service';
 import { getSettings } from '../settings/settings.service';
 import { invalidateProductCounts } from '../suppliers/suppliers.service';
@@ -286,8 +286,8 @@ export async function listProductsPage(input: ProductListQueryInput): Promise<Pr
 const EXACT_FIRST_MAX = 100;
 
 export async function getProduct(id: UUID): Promise<ProductDetail> {
-  const ctx = await catalogContext();
-  return toProductDetail(await productOrFail(id), ctx);
+  const [ctx, row, lastChange] = await Promise.all([catalogContext(), productOrFail(id), lastChangeOf('product', id)]);
+  return { ...toProductDetail(row, ctx), lastChange };
 }
 
 // ── пошук ───────────────────────────────────────────────────────────

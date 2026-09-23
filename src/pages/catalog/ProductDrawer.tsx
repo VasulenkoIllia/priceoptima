@@ -7,7 +7,7 @@ import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatDateTime, formatMoneyUah, formatQty, formatRequestNumber } from '@shared/format';
 import { webUrl } from '@shared/parse';
 import type { PriceHistoryEntry, ProductDetail, SupplierListItem } from '@shared/types';
-import { LoadError, SupplierLogo } from '@/components';
+import { LastChangeNote, LoadError, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { ManualPriceDialog } from './ManualPriceDialog';
 import { ProductEditDialog } from './ProductEditDialog';
@@ -136,6 +136,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
     <>
       <div className="po-cat-drawer-title" style={{ marginBottom: 10 }}>
         <SupplierLogo name={product.supplierName} logoUrl={supplier?.logoUrl} color={supplier?.color} size={24} showName />
+        <LastChangeNote change={product.lastChange} />
       </div>
       {product.isArchived ? (
         <Alert

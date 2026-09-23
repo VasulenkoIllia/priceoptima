@@ -1,4 +1,4 @@
-import type { ISODate, ISODateTime, UUID, UserRef } from './common';
+import type { ISODate, ISODateTime, LastChange, UUID, UserRef } from './common';
 
 export interface CounterpartyDto {
   id: UUID;
@@ -41,6 +41,8 @@ export interface ClientListItem {
 
 export interface ClientDetail {
   id: UUID;
+  /** Хто й коли востаннє змінив картку (лише у відповіді на відкриття картки). */
+  lastChange?: LastChange | null;
   /** Версія картки: передається назад при збереженні, щоб не стерти чужі правки (ДОВ-6). */
   version: number;
   name: string;
