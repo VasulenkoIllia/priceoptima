@@ -33,6 +33,21 @@ export function offerPriceDate(offer: Offer): Offer['priceDate'] {
   return Date.parse(c.priceUpdatedAt) > Date.parse(offer.priceDate) ? c.priceUpdatedAt : offer.priceDate;
 }
 
+/** Параметри попередження «змінилось у каталозі»: що саме (вхід / РРЦ / валюта) і чи ціну входу змінили вручну в заявці. */
+export function catalogChangeParams(offer: Offer): Record<string, string | number | null> | null {
+  const c = offer.catalog;
+  if (!c || !isCatalogChanged(offer)) return null;
+  return {
+    catalogPrice: c.purchasePrice,
+    snapshotPrice: offer.purchasePriceCur,
+    catalogCurrency: c.currency,
+    snapshotCurrency: offer.currency,
+    catalogRrp: c.rrp,
+    snapshotRrp: offer.rrpCur,
+    manual: offer.priceChange?.reason === 'manual_edit' && c.purchasePrice !== offer.purchasePriceCur ? 1 : 0,
+  };
+}
+
 /** Порівняння одиниць після нормалізації (невідомі — за текстом). */
 function unitsDiffer(offerUnit: string | null, clientUnit: string | null): boolean {
   if (!offerUnit || !clientUnit || clientUnit.trim() === '') return false;
@@ -136,18 +151,8 @@ export function computeOfferBase(
 
   // F22: зміна в каталозі
   const catalogChanged = isCatalogChanged(offer);
-  if (catalogChanged && offer.catalog) {
-    warnings.push({
-      ...ref,
-      code: 'CATALOG_PRICE_CHANGED',
-      severity: 'info',
-      params: {
-        catalogPrice: offer.catalog.purchasePrice,
-        snapshotPrice: offer.purchasePriceCur,
-        catalogCurrency: offer.catalog.currency,
-      },
-    });
-  }
+  const changeParams = catalogChangeParams(offer);
+  if (changeParams) warnings.push({ ...ref, code: 'CATALOG_PRICE_CHANGED', severity: 'info', params: changeParams });
 
   // F23: вхід вище РРЦ
   if (unitNetUah != null && rrpNetUah != null && unitNetUah > rrpNetUah) {

@@ -2,7 +2,7 @@
 import { App, Button } from 'antd';
 import { useMemo } from 'react';
 import { formatQty, formatWarning } from '@shared/format';
-import { checkMultiplicity, offerMultiplicity } from '@shared/pricing';
+import { catalogChangeParams, checkMultiplicity, offerMultiplicity } from '@shared/pricing';
 import { normalizeSku, parseLocaleNumber } from '@shared/parse';
 import type { SupplierBlock, SupplierRef, UUID } from '@shared/types';
 import { openPicker } from '@/components/ProductPicker';
@@ -35,7 +35,7 @@ function lineOf(lineId: UUID) {
 }
 
 export function createSourcingActions(app: AppApi) {
-  const { message, notification } = app;
+  const { message, notification, modal } = app;
 
   const guard = (): boolean => {
     if (doc().readOnly) {
@@ -188,11 +188,27 @@ export function createSourcingActions(app: AppApi) {
     ui().setMiss(lineId, blockId, null);
   }
 
-  /** Ціна змінилась у каталозі — взяти актуальну з прайсу постачальника (вхідні ціни вручну не змінюються). */
+  /** Ціна змінилась у каталозі — взяти актуальну з прайсу постачальника; спершу показуємо, що саме зміниться. */
   function refreshOfferPrice(lineId: UUID, blockId: UUID): void {
     if (!guard()) return;
     const offer = doc().findOffer(lineId, blockId);
-    if (offer && doc().refreshOfferPrice(offer.id)) message.success('Ціну оновлено з прайсу постачальника');
+    const params = offer ? catalogChangeParams(offer) : null;
+    if (!offer || !params) return;
+    modal.confirm({
+      title: 'Оновити ціну з прайсу?',
+      content: (
+        <>
+          {formatWarning({ code: 'CATALOG_PRICE_CHANGED', params })}.
+          <br />
+          {params.manual ? 'Ручну ціну входу буде замінено ціною з прайсу. ' : ''}Скасувати — Ctrl+Z.
+        </>
+      ),
+      okText: 'Оновити',
+      cancelText: 'Ні',
+      onOk: () => {
+        if (doc().refreshOfferPrice(offer.id)) message.success('Ціну оновлено з прайсу постачальника');
+      },
+    });
   }
 
   /**

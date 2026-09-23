@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeOfferBase, isCatalogChanged } from '../offer';
+import { formatWarning } from '../../format';
+import { catalogChangeParams, computeOfferBase, isCatalogChanged } from '../offer';
 import { resolveRate } from '../rates';
 import { makeBlock, makeCtx, makeHeader, makeLine, makeOffer, makeSupplier } from './fixtures';
 
@@ -169,7 +170,21 @@ describe('F8, F22, F23 і попередження пропозиції', () => 
     expect(r.catalogChanged).toBe(true);
     const w = r.warnings.find((x) => x.code === 'CATALOG_PRICE_CHANGED');
     expect(w?.severity).toBe('info');
-    expect(w?.params).toMatchObject({ catalogPrice: 11, snapshotPrice: 10 });
+    expect(w?.params).toMatchObject({ catalogPrice: 11, snapshotPrice: 10, manual: 0 });
+    expect(formatWarning(w!)).toBe('У каталозі змінились: вхід без ПДВ 10,00 → 11,00 USD');
+    // змінилась лише РРЦ — текст про РРЦ, а не «10,00 → 10,00»
+    const rrpOnly = { ...offer, catalog: { ...offer.catalog!, purchasePrice: 10, rrp: 25 } };
+    expect(formatWarning({ code: 'CATALOG_PRICE_CHANGED', params: catalogChangeParams(rrpOnly)! })).toBe(
+      'У каталозі змінились: РРЦ 20,00 → 25,00 USD',
+    );
+    // ціну змінили вручну в заявці
+    const manual = {
+      ...offer,
+      priceChange: { prevCurrency: 'USD' as const, prevPurchasePriceCur: 11, prevRrpCur: 20, prevRate: 41, prevUnitNetUah: 451, reason: 'manual_edit' as const, changedAt: '2026-09-11T09:00:00Z' },
+    };
+    expect(formatWarning({ code: 'CATALOG_PRICE_CHANGED', params: catalogChangeParams(manual)! })).toBe(
+      'Ціну входу змінено вручну в заявці: 10,00 USD, у прайсі 11,00 USD',
+    );
     expect(isCatalogChanged({ ...offer, catalog: { ...offer.catalog!, purchasePrice: 10 } })).toBe(false);
     expect(isCatalogChanged({ ...offer, catalog: null })).toBe(false);
   });
