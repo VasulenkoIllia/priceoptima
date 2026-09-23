@@ -327,6 +327,8 @@ class FakeTab {
     r.version += 1;
     r.updatedAt = this.srv.now().toISOString();
     r.events.push({ id: r.events.length + 1, at: r.updatedAt, user: this.ref, kind: 'status_change', summary: statusEventSummary(from, body.to, r.state.header.cancelReason) });
+    // як сервер: виконану чи скасовану заявку не блокуємо
+    if (!isEditableStatus(body.to)) this.srv.locks.delete(id);
     return { status: body.to, version: r.version };
   }
 

@@ -1,21 +1,30 @@
 import { DownOutlined } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
 import { App, Button, Dropdown, Input, Modal, Tooltip, type MenuProps } from 'antd';
 import { useState } from 'react';
 import { REQUEST_STATUS_LABELS, type RequestStatus } from '@shared/enums';
-import { allowedTransitions } from '@shared/status';
+import { allowedTransitions, isEditableStatus } from '@shared/status';
 import { useSession } from '@/app/session';
 import { StatusTag } from '@/components';
-import { errorMessage } from '@/data';
+import { ds, errorMessage, qk } from '@/data';
 import { useRequestDoc } from '@/stores/requestDocStore';
 
-/** Статус заявки (dropdown з 3 статусів; скасування — з причиною). Змінювати може лише вкладка з блокуванням. */
+/**
+ * Статус заявки (dropdown з 3 статусів; скасування — з необов'язковою причиною). «В роботі» змінює вкладка з блокуванням;
+ * виконану чи скасовану перевідкрити може будь-хто, хто її переглядає (блокування візьметься саме).
+ */
 export function StatusControl() {
   const { user } = useSession();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
+  const requestId = useRequestDoc((s) => s.requestId);
   const status = useRequestDoc((s) => s.doc?.header.status ?? 'in_progress');
   const cancelReason = useRequestDoc((s) => s.doc?.header.cancelReason ?? null);
+  const approved = useRequestDoc((s) => !!s.doc?.lines.some((l) => l.approval.approved));
   const hasLock = useRequestDoc((s) => s.hasLock);
   const setStatus = useRequestDoc((s) => s.setStatus);
+  const reopen = useRequestDoc((s) => s.reopen);
+  const kps = useQuery({ queryKey: qk.kps(requestId ?? ''), queryFn: () => ds.listKps(requestId!), enabled: !!requestId });
+  const closed = !isEditableStatus(status);
   const [busy, setBusy] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -25,7 +34,8 @@ export function StatusControl() {
   const apply = async (to: RequestStatus, why?: string) => {
     setBusy(true);
     try {
-      await setStatus(to, why ?? null);
+      if (to === 'in_progress' && closed) await reopen();
+      else await setStatus(to, why ?? null);
       message.success(`Статус заявки: «${REQUEST_STATUS_LABELS[to]}»`);
       return true;
     } catch (e) {
@@ -49,13 +59,30 @@ export function StatusControl() {
     onClick: ({ key }) => {
       const t = transitions.find((x) => x.to === key);
       if (!t) return;
-      if (t.requiresReason) setCancelOpen(true);
+      if (t.asksReason) setCancelOpen(true);
+      else if (t.to === 'done') confirmDone();
       else void apply(t.to);
     },
   };
 
+  // СТА-1: «Виконано» без КП чи без погодження клієнта — перепитуємо
+  const confirmDone = () => {
+    const missing = [!kps.data?.length ? 'КП ще не формували' : null, !approved ? 'клієнт нічого не погодив' : null].filter(Boolean);
+    if (!missing.length) {
+      void apply('done');
+      return;
+    }
+    modal.confirm({
+      title: 'Позначити заявку виконаною?',
+      content: `${missing.join('; ')}. Виконану заявку можна перевідкрити.`,
+      okText: 'Позначити виконаною',
+      cancelText: 'Ні',
+      onOk: () => apply('done'),
+    });
+  };
+
   const button = (
-    <Button loading={busy} disabled={!hasLock} style={{ minWidth: 132, display: 'inline-flex', justifyContent: 'space-between' }}>
+    <Button loading={busy} disabled={!hasLock && !closed} style={{ minWidth: 132, display: 'inline-flex', justifyContent: 'space-between' }}>
       <StatusTag status={status} />
       <DownOutlined style={{ fontSize: 10 }} />
     </Button>
@@ -63,7 +90,7 @@ export function StatusControl() {
 
   return (
     <>
-      {hasLock ? (
+      {hasLock || closed ? (
         <Dropdown menu={menu} trigger={['click']} disabled={busy}>
           {button}
         </Dropdown>
@@ -77,7 +104,7 @@ export function StatusControl() {
         open={cancelOpen}
         okText="Скасувати заявку"
         cancelText="Назад"
-        okButtonProps={{ danger: true, disabled: !reason.trim(), loading: busy }}
+        okButtonProps={{ danger: true, loading: busy }}
         onOk={async () => {
           if (await apply('cancelled', reason)) {
             setCancelOpen(false);
@@ -87,7 +114,7 @@ export function StatusControl() {
         onCancel={() => setCancelOpen(false)}
         destroyOnHidden
       >
-        <p style={{ marginTop: 0 }}>Вкажіть причину — вона збережеться в заявці. Скасовану заявку можна перевідкрити.</p>
+        <p style={{ marginTop: 0 }}>Причина — за бажанням, збережеться в заявці. Скасовану заявку можна перевідкрити.</p>
         <Input.TextArea
           autoFocus
           rows={3}

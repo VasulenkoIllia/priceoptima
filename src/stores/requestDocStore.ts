@@ -214,6 +214,8 @@ export interface RequestDocActions {
   /** Погодження кількох рядків одним кроком (одна дія для undo). */
   setApprovals(entries: ApprovalEntry[]): void;
   setStatus(to: RequestStatus, reason?: string | null): Promise<void>;
+  /** Перевідкрити виконану чи скасовану заявку: взяти блокування й повернути «В роботі». */
+  reopen(): Promise<void>;
 
   undo(): void;
   redo(): void;
@@ -520,7 +522,10 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
           return;
         }
         lastSaved = doc;
-        const hasLock = lockRes.acquired;
+        // виконану чи скасовану заявку лише переглядають — блокування не тримаємо (БЛК-2); «Перевідкрити» візьме його
+        const closed = !isEditableStatus(doc.header.status);
+        if (closed && lockRes.acquired) void ds.releaseLock(id).catch(() => undefined);
+        const hasLock = lockRes.acquired && !closed;
         set({
           loadState: 'ready',
           doc,
@@ -528,7 +533,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
           ctx: ctxFor(doc, null),
           settings,
           suppliers,
-          lock: lockRes.lock,
+          lock: closed ? null : lockRes.lock,
           hasLock,
           ...readOnlyOf(doc, hasLock),
         });
@@ -1187,7 +1192,41 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         });
         past = [];
         future = [];
-        set({ doc, version: res.version, canUndo: false, canRedo: false, ...readOnlyOf(doc, cur.hasLock) });
+        // виконана чи скасована — сервер уже зняв блокування; вкладка перестає його тримати
+        const keepLock = cur.hasLock && isEditableStatus(res.status);
+        if (!keepLock) stopHeartbeat();
+        set({
+          doc,
+          version: res.version,
+          canUndo: false,
+          canRedo: false,
+          hasLock: keepLock,
+          ...(keepLock ? {} : { lock: null }),
+          ...readOnlyOf(doc, keepLock),
+        });
+      },
+
+      async reopen() {
+        const s = get();
+        if (!s.requestId || !s.doc || isEditableStatus(s.doc.header.status)) return;
+        const id = s.requestId;
+        const res = await ds.acquireLock(id);
+        if (get().requestId !== id) return;
+        if (!res.acquired) {
+          set({ lock: res.lock });
+          throw new DataSourceError('LOCKED', `Заявку зараз відкрив для зміни ${res.lock?.userShortName ?? 'інший користувач'}`);
+        }
+        set({ lock: res.lock, hasLock: true, lockLost: null });
+        try {
+          // статус міняємо від свіжої версії: заявку могли змінити, поки її переглядали
+          await refresh();
+          await get().setStatus('in_progress');
+          startHeartbeat();
+        } catch (e) {
+          set({ hasLock: false, lock: null, ...readOnlyOf(get().doc, false) });
+          void ds.releaseLock(id).catch(() => undefined);
+          throw e;
+        }
       },
 
       undo() {

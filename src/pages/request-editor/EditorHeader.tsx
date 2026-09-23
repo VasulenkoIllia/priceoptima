@@ -96,6 +96,19 @@ export function EditorHeader() {
   const undo = useRequestDoc((s) => s.undo);
   const redo = useRequestDoc((s) => s.redo);
   const describeUndo = useRequestDoc((s) => s.describeUndo);
+  const reopen = useRequestDoc((s) => s.reopen);
+  const [reopening, setReopening] = useState(false);
+  const onReopen = async () => {
+    setReopening(true);
+    try {
+      await reopen();
+      message.success('Заявку перевідкрито — знову «В роботі»');
+    } catch (e) {
+      message.error(errorMessage(e));
+    } finally {
+      setReopening(false);
+    }
+  };
   const describeRedo = useRequestDoc((s) => s.describeRedo);
   const flush = useRequestDoc((s) => s.flush);
   const notesOpen = useUiPrefs((s) => s.headerNotesOpen);
@@ -305,6 +318,11 @@ export function EditorHeader() {
             header.status === 'cancelled'
               ? `Заявку скасовано${header.cancelReason ? ` (причина: ${header.cancelReason})` : ''} — лише перегляд. Щоб змінити, перевідкрийте її.`
               : `Заявка «${REQUEST_STATUS_LABELS[header.status]}» — лише перегляд. Щоб змінити, перевідкрийте її.`
+          }
+          action={
+            <Button size="small" loading={reopening} onClick={() => void onReopen()}>
+              Перевідкрити
+            </Button>
           }
         />
       ) : null}

@@ -364,15 +364,36 @@ describe('requestDocStore', () => {
     expect(storeA.getState().save.state).toBe('saved');
   });
 
-  it('setStatus: «Виконано» — лише перегляд; перевідкриття повертає редагування', async () => {
-    const store = await openStore(setup());
+  it('setStatus: «Виконано» — лише перегляд і без блокування; «Перевідкрити» бере блокування й повертає редагування', async () => {
+    const koval = setup(USERS.koval, 'a');
+    const store = await openStore(koval);
     await store.getState().setStatus('done');
     expect(store.getState().doc!.header.status).toBe('done');
     expect(store.getState().readOnlyReason).toBe('status');
+    // БЛК-2: блокування знято одразу — інший може відкрити й перевідкрити
+    expect(store.getState().hasLock).toBe(false);
+    expect((await koval.getLockStatus(REQ1)).lock).toBeNull();
     const before = store.getState().doc;
     store.getState().setHeader({ notes: 'ігнорується' });
     expect(store.getState().doc).toBe(before);
-    await store.getState().setStatus('in_progress');
+
+    // хтось інший відкрив виконану заявку — теж без блокування
+    const other = await openStore(setup(USERS.admin, 'b', false));
+    expect(other.getState().hasLock).toBe(false);
+    expect((await koval.getLockStatus(REQ1)).lock).toBeNull();
+
+    await store.getState().reopen();
+    expect(store.getState().doc!.header.status).toBe('in_progress');
+    expect(store.getState().hasLock).toBe(true);
     expect(store.getState().readOnly).toBe(false);
+  });
+
+  it('«Перевідкрити», коли заявку вже перевідкрив інший, — помилка з іменем', async () => {
+    const store = await openStore(setup(USERS.koval, 'a'));
+    await store.getState().setStatus('done');
+    const other = await openStore(setup(USERS.admin, 'b', false));
+    await other.getState().reopen();
+    await expect(store.getState().reopen()).rejects.toMatchObject({ code: 'LOCKED' });
+    expect(store.getState().hasLock).toBe(false);
   });
 });

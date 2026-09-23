@@ -12,9 +12,9 @@ import {
 
 describe('переходи 3 статусів', () => {
   it('таблиця переходів', () => {
-    expect(STATUS_TRANSITIONS.in_progress.map((t) => [t.to, t.requiresReason])).toEqual([
-      ['done', false],
-      ['cancelled', true],
+    expect(STATUS_TRANSITIONS.in_progress.map((t) => [t.to, t.requiresReason, t.asksReason])).toEqual([
+      ['done', false, false],
+      ['cancelled', false, true],
     ]);
     expect(STATUS_TRANSITIONS.done.map((t) => t.to)).toEqual(['in_progress']);
     expect(STATUS_TRANSITIONS.cancelled.map((t) => t.to)).toEqual(['in_progress']);
@@ -23,10 +23,10 @@ describe('переходи 3 статусів', () => {
   it('обидві ролі можуть змінювати статус і перевідкривати', () => {
     for (const role of ['admin', 'user'] as const) {
       expect(allowedTransitions('in_progress', role)).toEqual([
-        { to: 'done', requiresReason: false, label: 'Позначити виконаною' },
-        { to: 'cancelled', requiresReason: true, label: 'Скасувати' },
+        { to: 'done', requiresReason: false, asksReason: false, label: 'Позначити виконаною' },
+        { to: 'cancelled', requiresReason: false, asksReason: true, label: 'Скасувати' },
       ]);
-      expect(allowedTransitions('done', role)).toEqual([{ to: 'in_progress', requiresReason: false, label: 'Перевідкрити' }]);
+      expect(allowedTransitions('done', role)).toEqual([{ to: 'in_progress', requiresReason: false, asksReason: false, label: 'Перевідкрити' }]);
       expect(canTransition('cancelled', 'in_progress', role)).toBe(true);
     }
   });
@@ -38,10 +38,11 @@ describe('переходи 3 статусів', () => {
     expect(r).toEqual({ ok: false, code: 'INVALID_TRANSITION', message: 'Перехід «Скасовано» → «Виконано» неможливий' });
   });
 
-  it('скасування — лише з причиною', () => {
-    expect(validateTransition('in_progress', 'cancelled', 'user')).toMatchObject({ ok: false, code: 'VALIDATION_ERROR' });
-    expect(validateTransition('in_progress', 'cancelled', 'user', '   ')).toMatchObject({ ok: false });
+  it('скасування — причина необов’язкова', () => {
+    expect(validateTransition('in_progress', 'cancelled', 'user')).toEqual({ ok: true });
+    expect(validateTransition('in_progress', 'cancelled', 'user', '   ')).toEqual({ ok: true });
     expect(validateTransition('in_progress', 'cancelled', 'user', 'Клієнт відмовився')).toEqual({ ok: true });
+    expect(applyStatusChange('cancelled', '   ')).toEqual({ status: 'cancelled', cancelReason: null });
     expect(validateTransition('in_progress', 'done', 'user')).toEqual({ ok: true });
     expect(validateTransition('done', 'in_progress', 'user')).toEqual({ ok: true });
   });

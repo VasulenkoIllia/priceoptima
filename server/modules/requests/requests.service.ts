@@ -507,6 +507,8 @@ export async function changeStatus(id: UUID, body: StatusChangeBody, actor: User
     await tx.requestEvent.create({
       data: { requestId: id, at: now, userId: actor.id, kind: 'status_change', summary: statusEventSummary(r.status, updated.status, updated.cancelReason) },
     });
+    // БЛК-2: виконану чи скасовану заявку не редагують — блокування знімаємо одразу
+    if (!isEditableStatus(updated.status)) await tx.requestLock.deleteMany({ where: { requestId: id } });
     return { status: updated.status, version: updated.version, number: r.number, from: r.status };
   }, TX);
   await audit({

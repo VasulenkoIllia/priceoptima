@@ -6,6 +6,8 @@ export interface StatusTransitionRule {
   to: RequestStatus;
   roles: readonly UserRole[];
   requiresReason: boolean;
+  /** Запитати причину (необов'язкову) — для скасування. */
+  asksReason: boolean;
   label: string;
 }
 
@@ -14,11 +16,12 @@ const ALL_ROLES = USER_ROLES;
 /** Переходи 3 статусів. Проміжні етапи (КП, погодження) — індикатори, не статуси. */
 export const STATUS_TRANSITIONS: Record<RequestStatus, readonly StatusTransitionRule[]> = {
   in_progress: [
-    { to: 'done', roles: ALL_ROLES, requiresReason: false, label: 'Позначити виконаною' },
-    { to: 'cancelled', roles: ALL_ROLES, requiresReason: true, label: 'Скасувати' },
+    { to: 'done', roles: ALL_ROLES, requiresReason: false, asksReason: false, label: 'Позначити виконаною' },
+    // причина скасування необов'язкова: питаємо, але можна не вказувати
+    { to: 'cancelled', roles: ALL_ROLES, requiresReason: false, asksReason: true, label: 'Скасувати' },
   ],
-  done: [{ to: 'in_progress', roles: ALL_ROLES, requiresReason: false, label: 'Перевідкрити' }],
-  cancelled: [{ to: 'in_progress', roles: ALL_ROLES, requiresReason: false, label: 'Перевідкрити' }],
+  done: [{ to: 'in_progress', roles: ALL_ROLES, requiresReason: false, asksReason: false, label: 'Перевідкрити' }],
+  cancelled: [{ to: 'in_progress', roles: ALL_ROLES, requiresReason: false, asksReason: false, label: 'Перевідкрити' }],
 };
 
 export { EDITABLE_STATUSES };
@@ -31,7 +34,7 @@ export function isEditableStatus(status: RequestStatus): boolean {
 export function allowedTransitions(from: RequestStatus, role: UserRole): AllowedTransition[] {
   return STATUS_TRANSITIONS[from]
     .filter((t) => t.roles.includes(role))
-    .map((t) => ({ to: t.to, requiresReason: t.requiresReason, label: t.label }));
+    .map((t) => ({ to: t.to, requiresReason: t.requiresReason, asksReason: t.asksReason, label: t.label }));
 }
 
 export function canTransition(from: RequestStatus, to: RequestStatus, role: UserRole): boolean {
@@ -42,7 +45,7 @@ export type TransitionCheck =
   | { ok: true }
   | { ok: false; code: Extract<ApiErrorCode, 'INVALID_TRANSITION' | 'FORBIDDEN' | 'VALIDATION_ERROR'>; message: string };
 
-/** Перевірка переходу з причиною (скасування — лише з непорожньою причиною). */
+/** Перевірка переходу (причина обов'язкова лише там, де правило цього вимагає). */
 export function validateTransition(
   from: RequestStatus,
   to: RequestStatus,

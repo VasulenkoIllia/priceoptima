@@ -329,6 +329,8 @@ export interface StatusChangeResult {
 export interface AllowedTransition {
   to: RequestStatus;
   requiresReason: boolean;
+  /** Запитати необов'язкову причину (скасування). */
+  asksReason: boolean;
   /** Підпис дії українською. */
   label: string;
 }
