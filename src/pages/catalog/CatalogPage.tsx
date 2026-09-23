@@ -87,7 +87,8 @@ export default function CatalogPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [importFor, setImportFor] = useState<SupplierListItem | null>(null);
   const [name1cFor, setName1cFor] = useState<SupplierListItem | null>(null);
-  const q = useDebouncedValue(search.trim(), 300);
+  // одна літера на великому каталозі — майже весь каталог; шукаємо від 2 символів
+  const q = useDebouncedValue(search.trim().length >= 2 ? search.trim() : '', 300);
 
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
   const supplierById = useMemo(() => new Map<UUID, SupplierListItem>((suppliers.data ?? []).map((s) => [s.id, s])), [suppliers.data]);
@@ -351,7 +352,7 @@ export default function CatalogPage() {
         <Input
           allowClear
           prefix={<SearchOutlined className="po-muted" />}
-          placeholder="Пошук: артикул або назва"
+          placeholder="Пошук: артикул або назва (від 2 символів)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ width: 280 }}
