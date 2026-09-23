@@ -1,9 +1,10 @@
-// Читання таблиці в браузері (прайс постачальника, заявка клієнта): xlsx (ExcelJS підвантажується за потреби), csv/tsv/txt (UTF-8 або Windows-1251).
+// Читання таблиці в браузері (прайс постачальника, заявка клієнта): xlsx (ExcelJS), старий .xls (SheetJS) — обидва підвантажуються
+// за потреби, csv/tsv/txt (UTF-8 або Windows-1251). Формат визначаємо за сигнатурою файлу, а не за розширенням.
 // Чисті функції (крім читання File) — покриті тестами.
 import type { CellValue, Worksheet } from 'exceljs';
 import { parseTsv } from '@shared/parse';
 import { formatDate } from '@shared/format';
-import { loadExcelJs } from '@/lib/files';
+import { loadExcelJs, loadXlsxReader } from '@/lib/files';
 
 export interface SheetData {
   name: string;
@@ -15,8 +16,6 @@ const MAX_ROWS = 60000;
 const MAX_COLS = 60;
 
 export class SpreadsheetError extends Error {}
-
-export const XLS_MESSAGE = 'Файл у старому форматі .xls — збережіть як .xlsx і завантажте ще раз';
 
 /** Текст клітинки ExcelJS: формула → результат, rich text / гіперпосилання → текст, дата → ДД.ММ.РРРР. */
 export function cellText(v: CellValue | unknown): string {
@@ -132,23 +131,55 @@ function sheetRows(ws: Worksheet): string[][] {
   return trimRows(rows);
 }
 
-/** Сигнатура OLE2 — старий бінарний .xls (BIFF), ExcelJS його не читає. */
-function isOle2(buf: ArrayBuffer): boolean {
-  const b = new Uint8Array(buf, 0, Math.min(8, buf.byteLength));
-  const sig = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
-  return b.length === 8 && sig.every((v, i) => b[i] === v);
+function startsWith(buf: ArrayBuffer, sig: readonly number[]): boolean {
+  const b = new Uint8Array(buf, 0, Math.min(sig.length, buf.byteLength));
+  return b.length === sig.length && sig.every((v, i) => b[i] === v);
 }
 
-/** xlsx → аркуші (приховані пропускаються); csv/tsv/txt → один «аркуш». */
-export async function readSpreadsheetFile(file: File): Promise<SheetData[]> {
-  const name = file.name.toLowerCase();
-  if (/\.xls$/u.test(name)) throw new SpreadsheetError(XLS_MESSAGE);
-  const buf = await file.arrayBuffer();
-  if (/\.(csv|txt|tsv)$/u.test(name)) {
-    const rows = parseCsv(decodeText(buf)).map((r) => r.map(clean));
-    return [{ name: file.name, rows: trimRows(rows) }];
+/** Сигнатура OLE2 — старий бінарний .xls (BIFF), ExcelJS його не читає. */
+export function isOle2(buf: ArrayBuffer): boolean {
+  return startsWith(buf, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+}
+
+/** Сигнатура zip — xlsx (навіть якщо файл названо .xls). */
+export function isZip(buf: ArrayBuffer): boolean {
+  return startsWith(buf, [0x50, 0x4b]);
+}
+
+/** Старий .xls (BIFF): читає SheetJS, далі — той самий шлях, що й для xlsx. */
+async function readLegacyXls(buf: ArrayBuffer, fileName: string): Promise<SheetData[]> {
+  const XLSX = await loadXlsxReader();
+  let wb;
+  try {
+    wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true, sheetRows: MAX_ROWS });
+  } catch {
+    throw new SpreadsheetError(`Не вдалося прочитати ${fileName} — файл пошкоджено або захищено паролем`);
   }
-  if (isOle2(buf)) throw new SpreadsheetError(XLS_MESSAGE);
+  return wb.SheetNames.map((name) => {
+    const ws = wb.Sheets[name];
+    const raw = ws ? (XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '' }) as unknown[][]) : [];
+    const rows = raw.slice(0, MAX_ROWS).map((r) => r.slice(0, MAX_COLS).map((c) => clean(cellText(c))));
+    return { name, rows: trimRows(rows) };
+  });
+}
+
+/**
+ * Формат визначаємо за вмістом, а не за назвою: кабінети постачальників часто віддають
+ * xlsx або csv під іменем .xls, а 1С — справжній BIFF.
+ */
+export async function readSpreadsheetFile(file: File): Promise<SheetData[]> {
+  const buf = await file.arrayBuffer();
+  const out = isOle2(buf) ? await readLegacyXls(buf, file.name) : isZip(buf) ? await readXlsx(buf) : readDelimited(buf, file.name);
+  if (!out.some((s) => s.rows.length)) throw new SpreadsheetError('У файлі немає даних');
+  return out;
+}
+
+function readDelimited(buf: ArrayBuffer, fileName: string): SheetData[] {
+  const rows = parseCsv(decodeText(buf)).map((r) => r.map(clean));
+  return [{ name: fileName, rows: trimRows(rows) }];
+}
+
+async function readXlsx(buf: ArrayBuffer): Promise<SheetData[]> {
   const ExcelJS = await loadExcelJs();
   const wb = new ExcelJS.Workbook();
   try {
@@ -157,9 +188,7 @@ export async function readSpreadsheetFile(file: File): Promise<SheetData[]> {
     throw new SpreadsheetError('Не вдалося прочитати файл — це не xlsx або файл пошкоджено');
   }
   const sheets = wb.worksheets.filter((ws) => ws.state === 'visible' || ws.state == null);
-  const out = sheets.map((ws) => ({ name: ws.name, rows: sheetRows(ws) }));
-  if (!out.some((s) => s.rows.length)) throw new SpreadsheetError('У файлі немає даних');
-  return out;
+  return sheets.map((ws) => ({ name: ws.name, rows: sheetRows(ws) }));
 }
 
 /** Текст із буфера обміну (таблиця з Excel) → «аркуш». */
