@@ -74,14 +74,15 @@ export function computeRequest(doc: RequestDocInput, ctx: PricingContext): Reque
   }
   const scenarios = computeScenarios(lines, blocks, offers, offerIndex, comparisons, ctx.suppliers);
 
-  // націнка
+  // націнка; прибуток ФОП — від цін КП ФОП мінус вхід з ПДВ (ФОП не повертає вхідний ПДВ)
+  const profitBasis = { fop: doc.header.kpSettings.vatMode === 'no_vat', fopPriceBasis: ctx.settings.fopPriceBasis };
   const markupRows: Record<UUID, MarkupRowComputed> = {};
   const activeRows: MarkupRowComputed[] = [];
   for (const line of lines) {
     const effId = comparisons[line.id]?.effectiveOfferId ?? null;
     const eff = effId ? (offers[effId] ?? null) : null;
     const offer = effId ? (offerById.get(effId) ?? null) : null;
-    const row = computeMarkupRow(line, eff, offer, doc.markup, doc.header);
+    const row = computeMarkupRow(line, eff, offer, doc.markup, doc.header, profitBasis);
     markupRows[line.id] = row;
     if (isActiveLine(line)) activeRows.push(row);
   }
@@ -91,7 +92,7 @@ export function computeRequest(doc: RequestDocInput, ctx: PricingContext): Reque
     fopPriceBasis: ctx.settings.fopPriceBasis,
   };
   const markup = { rows: markupRows, totals: computeMarkupTotals(activeRows, mode) };
-  const supplierProfit = computeSupplierProfit(lines, blocks, offers, offerIndex, markupRows, doc.markup, doc.header);
+  const supplierProfit = computeSupplierProfit(lines, blocks, offers, offerIndex, markupRows, doc.markup, doc.header, profitBasis);
 
   const partial: Omit<RequestComputed, 'totals'> = {
     offers,

@@ -1,4 +1,4 @@
-import type { DiscountFormula, MarkupMethod, PriceRounding } from '../enums';
+import type { DiscountFormula, FopPriceBasis, MarkupMethod, PriceRounding } from '../enums';
 import type {
   MarkupRowComputed,
   MarkupSettings,
@@ -106,6 +106,28 @@ export function markupIndicators(costNet: number | null, saleNet: number | null)
   return { markupPct: pct(saleNet - costNet, costNet), marginPct: pct(saleNet - costNet, saleNet) };
 }
 
+/**
+ * На якій базі рахувати прибуток. ТОВ (платник ПДВ): продаж без ПДВ − вхід без ПДВ.
+ * ФОП не повертає вхідний ПДВ і не нараховує свій: продаж за цінами КП ФОП (рівень «з ПДВ» або «без») − вхід з ПДВ.
+ */
+export interface ProfitBasis {
+  fop: boolean;
+  fopPriceBasis: FopPriceBasis;
+}
+
+export const VAT_PAYER_PROFIT: ProfitBasis = { fop: false, fopPriceBasis: 'net' };
+
+/** Продаж, собівартість і прибуток суми рядка на базі прибутку; null — чогось бракує. */
+export function profitAmounts(
+  r: { sumNet: number | null; sumGross: number | null; costNet: number | null; costGross: number | null; qty: number },
+  basis: ProfitBasis,
+): { sale: number | null; cost: number | null; profit: number | null } {
+  const sale = basis.fop && basis.fopPriceBasis === 'gross' ? r.sumGross : r.sumNet;
+  const unitCost = basis.fop ? r.costGross : r.costNet;
+  const cost = unitCost != null ? round2(unitCost * r.qty) : null;
+  return { sale, cost, profit: sale != null && cost != null ? round2(sale - cost) : null };
+}
+
 /** F24–F28: рядок блоку націнки від ефективної пропозиції. */
 export function computeMarkupRow(
   line: RequestLine,
@@ -113,6 +135,7 @@ export function computeMarkupRow(
   offer: Offer | null,
   markup: MarkupSettings,
   header: RequestHeader,
+  profitBasis: ProfitBasis = VAT_PAYER_PROFIT,
 ): MarkupRowComputed {
   const rule = resolveMarkupRule(line, markup);
   const costNet = eff?.unitNetUah ?? null;
@@ -139,7 +162,7 @@ export function computeMarkupRow(
   const sumNet = sale.saleNet != null ? round2(sale.saleNet * qty) : null;
   const sumGross = sale.saleGross != null ? round2(sale.saleGross * qty) : null;
   const { markupPct, marginPct } = markupIndicators(costNet, sale.saleNet);
-  const profitNet = costNet != null && sumNet != null ? round2(sumNet - round2(costNet * qty)) : null;
+  const { profit: profitNet } = profitAmounts({ sumNet, sumGross, costNet, costGross, qty }, profitBasis);
   const rrpVsCostPct = rrpNet != null && costNet ? pct(rrpNet - costNet, costNet) : null;
 
   const ref = { lineId: line.id, ...(eff ? { blockId: eff.blockId, offerId: eff.offerId } : {}) };

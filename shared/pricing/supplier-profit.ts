@@ -11,7 +11,7 @@ import type {
   UUID,
 } from '../types';
 import { isActiveLine } from './lines';
-import { computeSalePrice, resolveMarkupRule } from './markup';
+import { computeSalePrice, profitAmounts, resolveMarkupRule, VAT_PAYER_PROFIT, type ProfitBasis } from './markup';
 import { pct, round2, sumMoney } from './money';
 
 interface ProfitRow {
@@ -34,14 +34,10 @@ function summarize(rows: readonly ProfitRow[]): ProfitSummary {
   };
 }
 
-const fromMarkupRow = (r: MarkupRowComputed): ProfitRow => ({
-  cost: r.costNet != null ? round2(r.costNet * r.qty) : null,
-  sale: r.sumNet,
-  profit: r.profitNet,
-});
+const fromMarkupRow = (r: MarkupRowComputed, basis: ProfitBasis): ProfitRow => profitAmounts(r, basis);
 
 /** Рядок «якщо все в цього постачальника»: ціна продажу за правилом націнки рядка від пропозиції блоку (як F24–F27). */
-function allInRow(line: RequestLine, oc: OfferComputed, markup: MarkupSettings, header: RequestHeader): ProfitRow {
+function allInRow(line: RequestLine, oc: OfferComputed, markup: MarkupSettings, header: RequestHeader, basis: ProfitBasis): ProfitRow {
   const rule = resolveMarkupRule(line, markup);
   const sale = computeSalePrice({
     costNet: oc.unitNetUah,
@@ -56,8 +52,8 @@ function allInRow(line: RequestLine, oc: OfferComputed, markup: MarkupSettings, 
   });
   const qty = oc.qtyEffective;
   const sumNet = sale.saleNet != null ? round2(sale.saleNet * qty) : null;
-  const cost = oc.unitNetUah != null ? round2(oc.unitNetUah * qty) : null;
-  return { cost, sale: sumNet, profit: cost != null && sumNet != null ? round2(sumNet - cost) : null };
+  const sumGross = sale.saleGross != null ? round2(sale.saleGross * qty) : null;
+  return profitAmounts({ sumNet, sumGross, costNet: oc.unitNetUah, costGross: oc.unitGrossUah, qty }, basis);
 }
 
 /**
@@ -72,6 +68,7 @@ export function computeSupplierProfit(
   markupRows: Record<UUID, MarkupRowComputed>,
   markup: MarkupSettings,
   header: RequestHeader,
+  basis: ProfitBasis = VAT_PAYER_PROFIT,
 ): Record<UUID, SupplierProfit> {
   const active = lines.filter(isActiveLine);
   const result: Record<UUID, SupplierProfit> = {};
@@ -80,11 +77,11 @@ export function computeSupplierProfit(
     const allIn: ProfitRow[] = [];
     for (const line of active) {
       const row = markupRows[line.id];
-      if (row?.blockId === block.id) selected.push(fromMarkupRow(row));
+      if (row?.blockId === block.id) selected.push(fromMarkupRow(row, basis));
       const offerId = offerIndex[line.id]?.[block.id];
       const oc = offerId ? offers[offerId] : undefined;
       if (!oc?.isFilled || oc.isExcluded) continue;
-      allIn.push(row?.effectiveOfferId === oc.offerId ? fromMarkupRow(row) : allInRow(line, oc, markup, header));
+      allIn.push(row?.effectiveOfferId === oc.offerId ? fromMarkupRow(row, basis) : allInRow(line, oc, markup, header, basis));
     }
     result[block.id] = { blockId: block.id, selected: summarize(selected), allIn: summarize(allIn) };
   }

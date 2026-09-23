@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeRequest } from '../request';
-import { MARKUP, makeBlock, makeCtx, makeDoc, makeLine, makeSupplier, uah } from './fixtures';
+import { MARKUP, makeBlock, makeCtx, makeDoc, makeHeader, makeLine, makeSupplier, SETTINGS, uah } from './fixtures';
 
 describe('заробіток по постачальниках', () => {
   // націнка на вхід 20 %: заробіток рядка = вхід × 0,2 × к-сть
@@ -49,5 +49,17 @@ describe('заробіток по постачальниках', () => {
     );
     expect(excluded.supplierProfit.B!.selected.lines).toBe(0);
     expect(excluded.supplierProfit.A!.allIn.profitNet).toBe(90);
+  });
+
+  it('ФОП: прибуток — ціни КП ФОП мінус вхід з ПДВ (вхідний ПДВ ФОП не повертає)', () => {
+    const header = makeHeader();
+    const fopDoc = { ...doc, header: { ...header, kpSettings: { ...header.kpSettings, vatMode: 'no_vat' as const } } };
+    // рівень цін «з ПДВ»: A по обраних — продаж 540 × 1,2 = 648, вхід 450 × 1,2 = 540 → 108
+    const gross = computeRequest(fopDoc, makeCtx([makeSupplier('A'), makeSupplier('B')], { settings: { ...SETTINGS, fopPriceBasis: 'gross' } }));
+    expect(gross.supplierProfit.A!.selected).toMatchObject({ costNet: 540, saleNet: 648, profitNet: 108 });
+    expect(gross.supplierProfit.A!.selected.profitNet + gross.supplierProfit.B!.selected.profitNet).toBe(gross.markup.totals.profitNet);
+    // рівень «без ПДВ»: продаж 540, вхід з ПДВ 540 → 0
+    const net = computeRequest(fopDoc, makeCtx([makeSupplier('A'), makeSupplier('B')], { settings: { ...SETTINGS, fopPriceBasis: 'net' } }));
+    expect(net.supplierProfit.A!.selected).toMatchObject({ costNet: 540, saleNet: 540, profitNet: 0 });
   });
 });
