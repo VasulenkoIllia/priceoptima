@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Form, Input, Modal, Select } from 'antd';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { formatRequestNumber } from '@shared/format';
 import type { UUID } from '@shared/types';
 import { useSession } from '@/app/session';
 import { ds, errorMessage, qk } from '@/data';
 import { contactsFor, defaultContact, defaultCounterparty } from '@/lib/refs';
+import { ClientFormDialog } from '../clients/ClientFormDialog';
 
 interface FormValues {
   clientId?: UUID;
@@ -29,6 +30,7 @@ export function CreateRequestDialog({ open, onClose, onCreated }: CreateRequestD
   const queryClient = useQueryClient();
   const [form] = Form.useForm<FormValues>();
   const clientId = Form.useWatch('clientId', form);
+  const [newClientOpen, setNewClientOpen] = useState(false);
   const counterpartyId = Form.useWatch('counterpartyId', form);
 
   const clients = useQuery({ queryKey: qk.clients, queryFn: () => ds.listClients(), enabled: open });
@@ -99,7 +101,18 @@ export function CreateRequestDialog({ open, onClose, onCreated }: CreateRequestD
         }}
         style={{ marginTop: 12 }}
       >
-        <Form.Item name="clientId" label="Клієнт" extra="Можна вибрати пізніше в шапці заявки">
+        <Form.Item
+          name="clientId"
+          label="Клієнт"
+          extra={
+            <>
+              Можна вибрати пізніше в шапці заявки ·{' '}
+              <a onClick={() => setNewClientOpen(true)} title="Клієнта ще немає в довіднику — створити й одразу вибрати">
+                + Новий клієнт
+              </a>
+            </>
+          }
+        >
           <Select
             showSearch
             allowClear
@@ -158,6 +171,13 @@ export function CreateRequestDialog({ open, onClose, onCreated }: CreateRequestD
           <Input placeholder="Напр.: Комплектація санвузлів, корпус Б" maxLength={200} />
         </Form.Item>
       </Form>
+      <ClientFormDialog
+        open={newClientOpen}
+        client={null}
+        onClose={() => setNewClientOpen(false)}
+        // новий клієнт одразу стає клієнтом заявки; контрагент і контакт підставляться з його картки
+        onSaved={(id) => form.setFieldsValue({ clientId: id, counterpartyId: undefined, contactId: undefined })}
+      />
     </Modal>
   );
 }
