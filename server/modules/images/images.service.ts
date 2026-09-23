@@ -5,6 +5,7 @@ import type { ProductImageDto, UUID } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
 import { notFound } from '../../http/errors';
+import { fetchPublic } from '../../lib/publicFetch';
 import { logger } from '../../logger';
 import { productOrFail } from '../products/products.service';
 import { imageUrlOf, servedImageUrl, toProductImageDto } from './images.mapper';
@@ -80,9 +81,9 @@ async function storeFeedImage(row: ProductImage): Promise<ProductImage | null> {
   }
 }
 
+/** Посилання на фото приходить із прайсу постачальника (недовірені дані): лише публічні адреси (lib/publicFetch). */
 async function downloadImage(url: string): Promise<{ data: Buffer; type: ImageMimeType }> {
-  if (!/^https?:\/\//iu.test(url)) throw new Error('Фото беремо лише за http(s)');
-  const response = await fetch(url, { signal: AbortSignal.timeout(FEED_IMAGE_TIMEOUT_MS), redirect: 'follow' });
+  const { response } = await fetchPublic(new URL(url), { signal: AbortSignal.timeout(FEED_IMAGE_TIMEOUT_MS) });
   if (!response.ok) throw new Error(`Фото недоступне (HTTP ${response.status})`);
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) throw new Error('Фото завелике');

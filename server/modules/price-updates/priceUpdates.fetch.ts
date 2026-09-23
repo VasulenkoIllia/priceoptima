@@ -2,7 +2,9 @@
 // Доступ: bearer — токен у заголовку Authorization; basic — секрет «логін:пароль»;
 // query — токен параметром посилання (порожній параметр у посиланні, інакше token).
 // Посилання й токен у повідомлення про помилки не потрапляють — лише хост.
+// Сервер ходить лише на публічні адреси (lib/publicFetch).
 import type { SupplierPriceFeed } from '@prisma/client';
+import { fetchPublic, PublicFetchError, type HostLookup } from '../../lib/publicFetch';
 import type { SecretBox } from '../../lib/secretBox';
 
 export const FEED_TIMEOUT_MS = 5 * 60 * 1000;
@@ -28,6 +30,7 @@ export interface FeedRequest {
 
 export interface DownloadOptions {
   fetch?: typeof fetch;
+  lookup?: HostLookup;
   timeoutMs?: number;
   maxBytes?: number;
 }
@@ -67,20 +70,21 @@ export function buildFeedRequest(rawUrl: string, auth: SupplierPriceFeed['auth']
 
 /** Завантажує вигрузку й повертає її текстом. Будь-яка невдача — FeedFetchError з поясненням. */
 export async function downloadFeed(feed: FeedAccess, secrets: SecretBox, options: DownloadOptions = {}): Promise<string> {
-  const fetchImpl = options.fetch ?? fetch;
   const timeoutMs = options.timeoutMs ?? FEED_TIMEOUT_MS;
   const maxBytes = options.maxBytes ?? FEED_MAX_BYTES;
 
   if (!feed.url) throw new FeedFetchError('У постачальника не налаштоване посилання на вигрузку');
   const request = buildFeedRequest(feed.url, feed.auth, openSecret(feed, secrets));
-  const host = new URL(request.url).host;
   const signal = AbortSignal.timeout(timeoutMs);
 
   let response: Response;
+  let host: string;
   try {
-    response = await fetchImpl(request.url, { headers: request.headers, signal, redirect: 'follow' });
+    const got = await fetchPublic(new URL(request.url), { fetch: options.fetch, lookup: options.lookup, headers: request.headers, signal });
+    response = got.response;
+    host = got.url.host;
   } catch (e) {
-    throw connectionError(e, host, timeoutMs);
+    throw feedErrorOf(e, timeoutMs);
   }
   if (!response.ok) {
     await response.body?.cancel().catch(() => undefined);
@@ -104,6 +108,15 @@ export async function downloadFeed(feed: FeedAccess, secrets: SecretBox, options
 }
 
 // ── дрібниці ────────────────────────────────────────────────────────
+
+function feedErrorOf(e: unknown, timeoutMs: number): FeedFetchError {
+  if (!(e instanceof PublicFetchError)) return connectionError(e, '', timeoutMs);
+  if (e.kind === 'network') return connectionError(e.cause, e.host, timeoutMs);
+  if (e.kind === 'not_found') return new FeedFetchError(`Сервер постачальника (${e.host}) не знайдено — перевірте посилання`);
+  if (e.kind === 'blocked') return new FeedFetchError(`Посилання веде на внутрішню адресу (${e.host}) — вигрузку беремо лише з інтернету`);
+  if (e.kind === 'redirects') return new FeedFetchError(`Забагато переадресацій на ${e.host} — перевірте посилання`);
+  return new FeedFetchError('Постачальник переадресував на посилання не http(s)');
+}
 
 function openSecret(feed: FeedAccess, secrets: SecretBox): string | null {
   if (feed.auth === 'none' || !feed.secret) return null;

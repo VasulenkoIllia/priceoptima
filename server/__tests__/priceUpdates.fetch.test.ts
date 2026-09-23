@@ -8,8 +8,11 @@ import {
   FeedFetchError,
   type FeedAccess,
 } from '../modules/price-updates/priceUpdates.fetch';
+import { isPrivateAddress } from '../lib/publicFetch';
 
 const secrets = createSecretBox('тестовий-ключ-підпису-cookie');
+/** Хост вигрузки — публічна адреса (DNS у тестах не чіпаємо). */
+const publicHost = async () => ['93.184.215.14'];
 
 function feed(overrides: Partial<FeedAccess> = {}): FeedAccess {
   return { url: 'https://b2b.example.com/export/price.xml', auth: 'none', secret: null, ...overrides };
@@ -79,7 +82,8 @@ describe('запит до вигрузки', () => {
 describe('завантаження вигрузки', () => {
   it('секрет розшифровується й іде в заголовок; тіло повертається текстом', async () => {
     const fetchMock = fakeFetch(new Response('{"products":{}}', { status: 200 }));
-    const body = await downloadFeed(feed({ auth: 'bearer', secret: secrets.seal('токен-SANWELL') }), secrets, { fetch: fetchMock });
+    const body = await downloadFeed(feed({ auth: 'bearer', secret: secrets.seal('токен-SANWELL') }), secrets, {
+      lookup: publicHost, fetch: fetchMock });
     expect(body).toBe('{"products":{}}');
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect((init.headers as Record<string, string>).authorization).toBe('Bearer токен-SANWELL');
@@ -88,13 +92,15 @@ describe('завантаження вигрузки', () => {
 
   it('секрет не розшифровується (змінився ключ) — просимо ввести заново', async () => {
     const foreign = createSecretBox('інший-ключ-підпису-cookie-сервера').seal('токен');
-    const error = await errorOf(downloadFeed(feed({ auth: 'bearer', secret: foreign }), secrets, { fetch: fakeFetch(new Response('x')) }));
+    const error = await errorOf(downloadFeed(feed({ auth: 'bearer', secret: foreign }), secrets, {
+      lookup: publicHost, fetch: fakeFetch(new Response('x')) }));
     expect(error.message).toMatch(/введіть його заново/u);
   });
 
   it('без посилання — помилка без запиту', async () => {
     const fetchMock = fakeFetch(new Response('x'));
-    const error = await errorOf(downloadFeed(feed({ url: null }), secrets, { fetch: fetchMock }));
+    const error = await errorOf(downloadFeed(feed({ url: null }), secrets, {
+      lookup: publicHost, fetch: fetchMock }));
     expect(error.message).toMatch(/не налаштоване посилання/u);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -107,13 +113,15 @@ describe('завантаження вигрузки', () => {
     [502, /повернув помилку \(HTTP 502\)/u],
     [418, /відповів HTTP 418/u],
   ])('HTTP %i — зрозуміле повідомлення', async (status, message) => {
-    const error = await errorOf(downloadFeed(feed(), secrets, { fetch: fakeFetch(new Response('nope', { status })) }));
+    const error = await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: fakeFetch(new Response('nope', { status })) }));
     expect(error.message).toMatch(message);
   });
 
   it('повідомлення не містить токена з посилання', async () => {
     const error = await errorOf(
       downloadFeed(feed({ auth: 'query', secret: secrets.seal('дуже-секретний') }), secrets, {
+      lookup: publicHost,
         fetch: fakeFetch(new Response('nope', { status: 500 })),
       }),
     );
@@ -123,7 +131,8 @@ describe('завантаження вигрузки', () => {
   it('таймаут — сервер не віддав вигрузку за відведений час', async () => {
     const timeout = Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
     const error = await errorOf(
-      downloadFeed(feed(), secrets, { fetch: vi.fn().mockRejectedValue(timeout), timeoutMs: 5 * 60_000 }),
+      downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: vi.fn().mockRejectedValue(timeout), timeoutMs: 5 * 60_000 }),
     );
     expect(error.message).toBe('Сервер постачальника (b2b.example.com) не віддав вигрузку за 5 хв');
   });
@@ -135,39 +144,47 @@ describe('завантаження вигрузки', () => {
           init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
         }),
     );
-    const error = await errorOf(downloadFeed(feed(), secrets, { fetch: hanging, timeoutMs: 20 }));
+    const error = await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: hanging, timeoutMs: 20 }));
     expect(error.message).toMatch(/не віддав вигрузку/u);
   });
 
   it('хост не знайдено чи з\'єднання відхилено — помилка з хостом', async () => {
     const notFound = Object.assign(new TypeError('fetch failed'), { cause: { code: 'ENOTFOUND' } });
-    expect((await errorOf(downloadFeed(feed(), secrets, { fetch: vi.fn().mockRejectedValue(notFound) }))).message).toMatch(
+    expect((await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: vi.fn().mockRejectedValue(notFound) }))).message).toMatch(
       /b2b\.example\.com\) не знайдено/u,
     );
     const refused = Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } });
-    expect((await errorOf(downloadFeed(feed(), secrets, { fetch: vi.fn().mockRejectedValue(refused) }))).message).toMatch(
+    expect((await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: vi.fn().mockRejectedValue(refused) }))).message).toMatch(
       /не приймає з'єднання/u,
     );
     const reset = Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } });
-    expect((await errorOf(downloadFeed(feed(), secrets, { fetch: vi.fn().mockRejectedValue(reset) }))).message).toMatch(
+    expect((await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: vi.fn().mockRejectedValue(reset) }))).message).toMatch(
       /з'єднання перервалось/u,
     );
   });
 
   it('порожня відповідь — помилка', async () => {
-    expect((await errorOf(downloadFeed(feed(), secrets, { fetch: fakeFetch(new Response('')) }))).message).toMatch(/порожню вигрузку/u);
-    expect((await errorOf(downloadFeed(feed(), secrets, { fetch: fakeFetch(new Response('  \n ')) }))).message).toMatch(
+    expect((await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: fakeFetch(new Response('')) }))).message).toMatch(/порожню вигрузку/u);
+    expect((await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: fakeFetch(new Response('  \n ')) }))).message).toMatch(
       /порожню вигрузку/u,
     );
   });
 
   it('завелика вигрузка: за заголовком і за фактично прочитаним', async () => {
     const declared = new Response('x', { headers: { 'content-length': '5000' } });
-    expect((await errorOf(downloadFeed(feed(), secrets, { fetch: fakeFetch(declared), maxBytes: 1024 }))).message).toMatch(
+    expect((await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: fakeFetch(declared), maxBytes: 1024 }))).message).toMatch(
       /завелика/u,
     );
     const streamed = new Response('x'.repeat(4096));
-    expect((await errorOf(downloadFeed(feed(), secrets, { fetch: fakeFetch(streamed), maxBytes: 1024 }))).message).toMatch(
+    expect((await errorOf(downloadFeed(feed(), secrets, {
+      lookup: publicHost, fetch: fakeFetch(streamed), maxBytes: 1024 }))).message).toMatch(
       /завелика/u,
     );
   });
@@ -190,5 +207,37 @@ describe('кодування вигрузки', () => {
 
   it('невідоме кодування — читаємо як UTF-8', () => {
     expect(decodeFeed(new TextEncoder().encode('Прайс'), 'text/plain; charset=x-невідоме')).toBe('Прайс');
+  });
+});
+
+describe('лише публічні адреси', () => {
+  it('локальні, приватні й службові адреси — ні; публічні — так', () => {
+    for (const a of ['127.0.0.1', '10.1.2.3', '172.20.0.5', '192.168.1.1', '169.254.169.254', '0.0.0.0', '100.64.0.1', '::1', 'fd00::1', 'fe80::1', '::ffff:127.0.0.1']) {
+      expect(isPrivateAddress(a), a).toBe(true);
+    }
+    for (const a of ['93.184.215.14', '8.8.8.8', '2606:4700:4700::1111']) expect(isPrivateAddress(a), a).toBe(false);
+  });
+
+  it('посилання на внутрішню адресу або ім\'я, що веде в приватну мережу, — без запиту', async () => {
+    const fetchMock = fakeFetch(new Response('x'));
+    const direct = await errorOf(downloadFeed(feed({ url: 'http://169.254.169.254/latest/meta-data' }), secrets, { fetch: fetchMock, lookup: publicHost }));
+    expect(direct.message).toMatch(/внутрішню адресу/u);
+    const viaDns = await errorOf(downloadFeed(feed({ url: 'http://db:5432/' }), secrets, { fetch: fetchMock, lookup: async () => ['172.18.0.2'] }));
+    expect(viaDns.message).toMatch(/внутрішню адресу \(db:5432\)/u);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('переадресація на внутрішню адресу — помилка; на інший сервер — без токена', async () => {
+    const redirectTo = (location: string) => new Response(null, { status: 302, headers: { location } });
+    const toLocal = vi.fn().mockResolvedValueOnce(redirectTo('http://127.0.0.1:3000/api/users'));
+    const local = await errorOf(downloadFeed(feed(), secrets, { fetch: toLocal, lookup: publicHost }));
+    expect(local.message).toMatch(/внутрішню адресу/u);
+    expect(toLocal).toHaveBeenCalledTimes(1);
+
+    const crossHost = vi.fn().mockResolvedValueOnce(redirectTo('https://cdn.example.net/price.xml')).mockResolvedValueOnce(new Response('<yml/>'));
+    const body = await downloadFeed(feed({ auth: 'bearer', secret: secrets.seal('токен') }), secrets, { fetch: crossHost, lookup: publicHost });
+    expect(body).toBe('<yml/>');
+    expect((crossHost.mock.calls[0][1] as RequestInit).headers).toMatchObject({ authorization: 'Bearer токен' });
+    expect((crossHost.mock.calls[1][1] as RequestInit).headers).not.toHaveProperty('authorization');
   });
 });
