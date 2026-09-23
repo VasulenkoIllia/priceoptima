@@ -59,8 +59,11 @@ export function computeOfferBase(
   } else {
     // ТЗ §5.1: ціна в грн — до копійок одразу після перерахунку з валюти; суми — від округлених цін
     if (offer.purchasePriceCur != null) {
-      unitNetUah = round2(offer.purchasePriceCur * rate * (1 + block.supplierMarkupPct / 100)); // Ф3
-      unitGrossUah = round2(unitNetUah * k); // Ф4
+      const netExact = offer.purchasePriceCur * rate * (1 + block.supplierMarkupPct / 100);
+      unitNetUah = round2(netExact); // Ф3
+      // Ф4: з ПДВ — від точної ціни, а не від уже округленої: так вона збігається з ціною з ПДВ у каталозі
+      // (у каталозі 100,05 з ПДВ зберігається як 83,375 без ПДВ; від округлених 83,38 вийшло б 100,06)
+      unitGrossUah = round2(netExact * k);
       sumNetUah = round2(unitNetUah * qtyEffective);
       sumGrossUah = round2(unitGrossUah * qtyEffective); // Ф6
     }

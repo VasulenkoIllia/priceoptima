@@ -1,5 +1,7 @@
 // Золотий тест: наскрізний приклад ТЗ §5.3 (заявка 000001). Кожне число ТЗ — точним збігом до копійки;
 // відсотки — з точністю показу (2 знаки).
+// Ф4 з 23.09.2026: ціна з ПДВ — від точної ціни без ПДВ (а не від округленої), тому суми з ПДВ кроків 1–3
+// на копійки відрізняються від ТЗ v1.0 (599,16 замість 599,12 тощо); ціни продажу, КП і погодження — без змін.
 import { describe, expect, it } from 'vitest';
 import type { CurrencyCode, KpVatMode } from '../../enums';
 import { formatKpNumber } from '../../format/numbering';
@@ -192,12 +194,12 @@ describe('ТЗ §5.3 — крок 1. Підбір', () => {
     [1, WI, 408.59, 490.31],
     [1, PL, 372.0, 446.4],
     [2, CR, 119.16, 571.96],
-    [2, WI, 124.82, 599.12],
-    [3, CR, 1111.28, 1333.54],
+    [2, WI, 124.82, 599.16],
+    [3, CR, 1111.28, 1333.53],
     [4, CR, 179.12, 429.88],
     [5, WI, 2158.79, 2590.55],
-    [6, WI, 89.13, 427.84],
-    [7, WI, 484.62, 1163.08],
+    [6, WI, 89.13, 427.8],
+    [7, WI, 484.62, 1163.1],
     [8, WI, 811.92, 974.3],
     [9, PL, 124.81, 149.77],
     [10, PL, 23.92, 229.6],
@@ -230,20 +232,20 @@ describe('ТЗ §5.3 — крок 1. Підбір', () => {
     expect(pipe.warnings.find((w) => w.code === 'QTY_ROUNDED')?.params).toMatchObject({ from: 118, to: 120, multiplicity: 4 });
   });
 
-  it('докладно: 464.508 → 464.51; 1 111.275 → 1 111.28; × 1.2 → 1 333.54; 92.352 → 92.35', () => {
+  it('докладно: 464.508 → 464.51; 1 111.275 → 1 111.28; 1 111.275 × 1.2 → 1 333.53; 92.352 → 92.35', () => {
     num(off(step1, 1, CR).unitGrossUah, 464.51);
     num(off(step1, 3, CR).unitNetUah, 1111.28);
-    num(off(step1, 3, CR).unitGrossUah, 1333.54);
+    num(off(step1, 3, CR).unitGrossUah, 1333.53);
     num(off(step1, 12, PL).unitGrossUah, 92.35);
   });
 
-  it('після кроку 1: мікс 19 811.52; Дельта САНТЕХ-ІМПОРТ 18.11, АКВА-ТРЕЙД 432.71 (43.91 + 27.16 + 361.64), ТЕРМО-ПЛАСТ 0.00', () => {
-    num(mixOf(step1).totalGross, 19811.52);
+  it('після кроку 1: мікс 19 811.49; Дельта САНТЕХ-ІМПОРТ 18.11, АКВА-ТРЕЙД 432.75 (43.91 + 27.20 + 361.64), ТЕРМО-ПЛАСТ 0.00', () => {
+    num(mixOf(step1).totalGross, 19811.49);
     num(step1.blocks[CR]!.deltaGross, 18.11);
     num(round2(off(step1, 1, CR).sumGrossUah! - off(step1, 1, PL).sumGrossUah!), 18.11);
-    num(step1.blocks[WI]!.deltaGross, 432.71);
+    num(step1.blocks[WI]!.deltaGross, 432.75);
     num(round2(off(step1, 1, WI).sumGrossUah! - off(step1, 1, PL).sumGrossUah!), 43.91);
-    num(round2(off(step1, 2, WI).sumGrossUah! - off(step1, 2, CR).sumGrossUah!), 27.16);
+    num(round2(off(step1, 2, WI).sumGrossUah! - off(step1, 2, CR).sumGrossUah!), 27.2);
     num(round2(off(step1, 12, WI).sumGrossUah! - off(step1, 12, PL).sumGrossUah!), 361.64);
     num(step1.blocks[PL]!.deltaGross, 0);
   });
@@ -270,8 +272,8 @@ describe('ТЗ §5.3 — крок 2. Виключення', () => {
 describe('ТЗ §5.3 — крок 3. «Прийняти всі рекомендації»', () => {
   // [блок, Всього з ПДВ, Всього по обраних, Дельта, покриття N, бракує рядків]
   const TABLE: [string, number, number, number, number, number][] = [
-    [CR, 2799.89, 2799.89, 0, 4, 8],
-    [WI, 17688.84, 5155.77, 414.6, 7, 5],
+    [CR, 2799.88, 2799.88, 0, 4, 8],
+    [WI, 17688.86, 5155.75, 414.64, 7, 5],
     [PL, 11873.97, 11873.97, 0, 4, 8],
   ];
 
@@ -294,15 +296,15 @@ describe('ТЗ §5.3 — крок 3. «Прийняти всі рекоменд�
       expect(single.diffVsMixGross).toBe(delta); // Ф13: різниця з міксом = Дельта X
     }
     const wi = singleOf(step3, WI);
-    num(wi.diffVsMixGross, 414.6);
+    num(wi.diffVsMixGross, 414.64);
     pct2(wi.diffVsMixPct, 2.4);
     pct2(step3.blocks[WI]!.deltaPct, 2.4);
   });
 
-  it('закупівля по обраних = оптимальний мікс = 19 829.63; 12/12, 3 постачальники', () => {
-    num(step3.totals.totalPurchaseGross, 19829.63);
-    num(mixOf(step3).totalGross, 19829.63);
-    num(step3.scenarios[1]!.totalGross, 19829.63);
+  it('закупівля по обраних = оптимальний мікс = 19 829.60; 12/12, 3 постачальники', () => {
+    num(step3.totals.totalPurchaseGross, 19829.6);
+    num(mixOf(step3).totalGross, 19829.6);
+    num(step3.scenarios[1]!.totalGross, 19829.6);
     num(mixOf(step3).coveredLines, 12);
     num(step3.totals.linesCount, 12);
     num(mixOf(step3).suppliersUsed, 3);
@@ -310,14 +312,14 @@ describe('ТЗ §5.3 — крок 3. «Прийняти всі рекоменд�
     expect(step3.scenarios.filter((s) => s.kind === 'single_supplier').every((s) => s.missingLines > 0)).toBe(true);
   });
 
-  it('Дельта АКВА-ТРЕЙД = 25.80 + 27.16 + 361.64 = 414.60; 414.60 ÷ 17 274.24 = 2.40 %', () => {
+  it('Дельта АКВА-ТРЕЙД = 25.80 + 27.20 + 361.64 = 414.64; 414.64 ÷ 17 274.22 = 2.40 %', () => {
     num(round2(off(step3, 1, WI).sumGrossUah! - off(step3, 1, CR).sumGrossUah!), 25.8);
-    num(round2(off(step3, 2, WI).sumGrossUah! - off(step3, 2, CR).sumGrossUah!), 27.16);
+    num(round2(off(step3, 2, WI).sumGrossUah! - off(step3, 2, CR).sumGrossUah!), 27.2);
     num(round2(off(step3, 12, WI).sumGrossUah! - off(step3, 12, PL).sumGrossUah!), 361.64);
     const wiLines = doc3.lines.filter((l) => step3.offerIndex[l.id]?.[WI]);
     const mixOnWi = sumMoney(wiLines.map((l) => step3.offers[step3.lines[l.id]!.recommendedOfferId!]!.sumGrossUah));
-    num(mixOnWi, 17274.24);
-    pct2(pct(414.6, mixOnWi), 2.4);
+    num(mixOnWi, 17274.22);
+    pct2(pct(414.64, mixOnWi), 2.4);
   });
 });
 

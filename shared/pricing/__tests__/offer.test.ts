@@ -65,6 +65,13 @@ describe('F3–F7: ціни пропозиції (T1–T4)', () => {
     expect(r.sumNetUah).toBe(2659.28);
   });
 
+  it('Ф4: ціна з ПДВ збігається з каталогом (100,05 з ПДВ → 83,375 без ПДВ → знову 100,05, а не 100,06)', () => {
+    const r = computeOfferBase(makeOffer('L1', 'A', { currency: 'UAH', purchasePriceCur: 83.375 }), makeLine('L1', 120), makeBlock('A', 0), header, ctx);
+    expect(r.unitNetUah).toBe(83.38);
+    expect(r.unitGrossUah).toBe(100.05);
+    expect(r.sumGrossUah).toBe(12006);
+  });
+
   it('Ф3 приклад ТЗ: 8.602 × 45 при s = 2 % → 394.83', () => {
     const r = computeOfferBase(
       makeOffer('L1', 'A', { currency: 'USD', purchasePriceCur: 8.602 }),
