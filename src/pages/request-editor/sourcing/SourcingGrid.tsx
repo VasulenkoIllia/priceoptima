@@ -3,6 +3,7 @@
 import {
   DeleteOutlined,
   GlobalOutlined,
+  ProfileOutlined,
   SearchOutlined,
   StopOutlined,
   SwapOutlined,
@@ -13,6 +14,7 @@ import {
 import type { MenuProps } from 'antd';
 import type {
   CellClickedEvent,
+  CellDoubleClickedEvent,
   CellEditRequestEvent,
   CellKeyDownEvent,
   ColDef,
@@ -62,6 +64,9 @@ const isDeleteKey = (e: KeyboardEvent) => e.key === 'Delete' || (isMac && e.key 
 const isPasteKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'v';
 /** Ctrl+D (на Mac і Cmd+D) — заповнити з рядка вище, як в Excel; розкладка неважлива (e.code). */
 const isFillKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyD' || e.key.toLowerCase() === 'd');
+
+/** Колонки блоку, подвійний клік по яких відкриває панель пропозиції (решта редагується в клітинці). */
+const DETAIL_FIELDS: ReadonlySet<string> = new Set(['name', 'net', 'gross', 'sum', 'rrp']);
 
 /** keydown, повністю оброблені в suppressKeyboardEvent (F4 під час введення), — onCellKeyDown їх пропускає. */
 const handledKeys = new WeakSet<Event>();
@@ -266,6 +271,7 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
       const changed = !!cell.oc?.warnings.some((w) => w.code === 'CATALOG_PRICE_CHANGED');
       return {
         items: [
+          { key: 'details', icon: <ProfileOutlined />, label: 'Пропозиція: ціна, кратність, примітка' },
           ...(changed ? [{ key: 'refresh', icon: <SyncOutlined />, label: 'Оновити ціну з прайсу', disabled: ro }] : []),
           { key: 'replace', icon: <SwapOutlined />, label: 'Замінити товар (F4)', disabled: ro },
           { key: 'clear', icon: <StopOutlined />, label: 'Очистити (Delete)', disabled: ro, danger: true },
@@ -273,7 +279,8 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
         onClick: ({ key, domEvent }) => {
           domEvent.stopPropagation();
           const a = actionsRef.current;
-          if (key === 'refresh') a.refreshOfferPrice(row.id, blockId);
+          if (key === 'details') useSourcingUi.getState().openDrawer({ lineId: row.id, blockId });
+          else if (key === 'refresh') a.refreshOfferPrice(row.id, blockId);
           else if (key === 'replace') a.openPickerFor(row.id, blockId, 'replace');
           else if (key === 'clear') a.clearOffer(row.id, blockId);
         },
@@ -514,6 +521,14 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
     [openCell],
   );
 
+  // «Підбір»: подвійний клік по назві чи ціні пропозиції — панель пропозиції (змінити ціну, кратність, примітка)
+  const onCellDoubleClicked = useCallback((e: CellDoubleClickedEvent<SourcingRow>) => {
+    if (!isLineRow(e.data)) return;
+    const col = parseColId(e.column.getColId());
+    if (col.kind !== 'block' || !DETAIL_FIELDS.has(col.field) || !e.data.cells[col.blockId]?.offer) return;
+    useSourcingUi.getState().openDrawer({ lineId: e.data.id, blockId: col.blockId });
+  }, []);
+
   // ── клавіатура ────────────────────────────────────────────────────
   const onCellKeyDown = useCallback(
     (e: CellKeyDownEvent<SourcingRow> | FullWidthCellKeyDownEvent<SourcingRow>) => {
@@ -611,6 +626,7 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
         readOnlyEdit
         onCellEditRequest={onCellEditRequest}
         onCellClicked={onCellClicked}
+        onCellDoubleClicked={onCellDoubleClicked}
         onCellEditingStarted={resetCommitKey}
         onCellKeyDown={onCellKeyDown}
         onGridReady={onGridReady}

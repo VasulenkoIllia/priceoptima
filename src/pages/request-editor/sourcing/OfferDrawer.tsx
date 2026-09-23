@@ -20,7 +20,6 @@ import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
 import { siteSearchUrl } from '@/components/ProductPicker';
 import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
-import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { SEMANTIC_COLORS } from '@/theme';
 import { blockRateLabel } from '@/lib/rateLabels';
 import { EXCLUDE_HINT } from './cells';
@@ -267,11 +266,10 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
 export function OfferDrawer() {
   const target = useSourcingUi((s) => s.drawer);
   const openDrawer = useSourcingUi((s) => s.openDrawer);
-  const mode = useUiPrefs((s) => s.editorMode);
   const line = useRequestDoc((s) => (target ? s.doc?.lines.find((l) => l.id === target.lineId) : undefined));
   const block = useRequestDoc((s) => (target ? s.doc?.blocks.find((b) => b.id === target.blockId) : undefined));
   const supplier = useRequestDoc((s) => (block?.supplierId ? s.doc?.refs.suppliers[block.supplierId] : undefined));
-  const open = !!target && mode === 'comparison';
+  const open = !!target;
   return (
     <Drawer
       open={open}
