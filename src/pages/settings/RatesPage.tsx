@@ -1,9 +1,9 @@
 import { EditOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Result, Spin, Table, Tag, type TableColumnsType } from 'antd';
+import { Alert, App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Result, Spin, Table, Tag, type TableColumnsType } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
-import { FOREIGN_CURRENCIES, type ForeignCurrency, type RateSource } from '@shared/enums';
+import { FOREIGN_CURRENCIES, RATE_POLICY_LABELS, type ForeignCurrency, type RateSource } from '@shared/enums';
 import { formatDate, formatRate, toIsoDate } from '@shared/format';
 import type { CurrencyRateDto, ISODate, SupplierListItem } from '@shared/types';
 import { EmptyState, PageHeader, SupplierLogo } from '@/components';
@@ -159,16 +159,117 @@ function ManualRateDialog({ open, onClose }: { open: boolean; onClose: () => voi
   );
 }
 
-const SUPPLIER_COLUMNS: TableColumnsType<SupplierListItem> = [
-  {
-    title: 'Постачальник',
-    key: 'name',
-    render: (_, s) => <SupplierLogo name={s.name} logoUrl={s.logoUrl} color={s.color} size={18} showName />,
-  },
-  { title: 'USD', key: 'usd', align: 'right', render: (_, s) => <span className="po-num">{formatRate(s.priceListRates.USD)}</span> },
-  { title: 'EUR', key: 'eur', align: 'right', render: (_, s) => <span className="po-num">{formatRate(s.priceListRates.EUR)}</span> },
-  { title: 'Дата прайсу', key: 'date', render: (_, s) => <span className="po-num">{formatDate(s.priceListRates.date)}</span> },
-];
+interface SupplierRateValues {
+  manualRateUsd: number | null;
+  manualRateEur: number | null;
+}
+
+/** Ручний курс із картки постачальника — його можна поправити прямо звідси, не відкриваючи постачальників. */
+function SupplierRateDialog({ supplier, onClose }: { supplier: SupplierListItem | null; onClose: () => void }) {
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [form] = Form.useForm<SupplierRateValues>();
+
+  const save = useMutation({
+    mutationFn: async (v: SupplierRateValues) => {
+      // повний SupplierInput беремо з картки, щоб не загубити поля, яких немає в цій формі
+      const { id, productsCount: _p, lastImportAt: _l, priceSource: _s, priceListRates: _r, legalEntities, contacts, ...rest } = await ds.getSupplier(supplier!.id);
+      const changed = v.manualRateUsd !== rest.manualRateUsd || v.manualRateEur !== rest.manualRateEur;
+      return ds.saveSupplier(id, {
+        ...rest,
+        manualRateUsd: v.manualRateUsd,
+        manualRateEur: v.manualRateEur,
+        // дата ручного курсу — день, коли його востаннє змінили (як у картці постачальника)
+        manualRatesDate: changed ? (v.manualRateUsd != null || v.manualRateEur != null ? toIsoDate(new Date()) : null) : rest.manualRatesDate,
+        legalEntities: legalEntities.map(({ supplierId: _sid, ...le }) => le),
+        contacts: contacts.map(({ supplierId: _sid, ...ct }) => ct),
+      });
+    },
+    onSuccess: (s) => {
+      void queryClient.invalidateQueries({ queryKey: qk.suppliers });
+      void queryClient.invalidateQueries({ queryKey: qk.supplier(s.id) });
+      message.success(`Ручний курс ${s.name} збережено`);
+      onClose();
+    },
+    onError: (e) => message.error(errorMessage(e)),
+  });
+
+  if (!supplier) return null;
+  const ignored = supplier.ratePolicy === 'nbu' || supplier.ratePolicy === 'nbu_adjusted';
+  return (
+    <Modal
+      open
+      title={`Ручний курс: ${supplier.name}`}
+      okText="Зберегти"
+      cancelText="Скасувати"
+      confirmLoading={save.isPending}
+      onOk={() => form.submit()}
+      onCancel={onClose}
+      destroyOnHidden
+      width={460}
+    >
+      <p className="po-muted" style={{ marginTop: 0 }}>
+        Діє для заявок цього постачальника, коли в його прайсі курсу немає. Прайс у {supplier.defaultCurrency}, спосіб —{' '}
+        {RATE_POLICY_LABELS[supplier.ratePolicy]}.
+      </p>
+      {ignored ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={`Зараз курс береться за способом «${RATE_POLICY_LABELS[supplier.ratePolicy]}» — цей ручний курс не застосується, доки спосіб не змінити в картці постачальника.`}
+        />
+      ) : null}
+      <Form<SupplierRateValues>
+        form={form}
+        layout="vertical"
+        requiredMark={false}
+        key={supplier.id}
+        initialValues={{ manualRateUsd: supplier.manualRateUsd, manualRateEur: supplier.manualRateEur }}
+        onFinish={(v) => save.mutate({ manualRateUsd: v.manualRateUsd ?? null, manualRateEur: v.manualRateEur ?? null })}
+      >
+        <Form.Item name="manualRateUsd" label="Курс USD, грн" extra="Порожньо — курс не задано">
+          <InputNumber min={0.0001} max={10_000} step={0.01} decimalSeparator="," style={{ width: 180 }} />
+        </Form.Item>
+        <Form.Item name="manualRateEur" label="Курс EUR, грн" extra="Порожньо — курс не задано">
+          <InputNumber min={0.0001} max={10_000} step={0.01} decimalSeparator="," style={{ width: 180 }} />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+}
+
+function supplierColumns(onEdit: (s: SupplierListItem) => void): TableColumnsType<SupplierListItem> {
+  const pair = (fromPrice: number | null, manual: number | null) =>
+    fromPrice != null ? (
+      <span className="po-num">{formatRate(fromPrice)}</span>
+    ) : manual != null ? (
+      <Tag bordered={false}>вручну {formatRate(manual)}</Tag>
+    ) : (
+      <span className="po-muted">—</span>
+    );
+  return [
+    {
+      title: 'Постачальник',
+      key: 'name',
+      render: (_, s) => <SupplierLogo name={s.name} logoUrl={s.logoUrl} color={s.color} size={18} showName />,
+    },
+    { title: 'Прайс', key: 'currency', render: (_, s) => <span className="po-num">{s.defaultCurrency}</span> },
+    { title: 'USD', key: 'usd', align: 'right', render: (_, s) => pair(s.priceListRates.USD, s.manualRateUsd) },
+    { title: 'EUR', key: 'eur', align: 'right', render: (_, s) => pair(s.priceListRates.EUR, s.manualRateEur) },
+    { title: 'Дата прайсу', key: 'date', render: (_, s) => <span className="po-num">{formatDate(s.priceListRates.date)}</span> },
+    {
+      title: '',
+      key: 'actions',
+      align: 'right',
+      render: (_, s) => (
+        <Button size="small" type="link" icon={<EditOutlined />} onClick={() => onEdit(s)}>
+          Ручний курс
+        </Button>
+      ),
+    },
+  ];
+}
 
 /** Курси валют: НБУ — довідково; у заявці курс береться з прайсу постачальника. */
 export default function RatesPage() {
@@ -176,6 +277,9 @@ export default function RatesPage() {
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
 
   const [manualOpen, setManualOpen] = useState(false);
+  const [rateSupplier, setRateSupplier] = useState<SupplierListItem | null>(null);
+  // курс має сенс лише там, де прайс у валюті
+  const foreignSuppliers = useMemo(() => (suppliers.data ?? []).filter((s) => s.defaultCurrency !== 'UAH'), [suppliers.data]);
   const series = useMemo(() => {
     const data = effectiveByDate(rates.data ?? []);
     return { USD: seriesOf(data, 'USD'), EUR: seriesOf(data, 'EUR') };
@@ -229,7 +333,7 @@ export default function RatesPage() {
             locale={{ emptyText: 'Курсів ще немає' }}
           />
         </Card>
-        <Card title="Курси з прайсів постачальників" size="small">
+        <Card title="Курси постачальників" size="small">
           {suppliers.isError ? (
             <Result status="error" title="Не вдалося завантажити постачальників" subTitle={errorMessage(suppliers.error)} />
           ) : (
@@ -238,17 +342,18 @@ export default function RatesPage() {
               size="small"
               rowKey="id"
               loading={suppliers.isPending}
-              columns={SUPPLIER_COLUMNS}
-              dataSource={suppliers.data}
+              columns={supplierColumns(setRateSupplier)}
+              dataSource={foreignSuppliers}
               pagination={false}
-              locale={{ emptyText: 'Постачальників ще немає' }}
+              locale={{ emptyText: 'Немає постачальників із прайсом у валюті — курс нікому не потрібен' }}
             />
           )}
           <div className="po-rates-hint">
-            Курс приходить разом із прайсом постачальника. Якщо в прайсі курсу немає, у заявці береться ручний курс із картки постачальника, а
-            якщо й його немає, то загальний курс на дату заявки.
+            Показано лише постачальників, чий прайс у валюті. Курс приходить разом із прайсом; якщо в прайсі його немає, у заявці береться
+            ручний курс із картки постачальника, а якщо й його немає, то загальний курс на дату заявки.
           </div>
         </Card>
+        <SupplierRateDialog supplier={rateSupplier} onClose={() => setRateSupplier(null)} />
       </div>
     </div>
   );

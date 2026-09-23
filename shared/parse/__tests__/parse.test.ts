@@ -109,6 +109,10 @@ describe('normalizeUnit і parseCurrency', () => {
     expect(parseCurrency('€')).toBe('EUR');
     expect(parseCurrency('Eur')).toBe('EUR');
     expect(parseCurrency('Євро')).toBe('EUR');
+    // написання з прайсів постачальників
+    expect(parseCurrency('euro')).toBe('EUR');
+    expect(parseCurrency('гривна')).toBe('UAH');
+    expect(parseCurrency('доллар')).toBe('USD');
     expect(parseCurrency(840)).toBe('USD');
     expect(parseCurrency('PLN')).toBeNull();
     expect(parseCurrency(null)).toBeNull();
