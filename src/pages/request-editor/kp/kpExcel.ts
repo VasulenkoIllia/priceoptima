@@ -3,12 +3,15 @@ import type { Border, Workbook, Worksheet } from 'exceljs';
 import type { KpSnapshot } from '@shared/types';
 import { loadExcelJs, saveBlob, XLSX_MIME } from '@/lib/files';
 import { kpAmountLine, kpContactsLine, kpFileName, kpPartyRows, kpTermRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
+import { loadRowPhotos } from './kpPhotos';
 
 const MONEY = '#,##0.00';
 const QTY = '#,##0.###';
 const LINE: Partial<Border> = { style: 'thin', color: { argb: 'FFB8C2D0' } };
 const BOX = { top: LINE, left: LINE, bottom: LINE, right: LINE };
-const COLS = 7;
+/** Сторона фото в клітинці, пікселі; висота рядка з фото — у пунктах. */
+const PHOTO_SIDE_PX = 56;
+const PHOTO_ROW_PT = 46;
 
 interface TextOptions {
   bold?: boolean;
@@ -17,14 +20,30 @@ interface TextOptions {
   align?: 'left' | 'center' | 'right';
 }
 
-/** Книга Excel зі знімка (без завантаження — для файлу й перевірок). */
-export async function buildKpWorkbook(s: KpSnapshot): Promise<Workbook> {
+/**
+ * Книга Excel зі знімка (без завантаження — для файлу й перевірок). Фото — data URL (JPEG) за шляхом фото рядка;
+ * у КП з фото колонка «Фото» є завжди, фото немає — клітинка порожня.
+ */
+export async function buildKpWorkbook(s: KpSnapshot, photos: ReadonlyMap<string, string> = new Map()): Promise<Workbook> {
   const ExcelJS = await loadExcelJs();
   const wb = new ExcelJS.Workbook();
   const ws: Worksheet = wb.addWorksheet('КП', {
     pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
-  ws.columns = [{ width: 5 }, { width: 14 }, { width: 52 }, { width: 7 }, { width: 10 }, { width: 15 }, { width: 16 }];
+  const withPhotos = s.columns.showImages;
+  const COLS = withPhotos ? 8 : 7;
+  // колонки після «Код» зсуваються на одну, коли є «Фото»
+  const at = (col: number) => (withPhotos && col >= 3 ? col + 1 : col);
+  ws.columns = [
+    { width: 5 },
+    { width: 14 },
+    ...(withPhotos ? [{ width: 10 }] : []),
+    { width: 52 },
+    { width: 7 },
+    { width: 10 },
+    { width: 15 },
+    { width: 16 },
+  ];
   let r = 1;
 
   /** Рядок тексту на всю ширину бланка. */
@@ -61,7 +80,7 @@ export async function buildKpWorkbook(s: KpSnapshot): Promise<Workbook> {
   r++;
 
   const head = ws.getRow(r);
-  head.values = ['№', 'Код', 'Товари (роботи, послуги)', 'Од.', 'Кількість', s.columns.priceHeader, s.columns.sumHeader];
+  head.values = ['№', 'Код', ...(withPhotos ? ['Фото'] : []), 'Товари (роботи, послуги)', 'Од.', 'Кількість', s.columns.priceHeader, s.columns.sumHeader];
   head.eachCell((c) => {
     c.font = { bold: true };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2F8' } };
@@ -73,15 +92,23 @@ export async function buildKpWorkbook(s: KpSnapshot): Promise<Workbook> {
 
   for (const row of s.rows) {
     const x = ws.getRow(r);
-    x.values = [row.n, row.code ?? '', row.nameSecondary ? `${row.name}\n${row.nameSecondary}` : row.name, row.unit, row.qty, row.price, row.sum];
+    const name = row.nameSecondary ? `${row.name}\n${row.nameSecondary}` : row.name;
+    x.values = [row.n, row.code ?? '', ...(withPhotos ? [''] : []), name, row.unit, row.qty, row.price, row.sum];
     for (let c = 1; c <= COLS; c++) x.getCell(c).border = BOX;
     x.getCell(1).alignment = { horizontal: 'center', vertical: 'top' };
     x.getCell(2).alignment = { vertical: 'top' };
-    x.getCell(3).alignment = { wrapText: true, vertical: 'top' };
-    x.getCell(4).alignment = { horizontal: 'center', vertical: 'top' };
-    x.getCell(5).numFmt = QTY;
-    x.getCell(6).numFmt = MONEY;
-    x.getCell(7).numFmt = MONEY;
+    x.getCell(at(3)).alignment = { wrapText: true, vertical: 'top' };
+    x.getCell(at(4)).alignment = { horizontal: 'center', vertical: 'top' };
+    x.getCell(at(5)).numFmt = QTY;
+    x.getCell(at(6)).numFmt = MONEY;
+    x.getCell(at(7)).numFmt = MONEY;
+    const photo = withPhotos && row.imagePath ? photos.get(row.imagePath) : undefined;
+    if (withPhotos) x.height = PHOTO_ROW_PT;
+    if (photo) {
+      const id = wb.addImage({ base64: photo, extension: 'jpeg' });
+      // зсув у межах клітинки (частки колонки/рядка), щоб фото не лягало на рамку
+      ws.addImage(id, { tl: { col: 2.1, row: r - 1 + 0.08 }, ext: { width: PHOTO_SIDE_PX, height: PHOTO_SIDE_PX } });
+    }
     r++;
   }
   r++;
@@ -124,6 +151,7 @@ export async function buildKpWorkbook(s: KpSnapshot): Promise<Workbook> {
 }
 
 export async function downloadKpExcel(s: KpSnapshot, version?: number): Promise<void> {
-  const data = await (await buildKpWorkbook(s)).xlsx.writeBuffer();
+  const photos = s.columns.showImages ? await loadRowPhotos(s.rows.map((r) => r.imagePath).filter((p): p is string => !!p)) : new Map<string, string>();
+  const data = await (await buildKpWorkbook(s, photos)).xlsx.writeBuffer();
   saveBlob(new Blob([data], { type: XLSX_MIME }), kpFileName(s, 'xlsx', version));
 }

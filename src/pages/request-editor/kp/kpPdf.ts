@@ -4,6 +4,7 @@ import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
 import { BRAND_COLOR } from '@/theme';
 import { kpAmountLine, kpContactsLine, kpFileName, kpPartyRows, kpTermRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
+import { loadRowPhotos } from './kpPhotos';
 
 type PdfMake = typeof import('pdfmake/build/pdfmake');
 
@@ -45,46 +46,8 @@ async function logoContent(url: string | null): Promise<Content | null> {
   }
 }
 
-/** Фото товару в бланку: сторона клітинки, пікселі растру — щоб файл не важив зайвого. */
+/** Фото товару в бланку: сторона клітинки. */
 const PHOTO_PT = 26;
-const PHOTO_PX = 96;
-
-/**
- * Фото рядків КП як data URL. Беремо з нашого сховища (знімок КП зберігає саме такі посилання),
- * стискаємо до PHOTO_PX і приводимо до JPEG: pdfmake розуміє лише JPEG і PNG, а WebP — ні.
- */
-async function loadRowPhotos(paths: readonly string[]): Promise<Map<string, string>> {
-  const photos = new Map<string, string>();
-  const unique = [...new Set(paths)];
-  await Promise.all(
-    unique.map(async (path) => {
-      try {
-        const blob = await (await fetch(path, { credentials: 'include' })).blob();
-        photos.set(path, await shrinkToJpeg(blob));
-      } catch {
-        // немає фото — у бланку лишиться місце під нього
-      }
-    }),
-  );
-  return photos;
-}
-
-async function shrinkToJpeg(blob: Blob): Promise<string> {
-  const bitmap = await createImageBitmap(blob);
-  const side = Math.max(bitmap.width, bitmap.height) || 1;
-  const scale = Math.min(1, PHOTO_PX / side);
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Канвас недоступний');
-  // прозорий фон у JPEG стає чорним — підкладаємо білий
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  return canvas.toDataURL('image/jpeg', 0.82);
-}
 
 /** Місце під фото товару. */
 const PHOTO_PLACEHOLDER =

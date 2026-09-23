@@ -70,4 +70,28 @@ describe('файли КП з одного знімка', () => {
     expect(cells).toContain('Передоплата 100 %');
     expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
   });
+
+  it('Excel з фото: колонка «Фото», зображення в рядку з фото, числа зсунуті на колонку', async () => {
+    // 1×1 білий JPEG
+    const JPEG =
+      'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0s8g/9k=';
+    const withPhotos = {
+      ...snapshot,
+      columns: { ...snapshot.columns, showImages: true },
+      rows: snapshot.rows.map((r, i) => ({ ...r, imagePath: i === 0 ? '/api/images/p1' : null })),
+    };
+    const wb = await buildKpWorkbook(withPhotos, new Map([['/api/images/p1', JPEG]]));
+    const ws = wb.getWorksheet('КП')!;
+    let head: unknown[] | null = null;
+    let pipe: unknown[] | null = null;
+    ws.eachRow((row) => {
+      const values = row.values as unknown[];
+      if (values[1] === '№') head = values;
+      if (values[2] === 'PL0000134') pipe = values;
+    });
+    expect(head!.slice(1, 5)).toEqual(['№', 'Код', 'Фото', 'Товари (роботи, послуги)']);
+    expect(pipe!.slice(6, 9)).toEqual([120, 110, 13200]);
+    expect(ws.getImages()).toHaveLength(1);
+    expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
+  });
 });
