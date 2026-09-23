@@ -8,7 +8,7 @@ import { prisma } from '../../db';
 import { numOrNull, num, oneOf } from '../../lib/mapping';
 import { getEffectiveRates } from '../rates/rates.service';
 import { getSettings } from '../settings/settings.service';
-import { listSuppliers } from '../suppliers/suppliers.service';
+import { listSuppliersForPricing } from '../suppliers/suppliers.service';
 
 export interface PricingEnv {
   settings: AppSettings;
@@ -17,7 +17,7 @@ export interface PricingEnv {
 }
 
 export async function pricingEnv(now = new Date()): Promise<PricingEnv> {
-  const [settings, list] = await Promise.all([getSettings(), listSuppliers()]);
+  const [settings, list] = await Promise.all([getSettings(), listSuppliersForPricing()]);
   const suppliers = Object.fromEntries(list.map((s) => [s.id, toSupplierRef(s)]));
   return { settings, suppliers, ctx: { now, settings: pricingSettingsFrom(settings), suppliers } };
 }

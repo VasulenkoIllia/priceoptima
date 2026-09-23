@@ -25,11 +25,20 @@ const INCLUDE = {
 } satisfies Prisma.SupplierInclude;
 
 export async function listSuppliers(): Promise<SupplierListItem[]> {
-  const [rows, counts] = await Promise.all([
-    prisma.supplier.findMany({ include: { feed: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] }),
-    productCounts(),
-  ]);
+  const [rows, counts] = await Promise.all([supplierRows(), productCounts()]);
   return rows.map((row) => toSupplierListItem(row, counts.get(row.id) ?? 0));
+}
+
+/**
+ * Постачальники для розрахунку заявки — без кількості товарів: підрахунок по мільйону позицій
+ * на кожне відкриття й збереження заявки був головним навантаженням на базу.
+ */
+export async function listSuppliersForPricing(): Promise<SupplierListItem[]> {
+  return (await supplierRows()).map((row) => toSupplierListItem(row, 0));
+}
+
+function supplierRows() {
+  return prisma.supplier.findMany({ include: { feed: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
 }
 
 export async function getSupplier(id: string): Promise<SupplierDetail> {
@@ -152,14 +161,26 @@ async function getSupplierOrFail(id: string): Promise<SupplierDetailRow> {
   return row;
 }
 
-/** Товарів у каталозі по постачальниках (архівні не рахуємо). */
-async function productCounts(): Promise<Map<string, number>> {
-  const groups = await prisma.product.groupBy({
-    by: ['supplierId'],
-    where: { isArchived: false },
-    _count: { _all: true },
+/** Кількість товарів змінюється лише імпортом прайсу й ручними правками — хвилинна давність для списку не помітна. */
+const PRODUCT_COUNTS_TTL_MS = 60_000;
+let countsCache: { at: number; counts: Promise<Map<string, number>> } | null = null;
+
+/** Скинути кешовану кількість товарів (після імпорту прайсу, створення чи архівації товару). */
+export function invalidateProductCounts(): void {
+  countsCache = null;
+}
+
+/** Товарів у каталозі по постачальниках (архівні не рахуємо); кеш на хвилину, одночасні запити чекають один підрахунок. */
+function productCounts(): Promise<Map<string, number>> {
+  if (countsCache && Date.now() - countsCache.at < PRODUCT_COUNTS_TTL_MS) return countsCache.counts;
+  const counts = prisma.product
+    .groupBy({ by: ['supplierId'], where: { isArchived: false }, _count: { _all: true } })
+    .then((groups) => new Map(groups.map((g) => [g.supplierId, g._count._all])));
+  countsCache = { at: Date.now(), counts };
+  counts.catch(() => {
+    if (countsCache?.counts === counts) countsCache = null;
   });
-  return new Map(groups.map((g) => [g.supplierId, g._count._all]));
+  return counts;
 }
 
 function productCount(supplierId: string): Promise<number> {

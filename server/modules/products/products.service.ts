@@ -23,6 +23,7 @@ import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
 import { getEffectiveRates } from '../rates/rates.service';
 import { getSettings } from '../settings/settings.service';
+import { invalidateProductCounts } from '../suppliers/suppliers.service';
 import { toPriceHistoryEntry, toProductDetail, toProductListItem, type CatalogContext } from './products.mapper';
 import { availabilityOf, priceChanged, productOrderBy, searchTextOf, staleBefore, likePattern } from './products.rules';
 import {
@@ -362,6 +363,7 @@ export async function createProduct(input: ProductInputBody, actor: User): Promi
     return product;
   });
 
+  invalidateProductCounts();
   await audit({ userId: actor.id, action: 'product.create', entityType: 'product', entityId: created.id, summary: `Додано товар ${created.sku} · ${created.nameWork}` });
   const ctx = await catalogContext();
   return toProductDetail(created, ctx);
@@ -392,6 +394,7 @@ export async function updateProduct(id: UUID, patch: ProductPatchBody, actor: Us
   });
   if (saved.count !== 1) throw await staleCardError('Товар', await prisma.product.findUnique({ where: { id } }));
   const updated = await productOrFail(id);
+  if (patch.isArchived !== undefined) invalidateProductCounts();
   await audit({ userId: actor.id, action: 'product.update', entityType: 'product', entityId: id, summary: `Змінено картку товару ${updated.sku}` });
   const ctx = await catalogContext();
   return toProductDetail(updated, ctx);

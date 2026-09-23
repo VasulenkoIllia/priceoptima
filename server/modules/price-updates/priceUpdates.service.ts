@@ -16,6 +16,7 @@ import { removeImageFile, safeFileName, saveImageFile } from '../images/images.s
 import { today } from '../rates/rates.service';
 import { listUnits } from '../units/units.service';
 import { parseFeed, type AdapterResult, type PriceRow } from './connectors';
+import { invalidateProductCounts } from '../suppliers/suppliers.service';
 import { importRowsToPriceRows } from './importRows';
 import {
   isRejected,
@@ -284,6 +285,7 @@ async function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpd
     await recordFailure(ctx, 'Не вдалося записати оновлення прайсу в базу — зміни не застосовано', { price });
     throw e;
   }
+  invalidateProductCounts();
   logger.info(
     { supplierId, runId, source: ctx.source, rows: price.rows.length, ms: Date.now() - started, ...result.counters },
     'Прайс застосовано',
@@ -607,5 +609,6 @@ export async function archiveLongMissing(now = new Date()): Promise<number> {
     where: { isArchived: false, priceOrigin: 'import', missingSince: { lt: dateOnly(archiveCutoff(today(now))) } },
     data: { isArchived: true, autoArchivedAt: now },
   });
+  if (count) invalidateProductCounts();
   return count;
 }
