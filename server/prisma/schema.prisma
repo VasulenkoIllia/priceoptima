@@ -137,6 +137,7 @@ model AppSettings {
   id                          Int      @id @default(1)
   vatRatePct                  Decimal  @default(20) @db.Decimal(5, 2)
   priceStaleDays              Int      @default(7)
+  priceListRateMaxAgeDays     Int      @default(3)
   lockTtlSeconds              Int      @default(180)
   lockHeartbeatSeconds        Int      @default(20)
   autosaveDebounceMs          Int      @default(800)

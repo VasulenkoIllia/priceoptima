@@ -253,6 +253,8 @@ export interface OfferPriceChange {
 export interface PricingSettings {
   vatRatePct: number;
   priceStaleDays: number;
+  /** Курс із прайсу діє стільки днів від дати прайсу (див. supplierDefaultRatesInfo). */
+  priceListRateMaxAgeDays: number;
   discountFormula: DiscountFormula;
   autoRoundMultiplicity: boolean;
   fopPriceBasis: FopPriceBasis;

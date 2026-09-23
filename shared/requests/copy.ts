@@ -42,6 +42,8 @@ export interface CopyInputs {
   user: UserRef;
   /** Курси на сьогодні (для шапки й перерахованих блоків). */
   rates: HeaderRates;
+  /** Строк дії курсу з прайсу, днів (налаштування) — для перерахованих блоків. */
+  priceListRateMaxAgeDays?: number;
   /** Клієнт копії, якщо його змінили. */
   client: CopyClient | null;
   /** Налаштування бланка КП за замовчуванням для юрособи оригіналу. */
@@ -104,7 +106,9 @@ export function copyRequestDoc(i: CopyInputs): CopyResult {
         const id = i.newId();
         blockIds.set(b.id, id);
         const supplier = b.supplierId ? i.suppliers[b.supplierId] : undefined;
-        if (body.priceMode === 'refresh' && supplier) return createSupplierBlock(supplier, i.rates, { id, position: b.position });
+        if (body.priceMode === 'refresh' && supplier) {
+          return createSupplierBlock(supplier, i.rates, { id, position: b.position }, { maxAgeDays: i.priceListRateMaxAgeDays });
+        }
         return { ...structuredClone(b), id };
       })
     : [];

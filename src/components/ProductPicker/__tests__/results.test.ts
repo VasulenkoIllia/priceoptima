@@ -51,7 +51,7 @@ describe('результати вікна вибору', () => {
   it('ціна без ПДВ і РРЦ у грн — за курсом і націнкою блоку; без блоку — за курсом постачальника', () => {
     const suppliers = [
       makeSupplier('b1', { defaultCurrency: 'USD', supplierMarkupPct: 2 }),
-      makeSupplier('s2', { priceListRates: { USD: 45.5, EUR: null, date: '2026-09-01' } }),
+      makeSupplier('s2', { priceListRates: { USD: 45.5, EUR: null, date: '2026-09-10' } }),
     ];
     const ctx = makeCtx(suppliers);
     const doc = makeDoc({

@@ -34,6 +34,7 @@ export function resolveKpTerms(own: readonly KpTerm[] | null | undefined, defaul
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   vatRatePct: 20,
   priceStaleDays: 7,
+  priceListRateMaxAgeDays: 3,
   lockTtlSeconds: 180,
   lockHeartbeatSeconds: 20,
   autosaveDebounceMs: 800,
@@ -58,6 +59,7 @@ export function pricingSettingsFrom(s: AppSettings): PricingSettings {
   return {
     vatRatePct: s.vatRatePct,
     priceStaleDays: s.priceStaleDays,
+    priceListRateMaxAgeDays: s.priceListRateMaxAgeDays,
     discountFormula: s.discountFormula,
     autoRoundMultiplicity: s.autoRoundMultiplicity,
     fopPriceBasis: s.fopPriceBasis,

@@ -16,6 +16,7 @@ export const NOW = new Date('2026-09-11T09:00:00Z');
 export const SETTINGS: PricingSettings = {
   vatRatePct: 20,
   priceStaleDays: 7,
+  priceListRateMaxAgeDays: 3,
   discountFormula: 'percent_off',
   autoRoundMultiplicity: true,
   fopPriceBasis: 'net',

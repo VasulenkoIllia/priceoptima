@@ -3,7 +3,7 @@
 import type { PriceHistory, Prisma, Product, Supplier, User } from '@prisma/client';
 import { toIsoDate } from '@shared/format';
 import { isPriceStale, priceAgeDays, round2, supplierDefaultRates } from '@shared/pricing';
-import type { PriceHistoryEntry, ProductDetail, ProductListItem, RatesPair, SupplierRef, UUID } from '@shared/types';
+import type { ISODate, PriceHistoryEntry, ProductDetail, ProductListItem, RatesPair, SupplierRef, UUID } from '@shared/types';
 
 /** Спільні для всієї відповіді дані: читаємо їх один раз, а не на кожен рядок каталогу. */
 export interface CatalogContext {
@@ -12,6 +12,9 @@ export interface CatalogContext {
   staleDays: number;
   /** Курси НБУ на сьогодні — запасний варіант для курсів постачальника (F33). */
   nbu: RatesPair;
+  /** Сьогодні й строк дії курсу з прайсу — як у новому блоці заявки. */
+  today: ISODate;
+  priceListRateMaxAgeDays: number;
   suppliers: ReadonlyMap<UUID, Supplier>;
 }
 
@@ -54,7 +57,9 @@ export function toProductDetail(p: Product, ctx: CatalogContext): ProductDetail 
   // НОМ-3: у каталозі — за курсом постачальника; націнку постачальника й курс блоку застосовують лише в заявці
   let purchasePriceUah: number | null = null;
   if (purchasePrice != null) {
-    const rates = supplier ? supplierDefaultRates(supplierRefOf(supplier), ctx.nbu) : ctx.nbu;
+    const rates = supplier
+      ? supplierDefaultRates(supplierRefOf(supplier), ctx.nbu, { maxAgeDays: ctx.priceListRateMaxAgeDays, on: ctx.today })
+      : ctx.nbu;
     const rate = p.currency === 'UAH' ? 1 : rates[p.currency];
     if (rate != null) purchasePriceUah = round2(purchasePrice * rate);
   }

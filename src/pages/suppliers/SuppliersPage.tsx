@@ -7,7 +7,7 @@ import { formatDate, formatDateTime, formatMoneyUah, formatQty, toIsoDate } from
 import type { EffectiveRates, SupplierListItem } from '@shared/types';
 import { EmptyState, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
-import { GENERAL_RATE_HINT, requestRatesLabel } from '@/lib/rateLabels';
+import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { downloadPriceTemplate, PriceImportDialog } from './priceImport';
 import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierDrawer } from './SupplierDrawer';
@@ -19,13 +19,15 @@ interface SupplierCardProps {
   s: SupplierListItem;
   /** Загальні курси на сьогодні — щоб показати, який курс отримає новий блок заявки. */
   rates: EffectiveRates | undefined;
+  /** Строк дії курсу з прайсу, днів. */
+  maxAgeDays: number;
   refreshing: boolean;
   onRefresh: () => void;
   onImport: () => void;
   onOpen: () => void;
 }
 
-function SupplierCard({ s, rates, refreshing, onRefresh, onImport, onOpen }: SupplierCardProps) {
+function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onImport, onOpen }: SupplierCardProps) {
   return (
     <Card className="po-sup-card" styles={{ body: { padding: 16 } }}>
       <div className="po-sup-head">
@@ -51,7 +53,7 @@ function SupplierCard({ s, rates, refreshing, onRefresh, onImport, onOpen }: Sup
               </>
             }
           >
-            <span>{requestRatesLabel(s, rates)}</span>
+            <span>{requestRatesLabel(s, rates, maxAgeDays)}</span>
           </Tooltip>
         </dd>
         <dt>Націнка постачальника</dt>
@@ -117,6 +119,7 @@ export default function SuppliersPage() {
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
   const today = toIsoDate(new Date());
   const rates = useQuery({ queryKey: qk.rates(today), queryFn: () => ds.getRates(today) });
+  const maxAgeDays = usePriceListRateMaxAge();
 
   const refresh = useMutation({
     mutationFn: (s: SupplierListItem) => ds.refreshSupplierPrices(s.id),
@@ -185,6 +188,7 @@ export default function SuppliersPage() {
               key={s.id}
               s={s}
               rates={rates.data}
+              maxAgeDays={maxAgeDays}
               refreshing={refresh.isPending && refresh.variables?.id === s.id}
               onRefresh={() => refresh.mutate(s)}
               onImport={() => setImportFor(s)}

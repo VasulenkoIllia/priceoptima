@@ -24,6 +24,7 @@ type FormValues = Pick<
   AppSettings,
   | 'vatRatePct'
   | 'priceStaleDays'
+  | 'priceListRateMaxAgeDays'
   | 'defaultMarkupMethod'
   | 'defaultMarkupValue'
   | 'discountFormula'
@@ -53,6 +54,7 @@ function pickValues(s: AppSettings): FormValues {
   return {
     vatRatePct: s.vatRatePct,
     priceStaleDays: s.priceStaleDays,
+    priceListRateMaxAgeDays: s.priceListRateMaxAgeDays,
     defaultMarkupMethod: s.defaultMarkupMethod,
     defaultMarkupValue: s.defaultMarkupValue,
     discountFormula: s.discountFormula,
@@ -108,6 +110,14 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
             <InputNumber {...NUM} min={0} max={100} precision={2} />
           </Form.Item>
           <Form.Item name="priceStaleDays" label="Застарілість ціни, днів" extra="Старіша ціна позначається як «застаріла»" rules={[{ required: true, message: 'Вкажіть кількість днів' }]}>
+            <InputNumber {...NUM} min={1} max={365} precision={0} />
+          </Form.Item>
+          <Form.Item
+            name="priceListRateMaxAgeDays"
+            label="Курс із прайсу діє, днів"
+            extra="Старіший курс із прайсу в нові блоки заявок не йде — береться ручний курс постачальника, інакше загальний"
+            rules={[{ required: true, message: 'Вкажіть кількість днів' }]}
+          >
             <InputNumber {...NUM} min={1} max={365} precision={0} />
           </Form.Item>
           <Form.Item name="defaultMarkupMethod" label="Спосіб націнки нової заявки">

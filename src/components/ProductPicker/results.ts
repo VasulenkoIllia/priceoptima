@@ -37,7 +37,9 @@ const PREVIEW_ID = '__picker';
 function priceInRequest(product: ProductPickDto, blockId: UUID | null, supplier: SupplierRef | null, p: PickerPricing) {
   const block =
     (blockId ? p.doc.blocks.find((b) => b.id === blockId) : null) ??
-    (supplier ? createSupplierBlock(supplier, p.doc.header.rates, { id: PREVIEW_ID, position: 0 }) : null);
+    (supplier
+      ? createSupplierBlock(supplier, p.doc.header.rates, { id: PREVIEW_ID, position: 0 }, { maxAgeDays: p.ctx.settings.priceListRateMaxAgeDays })
+      : null);
   if (!block) return { unitNetUah: null, rrpGrossUah: null, rate: null, supplierMarkupPct: 0 };
   const offer = createOfferFromProduct(product, {
     id: PREVIEW_ID,

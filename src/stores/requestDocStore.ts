@@ -687,7 +687,12 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       if (existing) return { blockId: existing.id, created: false };
       const ref = supplierRefFor(supplierId);
       if (!ref) return null;
-      const block = createSupplierBlock(ref, d.header.rates, { id: newId(), position: d.blocks.length + 1 });
+      const block = createSupplierBlock(
+        ref,
+        d.header.rates,
+        { id: newId(), position: d.blocks.length + 1 },
+        { maxAgeDays: get().ctx?.settings.priceListRateMaxAgeDays },
+      );
       d.blocks.push(block);
       d.refs.suppliers[ref.id] = ref;
       return { blockId: block.id, created: true };

@@ -66,6 +66,8 @@ async function catalogContext(): Promise<CatalogContext> {
     now,
     staleDays: settings.priceStaleDays,
     nbu,
+    today: toIsoDate(now),
+    priceListRateMaxAgeDays: settings.priceListRateMaxAgeDays,
     suppliers: new Map(suppliers.map((s) => [s.id, s])),
   };
 }

@@ -21,6 +21,7 @@ export const settingsPatchSchema = z
   .object({
     vatRatePct: z.number({ message: 'Ставка ПДВ: вкажіть число' }).min(0, 'Ставка ПДВ: не менше 0').max(100, 'Ставка ПДВ: не більше 100'),
     priceStaleDays: int(1, 365, 'Актуальність ціни, днів'),
+    priceListRateMaxAgeDays: int(1, 365, 'Строк дії курсу з прайсу, днів'),
     lockTtlSeconds: int(10, 3600, 'Строк блокування, с'),
     lockHeartbeatSeconds: int(1, 600, 'Період підтвердження блокування, с'),
     autosaveDebounceMs: int(100, 60_000, 'Затримка автозбереження, мс'),

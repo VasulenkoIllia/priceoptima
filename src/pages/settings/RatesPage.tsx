@@ -8,7 +8,7 @@ import { formatDate, formatRate, toIsoDate } from '@shared/format';
 import type { CurrencyRateDto, EffectiveRates, ISODate, SupplierListItem } from '@shared/types';
 import { EmptyState, ManualRateFields, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
-import { GENERAL_RATE_HINT, requestRatesLabel } from '@/lib/rateLabels';
+import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { BRAND_COLOR } from '@/theme';
 import { RateChart, type RatePoint } from './RateChart';
 import './rates.css';
@@ -235,7 +235,11 @@ function SupplierRateDialog({ supplier, onClose }: { supplier: SupplierListItem 
   );
 }
 
-function supplierColumns(onEdit: (s: SupplierListItem) => void, today: EffectiveRates | undefined): TableColumnsType<SupplierListItem> {
+function supplierColumns(
+  onEdit: (s: SupplierListItem) => void,
+  today: EffectiveRates | undefined,
+  maxAgeDays: number,
+): TableColumnsType<SupplierListItem> {
   const pair = (fromPrice: number | null, manual: number | null) =>
     fromPrice != null ? (
       <span className="po-num">{formatRate(fromPrice)}</span>
@@ -257,7 +261,7 @@ function supplierColumns(onEdit: (s: SupplierListItem) => void, today: Effective
     {
       title: <span title={GENERAL_RATE_HINT}>Курс для заявок сьогодні</span>,
       key: 'effective',
-      render: (_, s) => <span className="po-num">{requestRatesLabel(s, today)}</span>,
+      render: (_, s) => <span className="po-num">{requestRatesLabel(s, today, maxAgeDays)}</span>,
     },
     {
       title: '',
@@ -278,6 +282,7 @@ export default function RatesPage() {
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
   const todayDate = toIsoDate(new Date());
   const todayRates = useQuery({ queryKey: qk.rates(todayDate), queryFn: () => ds.getRates(todayDate) });
+  const maxAgeDays = usePriceListRateMaxAge();
 
   const [manualOpen, setManualOpen] = useState(false);
   const [rateSupplier, setRateSupplier] = useState<SupplierListItem | null>(null);
@@ -345,7 +350,7 @@ export default function RatesPage() {
               size="small"
               rowKey="id"
               loading={suppliers.isPending}
-              columns={supplierColumns(setRateSupplier, todayRates.data)}
+              columns={supplierColumns(setRateSupplier, todayRates.data, maxAgeDays)}
               dataSource={foreignSuppliers}
               pagination={false}
               locale={{ emptyText: 'Немає постачальників із прайсом у валюті — курс нікому не потрібен' }}

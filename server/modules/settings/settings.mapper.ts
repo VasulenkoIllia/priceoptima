@@ -37,6 +37,7 @@ export function toAppSettings(row: AppSettingsRow): AppSettings {
   return {
     vatRatePct: num(row.vatRatePct),
     priceStaleDays: row.priceStaleDays,
+    priceListRateMaxAgeDays: row.priceListRateMaxAgeDays,
     lockTtlSeconds: row.lockTtlSeconds,
     lockHeartbeatSeconds: row.lockHeartbeatSeconds,
     autosaveDebounceMs: row.autosaveDebounceMs,
@@ -62,6 +63,7 @@ export function toSettingsRow(settings: AppSettings) {
   return {
     vatRatePct: settings.vatRatePct,
     priceStaleDays: settings.priceStaleDays,
+    priceListRateMaxAgeDays: settings.priceListRateMaxAgeDays,
     lockTtlSeconds: settings.lockTtlSeconds,
     lockHeartbeatSeconds: settings.lockHeartbeatSeconds,
     autosaveDebounceMs: settings.autosaveDebounceMs,

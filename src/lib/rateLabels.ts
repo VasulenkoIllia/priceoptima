@@ -1,9 +1,17 @@
 // Підписи курсу: однакові назви джерел на картці постачальника, у «Курсах валют» і в блоці заявки.
+import { useQuery } from '@tanstack/react-query';
 import type { CurrencyCode, ForeignCurrency, RatePolicy } from '@shared/enums';
 import { formatDate, formatRate } from '@shared/format';
-import { supplierDefaultRatesInfo } from '@shared/pricing';
+import { DEFAULT_APP_SETTINGS, supplierDefaultRatesInfo } from '@shared/pricing';
 import { toSupplierRef } from '@shared/requests';
 import type { EffectiveRates, HeaderRates, ISODate, SupplierBlock, SupplierListItem } from '@shared/types';
+import { ds, qk } from '@/data';
+
+/** Строк дії курсу з прайсу з Налаштувань (днів). */
+export function usePriceListRateMaxAge(): number {
+  const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
+  return settings.data?.priceListRateMaxAgeDays ?? DEFAULT_APP_SETTINGS.priceListRateMaxAgeDays;
+}
 
 /** «загальний» — ручний курс із «Курси валют» на цю дату, якщо його задано, інакше НБУ. */
 export const GENERAL_RATE_HINT = 'Загальний курс — ручний курс із розділу «Курси валют» на цю дату, якщо його задано, інакше курс НБУ';
@@ -40,18 +48,22 @@ export function headerRatesOf(eff: EffectiveRates | undefined): HeaderRates {
   return { USD: eff?.USD?.rate ?? null, EUR: eff?.EUR?.rate ?? null, date: eff?.date ?? null };
 }
 
-/** «Курс для заявок»: який курс отримає новий блок цього постачальника сьогодні — «USD 41,20 (з прайсу від 12.09.2026)». */
-export function requestRatesLabel(s: SupplierListItem, eff: EffectiveRates | undefined): string {
+/**
+ * «Курс для заявок»: який курс отримає новий блок цього постачальника сьогодні — «USD 41,20 (з прайсу від 12.09.2026)»;
+ * курс із прайсу старший за строк дії — так і пишемо.
+ */
+export function requestRatesLabel(s: SupplierListItem, eff: EffectiveRates | undefined, maxAgeDays?: number): string {
   const currencies = relevantCurrencies(s.defaultCurrency);
   if (!currencies.length) return 'не потрібен — прайс у гривнях';
-  const info = supplierDefaultRatesInfo(toSupplierRef(s), headerRatesOf(eff));
+  const info = supplierDefaultRatesInfo(toSupplierRef(s), headerRatesOf(eff), { maxAgeDays });
+  const expired = info.priceListExpired ? `; курс із прайсу від ${formatDate(s.priceListRates.date)} застарів` : '';
   return currencies
     .map((c) => {
       const rate = info.rates[c];
       if (rate == null) return `${c} — немає курсу`;
       const origin = info.origins[c];
       const date = origin === 'price_list' ? info.date : origin === 'nbu' || origin === 'nbu_adjusted' ? (eff?.date ?? null) : null;
-      return `${c} ${formatRate(rate)} (${rateOriginLabel(origin, date)})`;
+      return `${c} ${formatRate(rate)} (${rateOriginLabel(origin, date)}${expired})`;
     })
     .join(' · ');
 }

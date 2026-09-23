@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CatalogSnapshot, MarkupRowComputed } from '../../types';
 import { defaultKpSettings, DEFAULT_APP_SETTINGS, createRequestLine, defaultMarkupSettings, pricingSettingsFrom } from '../defaults';
 import { approvedKpRows, buildKpRows, computeKpTotals, defaultKpVatMode, kpRowAmounts, kpRowNames } from '../kp-totals';
-import { createSupplierBlock, supplierDefaultRates, supplierDefaultRatesInfo } from '../rates';
+import { createSupplierBlock, priceListRateFresh, supplierDefaultRates, supplierDefaultRatesInfo } from '../rates';
 import { refreshOfferFromCatalog } from '../refresh';
 import { computeRequest } from '../request';
 import { makeBlock, makeCtx, makeDoc, makeHeader, makeLine, makeOffer, makeSupplier, uah } from './fixtures';
@@ -146,7 +146,12 @@ describe('F33 курси нового блоку (T20, T21)', () => {
     expect(info.date).toBe('2026-09-05');
 
     const empty = makeSupplier('S', { ratePolicy: 'price_list' });
-    expect(supplierDefaultRatesInfo(empty, header)).toEqual({ rates: { USD: 44.5526, EUR: 51.9 }, origins: { USD: 'nbu', EUR: 'nbu' }, date: '2026-09-11' });
+    expect(supplierDefaultRatesInfo(empty, header)).toEqual({
+      rates: { USD: 44.5526, EUR: 51.9 },
+      origins: { USD: 'nbu', EUR: 'nbu' },
+      date: '2026-09-11',
+      priceListExpired: false,
+    });
 
     // немає ні прайсу, ні НБУ → null (RATE_MISSING у пропозиції)
     expect(supplierDefaultRates(empty, { USD: null, EUR: null })).toEqual({ USD: null, EUR: null });
@@ -162,15 +167,37 @@ describe('F33 курси нового блоку (T20, T21)', () => {
       rates: { USD: 45, EUR: 52.5 },
       origins: { USD: 'price_list', EUR: 'manual' },
       date: '2026-09-05',
+      priceListExpired: false,
     });
     const manualOnly = makeSupplier('S', { ratePolicy: 'price_list', manualRateUsd: 45.2 });
     expect(supplierDefaultRatesInfo(manualOnly, header)).toEqual({
       rates: { USD: 45.2, EUR: 51.9 },
       origins: { USD: 'manual', EUR: 'nbu' },
       date: null,
+      priceListExpired: false,
     });
     // політика «НБУ» ручний курс не бере
     expect(supplierDefaultRatesInfo(makeSupplier('S', { ratePolicy: 'nbu', manualRateUsd: 46 }), header).rates.USD).toBe(44.5526);
+  });
+
+  it('строк дії курсу з прайсу: старший за N днів від дати заявки — ручний курс постачальника, далі загальний', () => {
+    // шапка на 11.09; курс у прайсі від 05.09 — 6 днів
+    const supplier = makeSupplier('S', { ratePolicy: 'price_list', manualRateUsd: 45.2, priceListRates: { USD: 45, EUR: null, date: '2026-09-05' } });
+    const expired = supplierDefaultRatesInfo(supplier, header, { maxAgeDays: 3 });
+    expect(expired.rates.USD).toBe(45.2);
+    expect(expired.origins.USD).toBe('manual');
+    expect(expired.priceListExpired).toBe(true);
+    // 6 днів при строку 7 — курс із прайсу ще діє
+    const fresh = supplierDefaultRatesInfo(supplier, header, { maxAgeDays: 7 });
+    expect(fresh.rates.USD).toBe(45);
+    expect(fresh.priceListExpired).toBe(false);
+    // без ручного курсу — загальний із шапки
+    const noManual = makeSupplier('S', { ratePolicy: 'price_list', priceListRates: { USD: 45, EUR: null, date: '2026-09-05' } });
+    expect(supplierDefaultRatesInfo(noManual, header, { maxAgeDays: 3 }).origins.USD).toBe('nbu');
+    // рівно на межі строку — ще діє
+    expect(priceListRateFresh('2026-09-08', '2026-09-11', 3)).toBe(true);
+    expect(priceListRateFresh('2026-09-07', '2026-09-11', 3)).toBe(false);
+    expect(priceListRateFresh(null, '2026-09-11', 3)).toBe(true);
   });
 
   it('ланцюжок курсу блоку: прайс → ручний постачальника → загальний; підпис — за фактичним джерелом', () => {

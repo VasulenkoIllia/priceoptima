@@ -92,6 +92,8 @@ function context(part: Partial<CatalogContext> = {}): CatalogContext {
     now: NOW,
     staleDays: 14,
     nbu: { USD: 42, EUR: 49 },
+    today: '2026-09-11',
+    priceListRateMaxAgeDays: 3,
     suppliers: new Map([['sup-1', supplier()]]),
     ...part,
   };

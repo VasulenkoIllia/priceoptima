@@ -14,22 +14,47 @@ export interface DefaultRatesInfo {
   /** Фактичне джерело кожного курсу (price_list з null-полем → 'manual' або 'nbu'); null — курсу немає. */
   origins: Record<ForeignCurrency, RatePolicy | null>;
   date: ISODate | null;
+  /** Курс із прайсу є, але старший за строк дії — не застосовано. */
+  priceListExpired: boolean;
+}
+
+export interface DefaultRatesOptions {
+  /** Курс із прайсу діє стільки днів від дати прайсу (налаштування); не задано — без обмеження. */
+  maxAgeDays?: number | null;
+  /** На яку дату рахувати строк; за замовчуванням — дата курсів шапки заявки. */
+  on?: ISODate | null;
+}
+
+const DAY_MS = 86_400_000;
+
+/** Курс із прайсу ще діє на дату on (дати немає — вік невідомий, курс лишається). */
+export function priceListRateFresh(rateDate: ISODate | null, on: ISODate | null, maxAgeDays: number | null | undefined): boolean {
+  if (maxAgeDays == null || !rateDate || !on) return true;
+  return (Date.parse(on) - Date.parse(rateDate)) / DAY_MS <= maxAgeDays;
 }
 
 /** F33 з деталізацією джерела по валютах. */
-export function supplierDefaultRatesInfo(supplier: SupplierRef | null, headerRates: HeaderRates | RatesPair): DefaultRatesInfo {
+export function supplierDefaultRatesInfo(
+  supplier: SupplierRef | null,
+  headerRates: HeaderRates | RatesPair,
+  opts: DefaultRatesOptions = {},
+): DefaultRatesInfo {
   const headerDate = 'date' in headerRates ? headerRates.date : null;
   const rates: RatesPair = { USD: null, EUR: null };
   const origins: Record<ForeignCurrency, RatePolicy | null> = { USD: null, EUR: null };
   const policy: RatePolicy = supplier?.ratePolicy ?? 'nbu';
   let date: ISODate | null = headerDate;
+  const fresh = !supplier || priceListRateFresh(supplier.priceListRates.date, opts.on ?? headerDate, opts.maxAgeDays);
+  let priceListExpired = false;
 
   for (const cur of FOREIGN_CURRENCIES) {
     const nbu = headerRates[cur];
     let rate: number | null = nbu;
     let origin: RatePolicy | null = nbu != null ? 'nbu' : null;
     if (supplier) {
-      const pl = policy === 'price_list' ? supplier.priceListRates[cur] : null;
+      const listed = policy === 'price_list' ? supplier.priceListRates[cur] : null;
+      if (listed != null && !fresh) priceListExpired = true;
+      const pl = fresh ? listed : null;
       const manual = cur === 'USD' ? supplier.manualRateUsd : supplier.manualRateEur;
       if (pl != null) {
         rate = pl;
@@ -51,16 +76,16 @@ export function supplierDefaultRatesInfo(supplier: SupplierRef | null, headerRat
   } else if (origins.USD === 'manual' || origins.EUR === 'manual') {
     date = null;
   }
-  return { rates, origins, date };
+  return { rates, origins, date, priceListExpired };
 }
 
 /**
- * F33 (Ф2, ДОВ-3): курси нового блоку. price_list → прайс → ручний курс постачальника → загальний курс із шапки
+ * F33 (Ф2, ДОВ-3): курси нового блоку. price_list → прайс (не старший за строк дії з налаштувань) → ручний курс постачальника → загальний курс із шапки
  * (ручний на дату, якщо його задано в «Курси валют», інакше НБУ); manual → ручні (fallback — шапка);
  * nbu → шапка; nbu_adjusted → round6(шапка × (1 + adj/100)).
  */
-export function supplierDefaultRates(supplier: SupplierRef | null, headerRates: RatesPair): RatesPair {
-  return supplierDefaultRatesInfo(supplier, headerRates).rates;
+export function supplierDefaultRates(supplier: SupplierRef | null, headerRates: RatesPair, opts: DefaultRatesOptions = {}): RatesPair {
+  return supplierDefaultRatesInfo(supplier, headerRates, opts).rates;
 }
 
 /** Новий блок постачальника з курсами за F33. */
@@ -68,8 +93,9 @@ export function createSupplierBlock(
   supplier: SupplierRef,
   headerRates: HeaderRates,
   init: { id: UUID; position: number },
+  opts: DefaultRatesOptions = {},
 ): SupplierBlock {
-  const info = supplierDefaultRatesInfo(supplier, headerRates);
+  const info = supplierDefaultRatesInfo(supplier, headerRates, opts);
   // підпис джерела — за фактичним джерелом курсу валюти прайсу (для гривневого прайсу — долара)
   const mainCurrency: ForeignCurrency = supplier.defaultCurrency === 'EUR' ? 'EUR' : 'USD';
   return {

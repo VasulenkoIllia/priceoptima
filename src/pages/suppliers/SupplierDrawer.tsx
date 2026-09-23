@@ -9,7 +9,7 @@ import { webUrl } from '@shared/parse';
 import type { PriceUpdateDto, SupplierDetail, SupplierListItem } from '@shared/types';
 import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
-import { GENERAL_RATE_HINT, requestRatesLabel } from '@/lib/rateLabels';
+import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { useIsAdmin } from '@/app/session';
 import { PriceSourceDialog } from './PriceSourceDialog';
 import { PriceUpdateReportView } from './PriceUpdateReport';
@@ -134,6 +134,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
   const log = useQuery({ queryKey: qk.priceUpdates(detail.id), queryFn: () => ds.listPriceUpdates(detail.id) });
   const today = toIsoDate(new Date());
   const rates = useQuery({ queryKey: qk.rates(today), queryFn: () => ds.getRates(today) });
+  const maxAgeDays = usePriceListRateMaxAge();
   const source = detail.priceSource;
   const [openedUpdate, setOpenedUpdate] = useState<number | null>(null);
 
@@ -171,7 +172,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
       label: 'Курс для заявок',
       children: (
         <>
-          <span className="po-num">{requestRatesLabel(detail, rates.data)}</span>
+          <span className="po-num">{requestRatesLabel(detail, rates.data, maxAgeDays)}</span>
           <div className="po-muted" style={{ fontSize: 12 }} title={GENERAL_RATE_HINT}>
             Спосіб: {ratePolicyLabel(detail)}
           </div>
