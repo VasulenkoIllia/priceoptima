@@ -48,7 +48,7 @@ const canEditClient = (p: EditableCallbackParams<SourcingRow> & Ctx) =>
 const cellOf = (data: SourcingRow | undefined, blockId: UUID): BlockCell | undefined =>
   isLineRow(data) ? data.cells[blockId] : undefined;
 
-const FILL_HINT = 'Щоб скопіювати значення в рядки нижче, потягніть за куточок клітинки (як в Excel). Ctrl+D — взяти з рядка вище';
+const FILL_HINT = 'Щоб скопіювати значення в рядки нижче, потягніть за куточок клітинки (як в Excel). Ctrl+D: взяти з рядка вище';
 
 // ── колонки клієнта ─────────────────────────────────────────────────
 function clientColumns(mode: EditorMode): SourcingColDef[] {
@@ -59,7 +59,7 @@ function clientColumns(mode: EditorMode): SourcingColDef[] {
       width: 52,
       pinned: 'left',
       cellClass: 'po-num po-cell-pos',
-      headerTooltip: 'Правий клік по номеру — меню рядка',
+      headerTooltip: 'Правий клік по номеру відкриває меню рядка',
       valueGetter: (p) => (isLineRow(p.data) ? p.data.line.position : null),
       cellRenderer: PosCell,
     },
@@ -107,12 +107,12 @@ function clientColumns(mode: EditorMode): SourcingColDef[] {
 
 // ── «Підбір»: група колонок блоку ────────────────────────────────────
 const HEADER: Record<BlockField, { name: string; tooltip?: string; width: number }> = {
-  sku: { name: 'Артикул', tooltip: 'Введіть або вставте артикул — пошук у каталозі постачальника. F4 — вікно вибору товару', width: 118 },
-  name: { name: 'Найменування', tooltip: 'Назва з каталогу; подвійний клік — панель пропозиції (змінити ціну, кратність, примітка); правий клік — дії', width: 200 },
+  sku: { name: 'Артикул', tooltip: 'Введіть або вставте артикул для пошуку в каталозі постачальника. F4: вікно вибору товару', width: 118 },
+  name: { name: 'Найменування', tooltip: 'Назва з каталогу; подвійний клік: панель пропозиції (змінити ціну, кратність, примітка); правий клік: дії', width: 200 },
   unit: { name: 'Од.', width: 54 },
-  qty: { name: 'К-сть', tooltip: 'Кількість у постачальника (кратність — автоокруглення вгору)', width: 82 },
-  net: { name: 'Без ПДВ', tooltip: 'Ціна без ПДВ, грн за од. — з прайсу постачальника (разом з націнкою постачальника)', width: 100 },
-  gross: { name: 'З ПДВ', tooltip: 'Ціна з ПДВ, грн за од. — для довідки', width: 96 },
+  qty: { name: 'К-сть', tooltip: 'Кількість у постачальника (кратність: автоокруглення вгору)', width: 82 },
+  net: { name: 'Без ПДВ', tooltip: 'Ціна без ПДВ, грн за од., з прайсу постачальника (разом з націнкою постачальника)', width: 100 },
+  gross: { name: 'З ПДВ', tooltip: 'Ціна з ПДВ, грн за од., для довідки', width: 96 },
   sum: { name: 'Сума без ПДВ', tooltip: 'Ціна без ПДВ × кількість у постачальника, грн', width: 112 },
   rrp: { name: 'РРЦ з ПДВ', tooltip: 'Рекомендована роздрібна ціна з ПДВ, грн за од.', width: 96 },
   stock: { name: 'Наявн.', tooltip: 'Наявність у постачальника', width: 74 },
@@ -288,7 +288,7 @@ export function buildColumnDefs({ mode, blockIds, collapsed }: BuildColumnsInput
     {
       colId: COL.chosen,
       headerName: 'Обрано',
-      headerTooltip: 'Затверджена (або рекомендована — жовтий «!») пропозиція: ціна без ПДВ, грн',
+      headerTooltip: 'Затверджена (або рекомендована, з жовтим «!») пропозиція: ціна без ПДВ, грн',
       width: 136,
       pinned: 'left',
       cellRenderer: ChosenCell,

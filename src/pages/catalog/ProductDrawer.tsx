@@ -25,7 +25,7 @@ function historyColumns(vatRatePct: number): TableColumnsType<PriceHistoryEntry>
       render: (_, h) => <span className="po-num">{priceCur(grossPrice(h.purchasePrice, vatRatePct), h.currency)}</span>,
     },
     { title: 'РРЦ', key: 'rrp', align: 'right', render: (_, h) => <span className="po-num">{priceCur(h.rrp, h.currency)}</span> },
-    { title: 'Наявність', key: 'stock', render: (_, h) => (h.availability ? <Availability status={h.availability} qty={h.stockQty} /> : '—') },
+    { title: 'Наявність', key: 'stock', render: (_, h) => (h.availability ? <Availability status={h.availability} qty={h.stockQty} /> : null) },
     {
       title: 'Джерело',
       key: 'source',
@@ -38,7 +38,6 @@ function historyColumns(vatRatePct: number): TableColumnsType<PriceHistoryEntry>
         <span>
           {h.note ?? ''}
           {h.user ? <span className="po-muted">{h.note ? ' · ' : ''}{h.user.shortName}</span> : null}
-          {!h.note && !h.user ? '—' : null}
         </span>
       ),
     },
@@ -59,7 +58,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
       ds.updateProductPrice(product.id, { currency: product.currency, purchasePrice: product.purchasePrice, rrp: product.rrp, source: 'manual' }),
     onSuccess: () => {
       for (const queryKey of [qk.productsAll, qk.product(product.id), qk.priceHistory(product.id)]) void queryClient.invalidateQueries({ queryKey });
-      message.success('Дату ціни оновлено — ціну перевірено');
+      message.success('Дату ціни оновлено: ціну перевірено');
     },
     onError: (e) => message.error(errorMessage(e)),
   });
@@ -68,7 +67,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
     mutationFn: () => ds.updateProduct(product.id, { version: product.version, isArchived: false }),
     onSuccess: () => {
       for (const queryKey of [qk.productsAll, qk.product(product.id)]) void queryClient.invalidateQueries({ queryKey });
-      message.success('Товар повернуто з архіву — знову пропонується в підборі');
+      message.success('Товар повернуто з архіву, знову пропонується в підборі');
     },
     onError: (e) => message.error(errorMessage(e)),
   });
@@ -84,7 +83,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
       ),
     },
     { key: 'name1c', label: 'Найменування 1С', children: product.name1c ?? <span className="po-muted">не задано</span>, span: 2 },
-    { key: 'brand', label: 'Бренд', children: product.brand ?? '—' },
+    { key: 'brand', label: 'Бренд', children: product.brand ?? '' },
     { key: 'unit', label: 'Од.', children: product.unitCode },
     { key: 'mult', label: 'Кратність', children: <span className="po-num">{formatQty(product.multiplicity)}</span> },
     { key: 'currency', label: 'Валюта', children: CURRENCY_LABELS[product.currency] },
@@ -143,7 +142,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
           type="warning"
           showIcon
           style={{ marginBottom: 10 }}
-          message="Товар в архіві — у підборі не пропонується"
+          message="Товар в архіві, у підборі не пропонується"
           action={
             <Button size="small" loading={restore.isPending} onClick={() => restore.mutate()}>
               Повернути
@@ -171,10 +170,10 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
           <Alert
             type="warning"
             showIcon
-            message="Товар додано вручну — його ціну оновлюють вручну"
+            message="Товар додано вручну, його ціну оновлюють вручну"
             action={
               <Space>
-                <Tooltip title="Ціна актуальна — оновити лише дату ціни">
+                <Tooltip title="Ціна актуальна: оновити лише дату ціни">
                   <Button size="small" icon={<CheckOutlined />} loading={checked.isPending} onClick={() => checked.mutate()}>
                     Ціну перевірено
                   </Button>

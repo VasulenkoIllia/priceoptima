@@ -30,7 +30,7 @@ function ClientCard({ client }: { client: ClientDetail }) {
     <>
       <div className="po-cli-summary">
         <span>
-          <UserOutlined className="po-muted" /> Відповідальний: <b>{responsible?.shortName ?? '—'}</b>
+          <UserOutlined className="po-muted" /> Відповідальний: <b>{responsible?.shortName ?? 'не призначено'}</b>
         </span>
         {client.note ? <Typography.Paragraph type="secondary">{client.note}</Typography.Paragraph> : null}
         <LastChangeNote change={client.lastChange} />
@@ -53,7 +53,7 @@ function ClientCard({ client }: { client: ClientDetail }) {
             </div>
             {cp.nameFull ? <div className="po-cli-item-full">{cp.nameFull}</div> : null}
             <div className="po-cli-item-meta">
-              <span className="po-num">ЄДРПОУ / РНОКПП: {cp.edrpou ?? '—'}</span>
+              {cp.edrpou ? <span className="po-num">ЄДРПОУ / РНОКПП: {cp.edrpou}</span> : null}
               {cp.addressLegal ? <span>Юр. адреса: {cp.addressLegal}</span> : null}
               {cp.addressActual && cp.addressActual !== cp.addressLegal ? <span>Факт. адреса: {cp.addressActual}</span> : null}
             </div>
@@ -92,7 +92,7 @@ function ClientCard({ client }: { client: ClientDetail }) {
       )}
 
       <div className="po-cli-section">
-        Заявки клієнта <span className="po-cli-section-hint">клік — відкрити заявку</span>
+        Заявки клієнта <span className="po-cli-section-hint">клік відкриває заявку</span>
       </div>
       {requests.isError ? (
         <LoadError inline title="Не вдалося завантажити заявки" error={requests.error} onRetry={requests.refetch} />

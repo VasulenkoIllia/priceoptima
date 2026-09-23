@@ -13,7 +13,7 @@ export function columnOptions(rows: readonly string[][], headerRow: number | nul
   const width = rows.slice(0, 300).reduce((w, r) => Math.max(w, r.length), 0);
   const header = headerRow != null ? (rows[headerRow] ?? []) : [];
   return [
-    { value: -1, label: '— немає —' },
+    { value: -1, label: 'немає' },
     ...Array.from({ length: width }, (_, c) => {
       const h = (header[c] ?? '').trim();
       return { value: c, label: h ? `${columnLetter(c)} · ${short(h)}` : `Колонка ${columnLetter(c)}` };
@@ -113,7 +113,7 @@ export function RowsPreview({ preview, limit = 50 }: RowsPreviewProps) {
       title: 'Код',
       width: 130,
       ellipsis: true,
-      render: (_: unknown, r: PreviewRow) => <span className="po-num">{r.row.code || '—'}</span>,
+      render: (_: unknown, r: PreviewRow) => <span className="po-num">{r.row.code || ''}</span>,
     },
     { key: 'sku', title: 'Артикул', width: 130, ellipsis: true, render: (_: unknown, r: PreviewRow) => r.row.sku ?? '' },
     { key: 'name', title: 'Назва', ellipsis: true, render: (_: unknown, r: PreviewRow) => r.row.name ?? '' },
@@ -186,7 +186,7 @@ export function RowsPreview({ preview, limit = 50 }: RowsPreviewProps) {
       {preview.length > data.length ? (
         <div className="po-muted po-pi-more">
           Показано перші {data.length} рядків.{' '}
-          <Tooltip title="Решта рядків обробляється так само — перевірити можна після завантаження">
+          <Tooltip title="Решта рядків обробляється так само, перевірити можна після завантаження">
             <span>Усього рядків: {formatQty(preview.length)}</span>
           </Tooltip>
         </div>

@@ -174,13 +174,15 @@ export function recordDocumentEvents(log: EventLog, r: RequestDocState, before: 
     const ch = o.priceChange;
     if (!ch || ch.reason === 'copy_refresh' || before.priceChangedAt.get(o.id) === ch.changedAt) continue;
     const line = r.lines.find((l) => l.id === o.lineId);
-    const prev = `${formatRate(ch.prevPurchasePriceCur)}${ch.prevCurrency !== o.currency ? ` ${CURRENCY_LABELS[ch.prevCurrency]}` : ''}`;
+    // попередньої ціни не було: пишемо лише нову; нової немає: «немає»
+    const prev = ch.prevPurchasePriceCur == null ? '' : `${formatRate(ch.prevPurchasePriceCur)}${ch.prevCurrency !== o.currency ? ` ${CURRENCY_LABELS[ch.prevCurrency]}` : ''} → `;
+    const now = o.purchasePriceCur == null ? 'немає' : `${formatRate(o.purchasePriceCur)} ${CURRENCY_LABELS[o.currency]}`;
     const what = ch.reason === 'catalog_refresh' ? 'ціну оновлено з прайсу' : 'ціну змінено в заявці';
     log.add({
       at,
       user,
       kind: 'price_update',
-      summary: `Рядок ${line?.position ?? '—'}${o.sku ? `, ${o.sku}` : ''}: ${what} ${prev} → ${formatRate(o.purchasePriceCur)} ${CURRENCY_LABELS[o.currency]}`,
+      summary: `Рядок${line ? ` ${line.position}` : ''}${o.sku ? `, ${o.sku}` : ''}: ${what} ${prev}${now}`,
     });
   }
 

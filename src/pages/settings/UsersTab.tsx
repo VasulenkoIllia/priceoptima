@@ -59,7 +59,7 @@ function InviteDialog({ open, onClose, onCreated }: { open: boolean; onClose(): 
         </Form.Item>
       </Form>
       <div className="po-muted" style={{ fontSize: 12 }}>
-        Посилання разове й діє 7 днів. Адміністратор — усе, включно з налаштуваннями, користувачами й джерелами прайсів; користувач — щоденна робота.
+        Посилання разове й діє 7 днів. Адміністратор: усе, включно з налаштуваннями, користувачами й джерелами прайсів; користувач: щоденна робота.
       </div>
     </Modal>
   );
@@ -160,9 +160,9 @@ export function UsersTab() {
         </Tag>
       ),
     },
-    { title: 'Телефон', dataIndex: 'phone', render: (v: string | null) => <span className="po-num">{v ?? '—'}</span> },
-    { title: 'E-mail', dataIndex: 'email', render: (v: string | null) => v ?? '—' },
-    { title: 'Запросив', dataIndex: 'invitedBy', render: (v: string | null) => v ?? '—' },
+    { title: 'Телефон', dataIndex: 'phone', render: (v: string | null) => <span className="po-num">{v ?? ''}</span> },
+    { title: 'E-mail', dataIndex: 'email', render: (v: string | null) => v ?? '' },
+    { title: 'Запросив', dataIndex: 'invitedBy', render: (v: string | null) => v ?? '' },
     { title: 'Останній вхід', dataIndex: 'lastLoginAt', render: (v: string | null) => <span className="po-num">{formatDateTime(v)}</span> },
     {
       key: 'actions',
@@ -184,9 +184,9 @@ export function UsersTab() {
       render: (_: unknown, l) =>
         l.kind === 'invite'
           ? `Запрошення: ${USER_ROLE_LABELS[l.role ?? 'user'].toLowerCase()}${l.note ? ` · ${l.note}` : ''}`
-          : `Зміна пароля: ${l.user?.shortName ?? '—'}`,
+          : `Зміна пароля${l.user ? `: ${l.user.shortName}` : ''}`,
     },
-    { title: 'Хто створив', key: 'by', render: (_: unknown, l) => l.createdBy?.shortName ?? '—' },
+    { title: 'Хто створив', key: 'by', render: (_: unknown, l) => l.createdBy?.shortName ?? '' },
     {
       title: 'Стан',
       key: 'state',
@@ -250,7 +250,7 @@ export function UsersTab() {
         locale={{ emptyText: 'Посилань ще не створювали' }}
       />
       <div className="po-set-hint">
-        Адміністратор — усе, включно з налаштуваннями, нашими юрособами, користувачами й джерелами прайсів; користувач — заявки, номенклатура, клієнти,
+        Адміністратор: усе, включно з налаштуваннями, нашими юрособами, користувачами й джерелами прайсів; користувач: заявки, номенклатура, клієнти,
         постачальники й курси. Користувачів не видаляють: заблокований не може увійти, його заявки й історія лишаються.
       </div>
 

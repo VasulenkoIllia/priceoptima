@@ -59,7 +59,7 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onImport, o
         <dt>Націнка постачальника</dt>
         <dd className="po-num">{pctLabel(s.supplierMarkupPct)}</dd>
         <dt>Мін. замовлення з ПДВ</dt>
-        <dd className="po-num">{s.minOrderAmount != null ? formatMoneyUah(s.minOrderAmount) : '—'}</dd>
+        <dd className="po-num">{s.minOrderAmount != null ? formatMoneyUah(s.minOrderAmount) : null}</dd>
       </dl>
       <div className="po-sup-status">
         <Tag color={PRICE_SOURCE_COLORS[s.priceSource.kind]} bordered={false}>
@@ -79,7 +79,7 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onImport, o
                 {s.priceSource.lastError ?? 'Вигрузка не відповіла або повернула помилку'}
                 {s.priceSource.failCount > 1 ? ` (невдалих спроб поспіль: ${s.priceSource.failCount})` : ''}.
                 <br />
-                Ціни лишаються з останнього вдалого оновлення. Що робити: натисніть «Оновити зараз»; не допоможе — перевірте посилання й
+                Ціни лишаються з останнього вдалого оновлення. Що робити: натисніть «Оновити зараз»; якщо не допоможе, перевірте посилання й
                 доступ у «Детальніше → Джерело прайсу» або завантажте прайс файлом.
               </>
             }
@@ -158,7 +158,7 @@ export default function SuppliersPage() {
             <Button
               icon={<FileExcelOutlined />}
               onClick={() => void downloadPriceTemplate().catch((e: unknown) => message.error(errorMessage(e)))}
-              title="Наш формат прайсу — можна надіслати постачальнику"
+              title="Наш формат прайсу: можна надіслати постачальнику"
             >
               Шаблон Excel
             </Button>

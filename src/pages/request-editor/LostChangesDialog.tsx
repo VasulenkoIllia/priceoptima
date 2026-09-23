@@ -24,7 +24,7 @@ export function LostChangesDialog() {
       await navigator.clipboard.writeText(lost.items.join('\n'));
       message.success('Список скопійовано');
     } catch {
-      message.error('Не вдалося скопіювати — виділіть список вручну');
+      message.error('Не вдалося скопіювати, виділіть список вручну');
     }
   };
 

@@ -131,7 +131,7 @@ export function RequestImportDialog({ open, onClose }: RequestImportDialogProps)
     if (signature && !template) saveMap(signature, map);
     addLines(result.lines, 'append');
     const extra = result.badQty ? `; к-сть не розпізнано в ${result.badQty}, заповніть вручну` : '';
-    message.success(`Додано позицій: ${result.lines.length}${extra}. Скасувати — Ctrl+Z`);
+    message.success(`Додано позицій: ${result.lines.length}${extra}. Скасувати: Ctrl+Z`);
     close();
   };
 

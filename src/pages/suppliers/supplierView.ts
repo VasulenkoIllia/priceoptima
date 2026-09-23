@@ -34,15 +34,15 @@ export function ratePolicyLabel(s: Pick<SupplierListItem, 'ratePolicy' | 'rateAd
   if (s.ratePolicy === 'nbu') return 'загальний';
   const parts = [s.manualRateUsd != null ? `USD ${formatRate(s.manualRateUsd)}` : null, s.manualRateEur != null ? `EUR ${formatRate(s.manualRateEur)}` : null].filter(Boolean);
   if (s.ratePolicy === 'manual') return parts.length ? `ручний курс постачальника: ${parts.join(' · ')}` : 'ручний курс постачальника (не вказано), поки що загальний';
-  return parts.length ? `з прайсу; якщо немає — ручний курс постачальника ${parts.join(' · ')}` : 'з прайсу; якщо немає — загальний';
+  return parts.length ? `з прайсу; якщо немає, ручний курс постачальника ${parts.join(' · ')}` : 'з прайсу; якщо немає, загальний';
 }
 
-/** 'USD 45,00 · EUR 52,10 (від 12.09.2026)'; курсів немає — '—'. */
+/** 'USD 45,00 · EUR 52,10 (від 12.09.2026)'; курсів немає — 'немає'. */
 export function priceListRatesLabel(r: PriceListRates): string {
   const parts: string[] = [];
   if (r.USD != null) parts.push(`USD ${formatRate(r.USD)}`);
   if (r.EUR != null) parts.push(`EUR ${formatRate(r.EUR)}`);
-  if (!parts.length) return '—';
+  if (!parts.length) return 'немає';
   return `${parts.join(' · ')}${r.date ? ` (від ${formatDate(r.date)})` : ''}`;
 }
 

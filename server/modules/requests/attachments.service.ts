@@ -54,7 +54,7 @@ export async function listAttachments(requestId: UUID): Promise<AttachmentDto[]>
 async function assertCanEdit(requestId: UUID, actor: User, sessionId: string, now: Date): Promise<void> {
   const r = await prisma.request.findUnique({ where: { id: requestId }, select: { status: true } });
   if (!r) throw notFound('Заявку не знайдено');
-  if (!isEditableStatus(r.status)) throw new ApiError('READ_ONLY', `Заявка в статусі «${REQUEST_STATUS_LABELS[r.status]}» — лише перегляд`);
+  if (!isEditableStatus(r.status)) throw new ApiError('READ_ONLY', `Заявка в статусі «${REQUEST_STATUS_LABELS[r.status]}», лише перегляд`);
   await assertLockHolder(prisma, requestId, actor, sessionId, now);
 }
 
@@ -67,10 +67,10 @@ export async function addAttachment(
   now = new Date(),
 ): Promise<AttachmentDto> {
   if (!file.buffer.length) throw validationError('Файл порожній');
-  if (file.buffer.length > MAX_ATTACHMENT_BYTES) throw validationError(`Файл завеликий — до ${MAX_ATTACHMENT_MB} МБ`);
+  if (file.buffer.length > MAX_ATTACHMENT_BYTES) throw validationError(`Файл завеликий (до ${MAX_ATTACHMENT_MB} МБ)`);
   await assertCanEdit(requestId, actor, sessionId, now);
   const count = await prisma.requestAttachment.count({ where: { requestId } });
-  if (count >= MAX_FILES_PER_REQUEST) throw validationError(`У заявці вже ${MAX_FILES_PER_REQUEST} файлів — приберіть зайві`);
+  if (count >= MAX_FILES_PER_REQUEST) throw validationError(`У заявці вже ${MAX_FILES_PER_REQUEST} файлів, приберіть зайві`);
 
   const id = randomUUID();
   const name = safeFileName(file.originalname) ?? 'файл';

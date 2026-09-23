@@ -46,9 +46,9 @@ const priceForm: RequestHandler = (req, res, next) => {
     if (err instanceof multer.MulterError) {
       const message =
         err.code === 'LIMIT_FILE_SIZE'
-          ? `Файл прайсу завеликий — до ${MAX_PRICE_FILE_MB} МБ`
+          ? `Файл прайсу завеликий (до ${MAX_PRICE_FILE_MB} МБ)`
           : err.code === 'LIMIT_FIELD_VALUE'
-            ? `Забагато рядків прайсу — до ${MAX_PRICE_ROWS_MB} МБ даних за раз`
+            ? `Забагато рядків прайсу (до ${MAX_PRICE_ROWS_MB} МБ даних за раз)`
             : 'Не вдалося прочитати форму з прайсом';
       return next(validationError(message));
     }

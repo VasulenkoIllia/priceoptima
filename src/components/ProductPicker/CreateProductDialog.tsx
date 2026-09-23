@@ -32,7 +32,7 @@ export function CreateProductDialog({ open, lineId, blockId, supplierId, initial
       initial={initial}
       okText="Створити і додати в заявку"
       netHint="піде в заявку"
-      intro="Товар з'явиться в каталозі постачальника з позначкою «вручну» (прайс його не оновлює — ціну змінюють вручну), а в рядку заявки — пропозиція з цим товаром."
+      intro="Товар з'явиться в каталозі постачальника з позначкою «вручну» (прайс його не оновлює, ціну змінюють вручну), а в рядку заявки з'явиться пропозиція з цим товаром."
       onSubmit={(input) =>
         lineId ? createProductAndOffer(lineId, blockId, input) : Promise.reject(new DataSourceError('NOT_FOUND', 'Рядок заявки видалено'))
       }

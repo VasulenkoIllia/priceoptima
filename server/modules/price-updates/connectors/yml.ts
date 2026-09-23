@@ -182,7 +182,7 @@ export function parseYml(body: string, options: Partial<AdapterOptions> = {}): A
   const badCurrency: UnknownCurrencies = { count: 0, codes: new Set() };
   const { rows, warnings } = finishRows(candidates(shop.offers, categories(shop.categories), adapterOptions(options), badCurrency));
   if (badCurrency.count) {
-    warnings.push(`Позицій з невідомою валютою (${[...badCurrency.codes].join(', ')}): ${badCurrency.count} — ціни не взято`);
+    warnings.push(`Позицій з невідомою валютою (${[...badCurrency.codes].join(', ')}): ${badCurrency.count}, ціни не взято`);
   }
   const rates = parseYmlRates(shop.currencies);
   return rates ? { rows, rates, warnings } : { rows, warnings };

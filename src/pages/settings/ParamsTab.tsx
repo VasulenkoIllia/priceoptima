@@ -115,7 +115,7 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
           <Form.Item
             name="priceListRateMaxAgeDays"
             label="Курс із прайсу діє, днів"
-            extra="Старіший курс із прайсу в нові блоки заявок не йде — береться ручний курс постачальника, інакше загальний"
+            extra="Старіший курс із прайсу в нові блоки заявок не йде: береться ручний курс постачальника, інакше загальний"
             rules={[{ required: true, message: 'Вкажіть кількість днів' }]}
           >
             <InputNumber {...NUM} min={1} max={365} precision={0} />

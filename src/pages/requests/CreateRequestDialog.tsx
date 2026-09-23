@@ -107,7 +107,7 @@ export function CreateRequestDialog({ open, onClose, onCreated }: CreateRequestD
           extra={
             <>
               Можна вибрати пізніше в шапці заявки ·{' '}
-              <a onClick={() => setNewClientOpen(true)} title="Клієнта ще немає в довіднику — створити й одразу вибрати">
+              <a onClick={() => setNewClientOpen(true)} title="Клієнта ще немає в довіднику: створити й одразу вибрати">
                 + Новий клієнт
               </a>
             </>
@@ -146,7 +146,7 @@ export function CreateRequestDialog({ open, onClose, onCreated }: CreateRequestD
               allowClear
               disabled={!clientId}
               placeholder="Контактна особа"
-              options={contacts.map((c) => ({ value: c.id, label: c.position ? `${c.fullName} — ${c.position}` : c.fullName }))}
+              options={contacts.map((c) => ({ value: c.id, label: c.position ? `${c.fullName} (${c.position})` : c.fullName }))}
             />
           </Form.Item>
         </div>

@@ -39,7 +39,7 @@ export async function createKp(requestId: UUID, body: KpCreateInput, actor: User
     await tx.$queryRaw`SELECT id FROM "Request" WHERE id = ${requestId} FOR UPDATE`;
     const r = await loadRequest(requestId, tx);
     if (!isEditableStatus(r.status)) {
-      throw new ApiError('READ_ONLY', `Заявка в статусі «${REQUEST_STATUS_LABELS[r.status]}» — КП не формується`);
+      throw new ApiError('READ_ONLY', `Заявка в статусі «${REQUEST_STATUS_LABELS[r.status]}», КП не формується`);
     }
     await assertLockHolder(tx, requestId, actor, body.sessionId, now);
 

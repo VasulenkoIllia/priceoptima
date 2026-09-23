@@ -21,13 +21,13 @@ export const loginFieldSchema = z
   .string({ message: 'Вкажіть логін' })
   .trim()
   .toLowerCase()
-  .min(3, 'Логін — не менше 3 символів')
-  .max(60, 'Логін — не довше 60 символів')
-  .regex(/^[a-z0-9._-]+$/u, 'Логін — латинські літери, цифри, крапка, дефіс або підкреслення');
+  .min(3, 'Логін: не менше 3 символів')
+  .max(60, 'Логін: не довше 60 символів')
+  .regex(/^[a-z0-9._-]+$/u, 'Логін: латинські літери, цифри, крапка, дефіс або підкреслення');
 
 export const registerSchema = z.object({
   login: loginFieldSchema,
-  fullName: z.string({ message: 'Вкажіть ПІБ' }).trim().min(3, 'Вкажіть ПІБ').max(160, 'ПІБ — до 160 символів'),
+  fullName: z.string({ message: 'Вкажіть ПІБ' }).trim().min(3, 'Вкажіть ПІБ').max(160, 'ПІБ: до 160 символів'),
   phone: optionalText(40),
   email: z
     .string()

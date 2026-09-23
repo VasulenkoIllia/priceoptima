@@ -34,7 +34,7 @@ export async function createInvite(actor: User, input: InviteCreateBody, now = n
 export async function createResetLink(actor: User, userId: string, now = new Date()): Promise<AccessLinkCreated> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw notFound('Користувача не знайдено');
-  if (!user.isActive) throw new ApiError('INVALID_STATE', 'Користувача заблоковано — спершу розблокуйте');
+  if (!user.isActive) throw new ApiError('INVALID_STATE', 'Користувача заблоковано, спершу розблокуйте');
   const token = newLinkToken();
   // попередні невикористані посилання цього користувача більше не діють
   await prisma.accessLink.updateMany({ where: { kind: 'reset', userId, usedAt: null, revokedAt: null }, data: { revokedAt: now } });
@@ -107,7 +107,7 @@ export async function registerByInvite(token: string, input: RegisterBody, now =
   if (link.kind !== 'invite') throw notFound('Посилання не знайдено або вже не діє');
   assertValid(link, now);
   const taken = await prisma.user.findUnique({ where: { login: input.login }, select: { id: true } });
-  if (taken) throw duplicate(`Логін «${input.login}» уже зайнятий — оберіть інший`);
+  if (taken) throw duplicate(`Логін «${input.login}» уже зайнятий, оберіть інший`);
   const passwordHash = await hashPassword(input.password);
   const user = await prisma.$transaction(async (tx) => {
     // позначаємо посилання використаним лише якщо воно ще вільне (дві вкладки одночасно — зареєструється одна)

@@ -47,7 +47,7 @@ export function KpTermsEditor({ value, onChange, disabled, compact }: KpTermsEdi
             size="small"
             value={t.value}
             disabled={disabled}
-            placeholder="Значення (порожнє — не друкується)"
+            placeholder="Значення (порожнє не друкується)"
             maxLength={300}
             onChange={(e) => edit(i, { value: e.target.value })}
             onBlur={() => commit(rows)}

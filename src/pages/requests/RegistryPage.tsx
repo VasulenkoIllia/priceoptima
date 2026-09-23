@@ -89,7 +89,7 @@ function LockCell({ data }: Cell) {
 }
 
 function FilesCell({ data }: Cell) {
-  if (!data?.attachmentsCount) return <span className="po-muted">—</span>;
+  if (!data?.attachmentsCount) return null;
   return (
     <span className="po-num">
       <PaperClipOutlined /> {data.attachmentsCount}
@@ -279,8 +279,8 @@ export default function RegistryPage() {
         sortable: true,
         type: 'rightAligned',
         cellClass: 'po-num',
-        // цін продажу ще немає — «—», щоб не плутати з нульовою сумою (РЕЄ-3)
-        valueFormatter: (p) => (p.value ? formatMoney(p.value) : '—'),
+        // цін продажу ще немає — порожньо, щоб не плутати з нульовою сумою (РЕЄ-3)
+        valueFormatter: (p) => (p.value ? formatMoney(p.value) : ''),
         headerTooltip: 'Сума продажу з ПДВ (після націнки)',
       },
       {
@@ -290,9 +290,9 @@ export default function RegistryPage() {
         sortable: true,
         type: 'rightAligned',
         cellClass: 'po-num',
-        valueFormatter: (p) => (p.value ? formatMoney(p.value) : '—'),
+        valueFormatter: (p) => (p.value ? formatMoney(p.value) : ''),
       },
-      { headerName: 'КП', colId: 'kp', width: 104, cellRenderer: KpCell, headerTooltip: 'Останнє сформоване КП (фін. — фінальне) і кількість версій' },
+      { headerName: 'КП', colId: 'kp', width: 104, cellRenderer: KpCell, headerTooltip: 'Останнє сформоване КП («фін.» означає фінальне) і кількість версій' },
       { headerName: 'Статус', field: 'status', width: 190, cellRenderer: StatusCell },
       { headerName: 'Відповідальна особа', colId: 'manager', valueGetter: (p) => p.data?.manager.shortName ?? '', width: 150, headerTooltip: 'Відповідальна особа' },
       { headerName: 'Файли', field: 'attachmentsCount', width: 74, cellRenderer: FilesCell },
@@ -319,7 +319,7 @@ export default function RegistryPage() {
     <div className="po-page">
       <PageHeader
         title="Заявки"
-        subtitle="Подвійний клік по рядку — відкрити заявку; «⋯» або правий клік — інші дії"
+        subtitle="Подвійний клік по рядку відкриває заявку; «⋯» або правий клік показує інші дії"
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
             Створити заявку

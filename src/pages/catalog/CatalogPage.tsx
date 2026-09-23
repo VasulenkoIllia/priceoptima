@@ -243,7 +243,7 @@ export default function CatalogPage() {
             <span className="po-cat-date">
               <Availability status={data.availability} qty={data.stockQty} />
               {data.missingSince ? (
-                <Tag color="red" bordered={false} className="po-cat-tag" title={`Немає у прайсі з ${formatDate(data.missingSince)} — ціна остання відома`}>
+                <Tag color="red" bordered={false} className="po-cat-tag" title={`Немає у прайсі з ${formatDate(data.missingSince)}: ціна остання відома`}>
                   немає у прайсі
                 </Tag>
               ) : null}
@@ -256,7 +256,7 @@ export default function CatalogPage() {
         field: 'priceSource',
         width: 104,
         cellRenderer: ({ data }: Cell) => (data ? <PriceSourceTag source={data.priceSource} /> : null),
-        headerTooltip: 'Прайс — ціна оновлюється автоматично; Вручну — товар додано вручну',
+        headerTooltip: '«Прайс»: ціна оновлюється автоматично; «Вручну»: товар додано вручну',
       },
     ],
     [supplierById, vatRatePct],
@@ -269,7 +269,7 @@ export default function CatalogPage() {
       columns.map((c) => {
         const field = SORT_FIELDS[c.colId ?? c.field ?? ''];
         if (c.sortable === false || !field || catalogSortAllowed(field, narrowed)) return c;
-        const hint = 'Сортування за цією колонкою — коли вибрано постачальника або введено пошук';
+        const hint = 'Сортування за цією колонкою доступне, коли вибрано постачальника або введено пошук';
         return { ...c, sortable: false, headerTooltip: c.headerTooltip ? `${c.headerTooltip}. ${hint}` : hint };
       }),
     [columns, narrowed],
@@ -434,7 +434,7 @@ export default function CatalogPage() {
         supplierId={supplierId !== 'all' ? supplierId : null}
         requirePrice
         okText="Створити"
-        intro="Товар з'явиться в номенклатурі з позначкою «Вручну»: прайс постачальника його не оновлює — ціну змінюють у картці товару («Змінити ціну», «Ціну перевірено»)."
+        intro="Товар з'явиться в номенклатурі з позначкою «Вручну»: прайс постачальника його не оновлює, ціну змінюють у картці товару («Змінити ціну», «Ціну перевірено»)."
         onSubmit={(input) => ds.createProduct(input)}
         onClose={() => setCreateOpen(false)}
         onCreated={onProductCreated}

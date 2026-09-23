@@ -258,7 +258,7 @@ export function toEventDto(e: RequestEvent, users: Map<string, UserRef>): Reques
   return {
     id: e.id,
     at: e.at.toISOString(),
-    user: e.userId ? (users.get(e.userId) ?? { id: e.userId, shortName: '—' }) : null,
+    user: e.userId ? (users.get(e.userId) ?? { id: e.userId, shortName: '' }) : null,
     kind: e.kind as RequestEventDto['kind'],
     summary: e.summary,
     ...(e.group ? { group: e.group } : {}),
@@ -270,7 +270,7 @@ export function toLockInfo(lock: RequestLock | null, users: Map<string, UserRef>
   if (!lock) return null;
   return {
     userId: lock.userId,
-    userShortName: users.get(lock.userId)?.shortName ?? '—',
+    userShortName: users.get(lock.userId)?.shortName ?? '',
     sessionId: lock.sessionId,
     lockedAt: lock.lockedAt.toISOString(),
     expiresAt: lock.expiresAt.toISOString(),

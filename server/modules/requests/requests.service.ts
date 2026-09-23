@@ -242,7 +242,7 @@ async function toListItems(rows: ListRow[], actor: User, sessionId: string | nul
       title: r.title,
       client: r.clientId ? (clientById.get(r.clientId) ?? null) : null,
       counterparty: r.counterpartyId ? (cpById.get(r.counterpartyId) ?? null) : null,
-      manager: users.get(r.managerId) ?? { id: r.managerId, shortName: '—' },
+      manager: users.get(r.managerId) ?? { id: r.managerId, shortName: '' },
       totalSaleGross: r.totalSaleGross,
       approvedSaleGross: r.approvedSaleGross,
       linesCount: r.linesCount,
@@ -411,8 +411,8 @@ export async function getRequestDocument(id: UUID, actor: User, sessionId: strin
       client: client ? { id: client.id, name: client.name } : null,
       counterparty: cp ? counterpartyRef(cp) : null,
       contact: contact ? contactRef(contact) : null,
-      ownCompany: own ? { id: own.id, nameShort: own.nameShort, isVatPayer: own.isVatPayer } : { id: state.header.ownCompanyId, nameShort: '—', isVatPayer: true },
-      manager: users.get(state.header.managerId) ?? { id: state.header.managerId, shortName: '—' },
+      ownCompany: own ? { id: own.id, nameShort: own.nameShort, isVatPayer: own.isVatPayer } : { id: state.header.ownCompanyId, nameShort: '', isVatPayer: true },
+      manager: users.get(state.header.managerId) ?? { id: state.header.managerId, shortName: '' },
       pricing: pricingSettingsFrom(env.settings),
     },
     meta: {
@@ -438,10 +438,10 @@ export async function saveRequestDocument(id: UUID, patch: DocumentPatch, actor:
     await tx.$queryRaw`SELECT id FROM "Request" WHERE id = ${id} FOR UPDATE`;
     const r = await loadRequest(id, tx);
     if (!isEditableStatus(r.status)) {
-      throw new ApiError('READ_ONLY', `Заявка в статусі «${REQUEST_STATUS_LABELS[r.status]}» — лише перегляд`);
+      throw new ApiError('READ_ONLY', `Заявка в статусі «${REQUEST_STATUS_LABELS[r.status]}», лише перегляд`);
     }
     await assertLockHolder(tx, id, actor, patch.sessionId, now);
-    if (patch.baseVersion !== r.version) throw new ApiError('VERSION_CONFLICT', 'Заявку змінено в іншій вкладці — дані перезавантажено');
+    if (patch.baseVersion !== r.version) throw new ApiError('VERSION_CONFLICT', 'Заявку змінено в іншій вкладці, дані перезавантажено');
 
     const before = toDocState(r);
     const after = applyDocumentPatch(before, patch);
@@ -496,7 +496,7 @@ export async function changeStatus(id: UUID, body: StatusChangeBody, actor: User
     const r = await tx.request.findUnique({ where: { id } });
     if (!r) throw notFound('Заявку не знайдено');
     await assertLockHolder(tx, id, actor, body.sessionId, now);
-    if (body.baseVersion !== r.version) throw new ApiError('VERSION_CONFLICT', 'Заявку змінено в іншій вкладці — дані перезавантажено');
+    if (body.baseVersion !== r.version) throw new ApiError('VERSION_CONFLICT', 'Заявку змінено в іншій вкладці, дані перезавантажено');
     const check = validateTransition(r.status, body.to, actor.role, body.reason);
     if (!check.ok) throw new ApiError(check.code, check.message);
     const change = applyStatusChange(body.to, body.reason);
@@ -583,7 +583,7 @@ export async function copyRequest(id: UUID, body: CopyRequestBody, actor: User, 
     action: 'request.copy',
     entityType: 'request',
     entityId: newId,
-    summary: `Заявка № ${formatRequestNumber(created.number)} — копія № ${formatRequestNumber(src.number)}`,
+    summary: `Заявка № ${formatRequestNumber(created.number)}, копія № ${formatRequestNumber(src.number)}`,
   });
   return { id: newId, number: created.number, report: created.report };
 }
@@ -603,14 +603,14 @@ export async function recordLockForce(requestId: UUID, admin: User, previousUser
     userRefs([previousUserId]).then((m) => m.get(previousUserId)),
     prisma.request.findUnique({ where: { id: requestId }, select: { number: true } }),
   ]);
-  const summary = `Редагування передано адміністратору: ${prev?.shortName ?? '—'} → ${admin.shortName}`;
+  const summary = `Редагування передано адміністратору: ${prev ? `${prev.shortName} → ` : ''}${admin.shortName}`;
   await prisma.requestEvent.create({ data: { requestId, at: now, userId: admin.id, kind: 'lock_force', summary } });
   await audit({
     userId: admin.id,
     action: 'request.lock_force',
     entityType: 'request',
     entityId: requestId,
-    summary: `Заявка № ${r ? formatRequestNumber(r.number) : '—'}: ${summary.toLowerCase()}`,
+    summary: `Заявка${r ? ` № ${formatRequestNumber(r.number)}` : ''}: ${summary.toLowerCase()}`,
   });
 }
 

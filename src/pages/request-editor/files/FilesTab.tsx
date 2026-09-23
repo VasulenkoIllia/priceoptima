@@ -67,7 +67,7 @@ export default function FilesTab() {
 
   const upload = async (file: File) => {
     if (file.size > MAX_MB * 1024 * 1024) {
-      message.error(`«${file.name}»: файл завеликий — до ${MAX_MB} МБ`);
+      message.error(`«${file.name}»: файл завеликий (до ${MAX_MB} МБ)`);
       return;
     }
     setUploading((n) => n + 1);
@@ -112,8 +112,8 @@ export default function FilesTab() {
         }}
       >
         <p className="ant-upload-drag-icon">{uploading ? <LoadingOutlined /> : <InboxOutlined />}</p>
-        <p className="ant-upload-text">{readOnly ? 'Додавати файли може той, хто редагує заявку' : 'Додати файл — перетягніть сюди або клацніть'}</p>
-        <p className="ant-upload-hint">Лист чи Excel від клієнта, специфікація, рахунок постачальника — до {MAX_MB} МБ</p>
+        <p className="ant-upload-text">{readOnly ? 'Додавати файли може той, хто редагує заявку' : 'Додати файл: перетягніть сюди або клацніть'}</p>
+        <p className="ant-upload-hint">Лист чи Excel від клієнта, специфікація, рахунок постачальника (до {MAX_MB} МБ)</p>
       </Upload.Dragger>
 
       {kps.isPending || files.isPending ? (
@@ -122,7 +122,7 @@ export default function FilesTab() {
         <List<FileRow>
           bordered
           className="po-files-list"
-          locale={{ emptyText: 'Файлів ще немає — сформовані КП з’являться тут автоматично' }}
+          locale={{ emptyText: 'Файлів ще немає. Сформовані КП з’являться тут автоматично' }}
           dataSource={rows}
           renderItem={(r) => (
             <List.Item
@@ -161,7 +161,7 @@ export default function FilesTab() {
                 avatar={r.kind === 'kp' ? <FileTextOutlined className="po-files-icon po-files-icon-kp" /> : <PaperClipOutlined className="po-files-icon" />}
                 title={
                   <span className="po-num">
-                    {r.kind === 'kp' ? `КП № ${r.kp.numberLabel}${r.kp.onlyApproved ? ' — фінальне' : ''}` : r.file.originalFilename}{' '}
+                    {r.kind === 'kp' ? `КП № ${r.kp.numberLabel}${r.kp.onlyApproved ? ' (фінальне)' : ''}` : r.file.originalFilename}{' '}
                     {r.kind === 'kp' ? (
                       <Tag bordered={false} color={r.kp.onlyApproved ? 'purple' : 'blue'}>
                         КП
@@ -171,8 +171,9 @@ export default function FilesTab() {
                 }
                 description={
                   <Typography.Text type="secondary" className="po-num">
-                    {formatDateTime(r.at)} · {r.by ?? '—'}
-                    {r.kind === 'kp' ? ' · PDF і Excel — з незмінного знімка КП' : ` · ${sizeLabel(r.file.sizeBytes)}`}
+                    {formatDateTime(r.at)}
+                    {r.by ? ` · ${r.by}` : ''}
+                    {r.kind === 'kp' ? ' · PDF і Excel з незмінного знімка КП' : ` · ${sizeLabel(r.file.sizeBytes)}`}
                   </Typography.Text>
                 }
               />

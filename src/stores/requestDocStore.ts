@@ -1180,7 +1180,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       async setStatus(to, reason) {
         const s = get();
         if (!s.requestId || !s.doc) return;
-        if (!s.hasLock) throw new DataSourceError('LOCK_REQUIRED', 'Заявку редагує інший користувач — змінити статус неможливо');
+        if (!s.hasLock) throw new DataSourceError('LOCK_REQUIRED', 'Заявку редагує інший користувач, змінити статус неможливо');
         await flush();
         const id = s.requestId;
         const res = await ds.changeStatus(id, { to, reason: reason ?? null, baseVersion: get().version, sessionId: ds.sessionId });

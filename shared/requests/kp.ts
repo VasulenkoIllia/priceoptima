@@ -56,9 +56,9 @@ export interface KpBuilt {
 export function buildKpVersion(i: KpBuildInput): KpBuilt {
   if (i.final) {
     const base = approvalBaseKp(i.kps, i.state.header.approvalKpId);
-    if (!base) throw new KpBuildError('INVALID_STATE', 'Спершу сформуйте КП для клієнта — фінальне КП будується з нього');
+    if (!base) throw new KpBuildError('INVALID_STATE', 'Спершу сформуйте КП для клієнта: фінальне КП будується з нього');
     const snapshot = buildFinalKpSnapshot(base.snapshot, i.state.lines, { kpNumber: i.kpNumber, date: i.date, validityDays: i.settings.validityDays });
-    if (!snapshot.rows.length) throw new KpBuildError('VALIDATION_ERROR', 'Немає погоджених позицій — відмітьте їх на вкладці «Погодження»');
+    if (!snapshot.rows.length) throw new KpBuildError('VALIDATION_ERROR', 'Немає погоджених позицій, відмітьте їх на вкладці «Погодження»');
     return { snapshot, ownCompanyId: base.ownCompanyId, settings: { ...base.settings, onlyApproved: true } };
   }
   // рядок з обраним товаром, але без ціни продажу або з ціною ≤ 0 не дає сформувати КП (НАЦ-4); непідібрані лише не входять

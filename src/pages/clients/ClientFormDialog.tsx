@@ -237,7 +237,7 @@ export function ClientFormDialog({ open, client, onClose, onSaved }: ClientFormD
                 </div>
               ))}
               {fields.length === 0 ? (
-                <Typography.Text type="secondary">Якщо не додати жодного — буде створено контрагента з назвою клієнта.</Typography.Text>
+                <Typography.Text type="secondary">Якщо не додати жодного, буде створено контрагента з назвою клієнта.</Typography.Text>
               ) : null}
               <div>
                 <Button type="dashed" icon={<PlusOutlined />} onClick={() => add({ id: newId(), nameShort: '', isVatPayer: true })}>

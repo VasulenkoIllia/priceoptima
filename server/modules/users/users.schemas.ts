@@ -15,8 +15,8 @@ const optionalText = (max: number) =>
 
 export const passwordSchema = z
   .string({ message: 'Вкажіть пароль' })
-  .min(8, 'Пароль — не менше 8 символів')
-  .max(200, 'Пароль — не більше 200 символів');
+  .min(8, 'Пароль: не менше 8 символів')
+  .max(200, 'Пароль: не більше 200 символів');
 
 const contactFields = {
   fullName: trimmed(160, 'Вкажіть ПІБ'),

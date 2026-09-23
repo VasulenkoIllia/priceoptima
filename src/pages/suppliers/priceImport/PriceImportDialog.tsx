@@ -218,7 +218,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       queryClient.setQueryData(qk.supplierPriceSource(supplierId), saved);
       void queryClient.invalidateQueries({ queryKey: qk.supplier(supplierId) });
       void queryClient.invalidateQueries({ queryKey: qk.suppliers });
-      message.success('Режим «Гібрид»: ціни — з файлу, асортимент і наявність — за посиланням');
+      message.success('Режим «Гібрид»: ціни з файлу, асортимент і наявність за посиланням');
     },
     onError: (e) => message.error(errorMessage(e)),
   });
@@ -264,7 +264,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
         description={
           <>
             Ціни з файлу протримаються лише до наступного оновлення вигрузки. Якщо ціни мають братися з файлу, а асортимент, наявність і
-            фото — з посилання, перемкніть постачальника в режим «Гібрид».
+            фото з посилання, перемкніть постачальника в режим «Гібрид».
             {isAdmin ? (
               <div style={{ marginTop: 8 }}>
                 <Button size="small" loading={switchToHybrid.isPending} onClick={() => switchToHybrid.mutate()}>
@@ -282,7 +282,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
         type="info"
         showIcon
         message="Гібрид: файл оновлює лише ціни (і наявність, якщо вибрано її колонку)"
-        description="Нові позиції з файлу не створюються й відсутні не позначаються — асортимент веде вигрузка за посиланням. Коди, яких немає в каталозі, покажемо у звіті перед записом."
+        description="Нові позиції з файлу не створюються й відсутні не позначаються: асортимент веде вигрузка за посиланням. Коди, яких немає в каталозі, покажемо у звіті перед записом."
       />
     ) : null;
 
@@ -299,8 +299,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
         </label>
       ))}
       <span className="po-muted" style={{ fontSize: 12 }}>
-        {ratesWhere && fileRates ? `знайдено у файлі: ${ratesWhere}` : 'у файлі не знайдено — можна ввести вручну'}. Стане курсом із прайсу для нових заявок
-        (діє {maxAgeDays} дн.); порожньо — ручний курс постачальника або загальний.
+        {ratesWhere && fileRates ? `знайдено у файлі: ${ratesWhere}` : 'у файлі не знайдено, можна ввести вручну'}. Стане курсом із прайсу для нових заявок
+        (діє {maxAgeDays} дн.); якщо порожньо, діє ручний курс постачальника або загальний.
       </span>
     </div>
   ) : null;
@@ -360,7 +360,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   );
 
   return (
-    <Modal open title={`Завантажити прайс — ${supplierName}`} width={1000} onCancel={onClose} footer={footer} destroyOnHidden>
+    <Modal open title={`Завантажити прайс: ${supplierName}`} width={1000} onCancel={onClose} footer={footer} destroyOnHidden>
       <div className="po-pi-body">
         <Steps className="po-pi-steps" size="small" current={step} items={STEPS} />
         {error ? <Alert type="error" showIcon message={error} closable onClose={() => setError(null)} /> : null}
@@ -425,7 +425,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
                   onChange={(v) => selectSheet(sheets, v)}
                 />
               </label>
-              <label className="po-pi-field" title="Рядок із назвами колонок; 0 — заголовка немає">
+              <label className="po-pi-field" title="Рядок із назвами колонок; 0, якщо заголовка немає">
                 <span>Рядок заголовка:</span>
                 <InputNumber
                   min={0}
@@ -440,7 +440,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               <Alert
                 type="warning"
                 showIcon
-                message="Рядок заголовка не знайдено — вкажіть його номер, інакше колонки доведеться вибирати вручну."
+                message="Рядок заголовка не знайдено. Вкажіть його номер, інакше колонки доведеться вибирати вручну."
               />
             ) : null}
             <SheetPreview rows={rows} mapping={mapping} limit={10} />
@@ -466,7 +466,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               ))}
             </div>
             <div className="po-pi-options">
-              <Tooltip title="Ціни в колонці закупівлі вказані з ПДВ — поділимо на 1,2 і збережемо вхід без ПДВ">
+              <Tooltip title="Ціни в колонці закупівлі вказані з ПДВ: поділимо на 1,2 і збережемо вхід без ПДВ">
                 <Checkbox
                   checked={options.pricesIncludeVat}
                   onChange={(e) => setOptions((o) => ({ ...o, pricesIncludeVat: e.target.checked }))}
@@ -474,7 +474,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
                   Ціни з ПДВ
                 </Checkbox>
               </Tooltip>
-              <Tooltip title="РРЦ у прайсі вказана з ПДВ. Якщо без ПДВ — зніміть галочку, помножимо на 1,2: у каталозі РРЦ завжди з ПДВ">
+              <Tooltip title="РРЦ у прайсі вказана з ПДВ. Якщо без ПДВ, зніміть галочку, і ми помножимо на 1,2: у каталозі РРЦ завжди з ПДВ">
                 <Checkbox
                   checked={options.rrpIncludesVat}
                   disabled={mapping.rrp == null}
@@ -521,7 +521,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               />
             ) : null}
             {mapping.purchasePrice == null ? (
-              <Alert type="info" showIcon message="Колонку ціни не вибрано — ціни в каталозі не зміняться." />
+              <Alert type="info" showIcon message="Колонку ціни не вибрано, ціни в каталозі не зміняться." />
             ) : null}
             <SheetPreview rows={rows} mapping={mapping} limit={8} />
           </>
@@ -531,14 +531,14 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
           <>
             <div className="po-muted">
               Файл <b>{fileName}</b>
-              {sheets.length > 1 ? `, аркуш «${sheet?.name ?? ''}»` : ''}. Нижче — що зміниться в каталозі; поки ви не натиснете «Завантажити», нічого не
+              {sheets.length > 1 ? `, аркуш «${sheet?.name ?? ''}»` : ''}. Нижче показано, що зміниться в каталозі; поки ви не натиснете «Завантажити», нічого не
               записано.
             </div>
             {ratesRow}
             {sourceAlert}
             {summary}
             {built.rows.length ? null : (
-              <Alert type="error" showIcon message="Жоден рядок не придатний для завантаження — перевірте зіставлення колонок." />
+              <Alert type="error" showIcon message="Жоден рядок не придатний для завантаження, перевірте зіставлення колонок." />
             )}
             {preview.isPending ? <Spin style={{ display: 'block', margin: '16px auto' }} tip="Рахуємо, що зміниться…"><div style={{ height: 40 }} /></Spin> : null}
             {preview.isError ? (

@@ -23,7 +23,7 @@ export function parseXml(parser: XMLParser, body: string, feedName: string): unk
 /** Скільки повторених кодів називаємо в попередженні. */
 const DUPLICATE_EXAMPLES = 5;
 
-export const NO_PURCHASE_PRICES_WARNING = 'У прайсі немає закупівельних цін — оновлюємо лише РРЦ і наявність';
+export const NO_PURCHASE_PRICES_WARNING = 'У прайсі немає закупівельних цін, оновлюємо лише РРЦ і наявність';
 
 /**
  * Кандидати (null — позиція без коду) → рядки з унікальним кодом і попередження.
@@ -55,7 +55,7 @@ export function finishRows(candidates: Iterable<PriceRow | null>): { rows: Price
   if (duplicateCount) {
     const examples = [...duplicates].slice(0, DUPLICATE_EXAMPLES).join(', ');
     const more = duplicates.size > DUPLICATE_EXAMPLES ? ', …' : '';
-    warnings.push(`Повтори коду: ${duplicateCount} — узято перший рядок (${examples}${more})`);
+    warnings.push(`Повтори коду: ${duplicateCount}, узято перший рядок (${examples}${more})`);
   }
   warnings.push(...priceWarnings(rows));
   return { rows, warnings };

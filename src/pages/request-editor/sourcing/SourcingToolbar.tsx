@@ -56,7 +56,7 @@ export function SourcingToolbar({ counts }: SourcingToolbarProps) {
   const onAddSupplier = (id: string) => {
     const blockId = addBlock(id);
     const name = suppliers.find((s) => s.id === id)?.name ?? '';
-    if (blockId) message.success(`Додано блок ${name} — вставте артикули в колонку «Артикул»`);
+    if (blockId) message.success(`Додано блок ${name}. Вставте артикули в колонку «Артикул»`);
   };
 
   const onAcceptAll = () => {
@@ -83,7 +83,7 @@ export function SourcingToolbar({ counts }: SourcingToolbarProps) {
           Постачальник <DownOutlined />
         </Button>
       </Dropdown>
-      <Tooltip title="Позиції з файлу клієнта або нашого шаблону — у кінець заявки">
+      <Tooltip title="Позиції з файлу клієнта або нашого шаблону додаються в кінець заявки">
         <Button icon={<FileExcelOutlined />} disabled={readOnly} onClick={() => setImportOpen(true)}>
           Імпорт з Excel
         </Button>

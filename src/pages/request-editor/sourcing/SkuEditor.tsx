@@ -21,7 +21,7 @@ function SuggestOption({ product }: { product: ProductPickDto }) {
     <span className="po-sku-opt">
       <b className="po-num">{product.sku}</b>
       <span className="po-sku-opt-name">{product.nameWork}</span>
-      <span className="po-num po-muted">{formatMoney(product.purchasePriceUah)} грн</span>
+      <span className="po-num po-muted">{product.purchasePriceUah != null ? `${formatMoney(product.purchasePriceUah)} грн` : ''}</span>
     </span>
   );
 }

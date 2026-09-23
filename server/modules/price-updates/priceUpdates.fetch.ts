@@ -41,13 +41,13 @@ export function buildFeedRequest(rawUrl: string, auth: SupplierPriceFeed['auth']
   try {
     url = new URL(rawUrl);
   } catch {
-    throw new FeedFetchError('Посилання на вигрузку некоректне — перевірте налаштування постачальника');
+    throw new FeedFetchError('Посилання на вигрузку некоректне, перевірте налаштування постачальника');
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
     throw new FeedFetchError('Посилання на вигрузку має починатися з http:// або https://');
   }
   if (url.username || url.password) {
-    throw new FeedFetchError('Логін і пароль не пишуть у посиланні — оберіть доступ «basic» і збережіть їх як «логін:пароль»');
+    throw new FeedFetchError('Логін і пароль не пишуть у посиланні. Оберіть доступ «basic» і збережіть їх як «логін:пароль»');
   }
 
   const headers: Record<string, string> = { accept: '*/*' };
@@ -112,9 +112,9 @@ export async function downloadFeed(feed: FeedAccess, secrets: SecretBox, options
 function feedErrorOf(e: unknown, timeoutMs: number): FeedFetchError {
   if (!(e instanceof PublicFetchError)) return connectionError(e, '', timeoutMs);
   if (e.kind === 'network') return connectionError(e.cause, e.host, timeoutMs);
-  if (e.kind === 'not_found') return new FeedFetchError(`Сервер постачальника (${e.host}) не знайдено — перевірте посилання`);
-  if (e.kind === 'blocked') return new FeedFetchError(`Посилання веде на внутрішню адресу (${e.host}) — вигрузку беремо лише з інтернету`);
-  if (e.kind === 'redirects') return new FeedFetchError(`Забагато переадресацій на ${e.host} — перевірте посилання`);
+  if (e.kind === 'not_found') return new FeedFetchError(`Сервер постачальника (${e.host}) не знайдено, перевірте посилання`);
+  if (e.kind === 'blocked') return new FeedFetchError(`Посилання веде на внутрішню адресу (${e.host}), а вигрузку беремо лише з інтернету`);
+  if (e.kind === 'redirects') return new FeedFetchError(`Забагато переадресацій на ${e.host}, перевірте посилання`);
   return new FeedFetchError('Постачальник переадресував на посилання не http(s)');
 }
 
@@ -123,22 +123,22 @@ function openSecret(feed: FeedAccess, secrets: SecretBox): string | null {
   try {
     return secrets.open(feed.secret);
   } catch {
-    throw new FeedFetchError('Збережений токен не вдалося розшифрувати — введіть його заново в налаштуваннях постачальника');
+    throw new FeedFetchError('Збережений токен не вдалося розшифрувати, введіть його заново в налаштуваннях постачальника');
   }
 }
 
 export function httpErrorMessage(status: number): string {
   if (status === 401 || status === 403) {
-    return `Постачальник відмовив у доступі (HTTP ${status}) — перевірте токен або пароль`;
+    return `Постачальник відмовив у доступі (HTTP ${status}), перевірте токен або пароль`;
   }
-  if (status === 404) return 'Вигрузку не знайдено за посиланням (HTTP 404) — перевірте посилання';
-  if (status === 429) return 'Постачальник тимчасово обмежив запити (HTTP 429) — спробуємо пізніше';
+  if (status === 404) return 'Вигрузку не знайдено за посиланням (HTTP 404), перевірте посилання';
+  if (status === 429) return 'Постачальник тимчасово обмежив запити (HTTP 429), спробуємо пізніше';
   if (status >= 500) return `Сервер постачальника повернув помилку (HTTP ${status})`;
   return `Сервер постачальника відповів HTTP ${status}`;
 }
 
 function tooLargeMessage(maxBytes: number): string {
-  return `Вигрузка завелика — понад ${Math.round(maxBytes / (1024 * 1024))} МБ`;
+  return `Вигрузка завелика (понад ${Math.round(maxBytes / (1024 * 1024))} МБ)`;
 }
 
 /** Помилки мережі й таймаут → зрозуміле повідомлення. */
@@ -150,13 +150,13 @@ export function connectionError(e: unknown, host: string, timeoutMs: number): Fe
   const cause = (e as { cause?: { code?: unknown } } | null)?.cause;
   const code = typeof cause?.code === 'string' ? cause.code : '';
   if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
-    return new FeedFetchError(`Сервер постачальника (${host}) не знайдено — перевірте посилання`);
+    return new FeedFetchError(`Сервер постачальника (${host}) не знайдено, перевірте посилання`);
   }
   if (code === 'ECONNREFUSED') return new FeedFetchError(`Сервер постачальника (${host}) не приймає з'єднання`);
   if (/CERT|SSL|TLS/u.test(code)) {
-    return new FeedFetchError(`Не вдалося встановити захищене з'єднання з ${host} — проблема із сертифікатом`);
+    return new FeedFetchError(`Не вдалося встановити захищене з'єднання з ${host}: проблема із сертифікатом`);
   }
-  return new FeedFetchError(`Не вдалося завантажити вигрузку з ${host} — з'єднання перервалось`);
+  return new FeedFetchError(`Не вдалося завантажити вигрузку з ${host}: з'єднання перервалось`);
 }
 
 /** Читає тіло частинами й зупиняється, щойно перевищено межу розміру. */

@@ -13,12 +13,12 @@ import { useSourcingUi } from './sourcingUiStore';
 
 const COUNTERS: { filter: RowFilter; label: string; hint: string }[] = [
   { filter: 'stock', label: 'Наявність', hint: 'Немає в наявності або залишку замало' },
-  { filter: 'stale', label: 'Застарілі ціни', hint: 'Ціна старша за норму — перевірте на сайті постачальника' },
+  { filter: 'stale', label: 'Застарілі ціни', hint: 'Ціна старша за норму, перевірте на сайті постачальника' },
   { filter: 'unapproved', label: 'Не затверджено', hint: 'У націнку й КП піде мінімальна ціна з позначкою «не затверджено»' },
 ];
 
 function Diff({ net, pct }: { net: number | null; pct: number | null }) {
-  if (net == null) return <span className="po-muted">—</span>;
+  if (net == null) return null;
   if (net <= 0) return <span className="po-sc-good">як у міксі</span>;
   return (
     <span className="po-sc-bad po-num">
@@ -59,7 +59,7 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
 
   const applySingle = (blockId: string, name: string) => {
     const n = selectAllInBlock(blockId);
-    if (n) message.success(`Застосовано «все в ${name}»: змінено рядків ${n}. Скасувати — Ctrl+Z`);
+    if (n) message.success(`Застосовано «все в ${name}»: змінено рядків ${n}. Скасувати: Ctrl+Z`);
     else message.info(`Сценарій «все в ${name}» уже застосовано`);
   };
 
@@ -73,12 +73,12 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
       </div>
 
       {!view || !doc?.blocks.length ? (
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Додайте постачальників — тут з’являться сценарії закупівлі" />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Додайте постачальників, і тут з’являться сценарії закупівлі" />
       ) : (
         <>
-          <div className="po-sc-meta">Порівняйте варіанти й натисніть «Застосувати» — вибір у таблиці зміниться (скасувати — Ctrl+Z).</div>
+          <div className="po-sc-meta">Порівняйте варіанти й натисніть «Застосувати»: вибір у таблиці зміниться (скасувати: Ctrl+Z).</div>
           <Card title="Оптимальний мікс" tone="mix">
-            <div className="po-sc-sum po-num" title="Сума закупівлі без ПДВ">
+            <div className="po-sc-sum po-num" title="Сума входу без ПДВ">
               {formatMoneyUah(view.mix.totalNet)} <span className="po-sc-vat">без ПДВ</span>
             </div>
             <div className="po-sc-meta">мінімальна ціна в кожному рядку · постачальників: {view.mix.suppliersUsed}</div>
@@ -93,7 +93,7 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
           </Card>
 
           <Card title="Поточний вибір" tone="current">
-            <div className="po-sc-sum po-num" title="Сума закупівлі без ПДВ">
+            <div className="po-sc-sum po-num" title="Сума входу без ПДВ">
               {formatMoneyUah(view.current.totalNet)} <span className="po-sc-vat">без ПДВ</span>
             </div>
             <div className="po-sc-meta">
@@ -103,7 +103,7 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
               переплата vs мікс: <Diff net={view.current.overpayNet} pct={view.current.overpayPct} />
             </div>
             <div title="Прибуток без ПДВ за цінами продажу з вкладки «Націнка»">
-              заробіток: <span className="po-num po-sc-good">{formatMoneyUah(view.current.profitNet)}</span>
+              прибуток: <span className="po-num po-sc-good">{formatMoneyUah(view.current.profitNet)}</span>
             </div>
           </Card>
 
@@ -116,7 +116,7 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
                 title={<SupplierLogo name={name} logoUrl={s.supplier?.logoUrl} color={s.supplier?.color} size={18} showName />}
                 extra={s.total > 0 && s.covered === s.total ? <Tag color="green">лише 1 постачальник</Tag> : null}
               >
-                <div className="po-sc-sum po-num" title="Сума закупівлі без ПДВ">
+                <div className="po-sc-sum po-num" title="Сума входу без ПДВ">
                   {formatMoneyUah(s.totalNet)} <span className="po-sc-vat">без ПДВ</span>
                 </div>
                 <div className="po-sc-cover">
@@ -130,7 +130,7 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
                   різниця з міксом: <Diff net={s.diffVsMixNet} pct={s.diffVsMixPct} />
                 </div>
                 <div title="Прибуток без ПДВ, якби всі рядки з ціною в цього постачальника брали в нього; ціни продажу за способом націнки рядків">
-                  заробіток: <span className="po-num po-sc-good">{formatMoneyUah(s.profitNet)}</span>
+                  прибуток: <span className="po-num po-sc-good">{formatMoneyUah(s.profitNet)}</span>
                 </div>
                 {s.belowMinOrder ? (
                   <Tag color="orange" style={{ marginTop: 4 }}>
@@ -143,7 +143,7 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
                   icon={<CheckOutlined />}
                   className="po-sc-approve"
                   disabled={readOnly || !s.approvable}
-                  title={s.approvable ? `Затвердити ${name} у рядках, де є його ціна (${s.approvable}); інші рядки — без змін` : undefined}
+                  title={s.approvable ? `Затвердити ${name} у рядках, де є його ціна (${s.approvable}); інші рядки без змін` : undefined}
                   onClick={() => applySingle(s.blockId, name)}
                 >
                   Застосувати

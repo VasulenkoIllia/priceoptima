@@ -47,14 +47,14 @@ function profitHelp(p: SupplierProfit): ReactNode {
   return (
     <div style={{ fontSize: 12 }}>
       <div>
-        <b>Заробіток по обраних</b> — прибуток без ПДВ на рядках, де обрано цього постачальника ({p.selected.lines}): {formatMoney(p.selected.profitNet)}
+        <b>Прибуток по обраних</b> без ПДВ на рядках, де обрано цього постачальника ({p.selected.lines}): {formatMoney(p.selected.profitNet)}
         {p.selected.markupPct != null ? `, націнка ${formatPct(p.selected.markupPct, 1)}` : ''}
       </div>
       <div>
-        <b>Якщо все тут</b> — якби всі рядки з ціною в цього постачальника ({p.allIn.lines}) брали в нього: {formatMoney(p.allIn.profitNet)}
+        <b>Якщо все тут</b>, тобто якби всі рядки з ціною в цього постачальника ({p.allIn.lines}) брали в нього: {formatMoney(p.allIn.profitNet)}
         {p.allIn.markupPct != null ? `, націнка ${formatPct(p.allIn.markupPct, 1)}` : ''}
       </div>
-      <div>Ціни продажу — за способом націнки кожного рядка (вкладка «Націнка»).</div>
+      <div>Ціни продажу рахуються за способом націнки кожного рядка (вкладка «Націнка»).</div>
       {p.allIn.unpriced ? <div>Без ціни продажу (не враховано): {p.allIn.unpriced} рядк.</div> : null}
     </div>
   );
@@ -85,28 +85,28 @@ function totalsHelp(t: BlockTotals): ReactNode {
   return (
     <div style={{ fontSize: 12 }}>
       <div>
-        <b>Всього без ПДВ</b> — усі заповнені пропозиції блоку: {formatMoney(t.totalNet)}
+        <b>Всього без ПДВ</b> за всіма заповненими пропозиціями блоку: {formatMoney(t.totalNet)}
       </div>
       <div>
-        <b>По обраних без ПДВ</b> — рядки, де обрано цього постачальника ({t.selectedCount}): {formatMoney(t.selectedNet)}
+        <b>По обраних без ПДВ</b> у рядках, де обрано цього постачальника ({t.selectedCount}): {formatMoney(t.selectedNet)}
       </div>
       {t.filledCount ? (
         t.deltaNet > 0 ? (
           <div>
-            <b>Дорожче за найдешевші</b> — на скільки дорожче (без ПДВ) взяти в цього постачальника всі його рядки, ніж у
+            <b>Дорожче за найдешевші</b> показує, на скільки дорожче (без ПДВ) взяти в цього постачальника всі його рядки, ніж у
             найдешевших по тих самих рядках (за сумою, з урахуванням кратності): {signedMoney(t.deltaNet)}
             {t.deltaPct != null ? ` (${formatPct(t.deltaPct)})` : ''}
           </div>
         ) : t.cheapest ? (
           <div>
-            <b>Найдешевший</b> — у всіх своїх рядках цей постачальник має найменшу суму (з урахуванням кратності)
+            <b>Найдешевший</b>: у всіх своїх рядках цей постачальник має найменшу суму (з урахуванням кратності)
           </div>
         ) : (
           <div>У всіх своїх рядках цей постачальник має найменшу суму, але «найдешевшим» позначено блок, що покриває більше рядків</div>
         )
       ) : null}
       <div>
-        <b>Покриття</b> — заповнено {t.filledCount} з {t.totalLines} рядків
+        <b>Покриття</b>: заповнено {t.filledCount} з {t.totalLines} рядків
       </div>
       {t.minOrderAmount != null ? <div>Мінімальне замовлення з ПДВ: {formatMoney(t.minOrderAmount)} грн (по обраних з ПДВ {formatMoney(t.selectedGross)})</div> : null}
     </div>
@@ -133,7 +133,7 @@ function RatesEditor({ block, disabled, compact }: { block: SupplierBlock; disab
   };
   // у шапці — лише курс валюти прайсу (і валют, що вже є серед товарів блоку); гривневому прайсу курс не потрібен
   const shown = relevantCurrencies(block.defaultCurrency, usedCurrencies ? (usedCurrencies.split(',') as CurrencyCode[]) : []);
-  const rates = shown.map((c) => `${c} ${formatRate(block.rates[c])}`).join(' · ');
+  const rates = shown.map((c) => `${c} ${formatRate(block.rates[c]) || 'немає'}`).join(' · ');
   const source = blockRateLabel(block);
   const label = !shown.length ? 'курс' : compact ? rates : `${rates} · ${source}`;
   return (
@@ -170,7 +170,7 @@ function RatesEditor({ block, disabled, compact }: { block: SupplierBlock; disab
         type="button"
         className="po-bh-link po-num"
         disabled={disabled}
-        title={`${shown.length ? `${rates} · ${source}` : 'Прайс у гривнях — курс не потрібен'}${disabled ? '' : ' — змінити курс блоку'}`}
+        title={`${shown.length ? `${rates} · ${source}` : 'Прайс у гривнях, курс не потрібен'}${disabled ? '' : ' · змінити курс блоку'}`}
       >
         {label}
       </button>
@@ -249,7 +249,7 @@ function BlockMenu({ block, name, disabled }: { block: SupplierBlock; name: stri
           else if (key === 'remove') {
             modal.confirm({
               title: `Видалити блок ${name}?`,
-              content: offers ? `Пропозиції блоку (${offers}) буде видалено. Скасувати — Ctrl+Z.` : 'Блок порожній.',
+              content: offers ? `Пропозиції блоку (${offers}) буде видалено. Скасувати: Ctrl+Z.` : 'Блок порожній.',
               okText: 'Видалити',
               okButtonProps: { danger: true },
               cancelText: 'Скасувати',
@@ -329,10 +329,10 @@ export function BlockGroupHeader(p: IHeaderGroupParams & BlockHeaderParams) {
         <Tooltip title={profitHelp(profit)} placement="bottomLeft">
           <div className="po-bh-row po-bh-totals po-bh-profit po-num">
             {collapsed ? (
-              <span>Заробіток {formatMoney(profit.selected.profitNet)}</span>
+              <span>Прибуток {formatMoney(profit.selected.profitNet)}</span>
             ) : (
               <>
-                <span>Заробіток по обраних {formatMoney(profit.selected.profitNet)}</span>
+                <span>Прибуток по обраних {formatMoney(profit.selected.profitNet)}</span>
                 <span>· якщо все тут {formatMoney(profit.allIn.profitNet)}</span>
               </>
             )}

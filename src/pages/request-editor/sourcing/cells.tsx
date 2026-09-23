@@ -26,7 +26,7 @@ export const FIELD_WARNINGS: Partial<Record<BlockField, readonly WarningCode[]>>
 };
 
 /** «✕ / Не підходить»: пропозиція лишається видимою, але не бере участі в розрахунку. */
-export const EXCLUDE_HINT = 'Не підходить (інший товар, аналог не влаштовує) — пропозиція не враховується в мінімумі, порівнянні й сценаріях';
+export const EXCLUDE_HINT = 'Не підходить (інший товар, аналог не влаштовує): пропозиція не враховується в мінімумі, порівнянні й сценаріях';
 
 export function cellWarnings(oc: OfferComputed | null | undefined, field: BlockField, all = false): Warning[] {
   if (!oc) return [];
@@ -68,7 +68,7 @@ function Flex({ children, title }: { children: ReactNode; title?: string }) {
 export function ClientNameCell(p: P) {
   const row = p.data;
   if (row?.kind === 'totals') return <span className="po-totals-label">Разом: {row.activeCount} поз.</span>;
-  if (row?.kind === 'new') return <span className="po-placeholder">+ новий рядок — введіть назву</span>;
+  if (row?.kind === 'new') return <span className="po-placeholder">+ новий рядок: введіть назву</span>;
   if (!isLineRow(row)) return null;
   return (
     <span className="po-client-name">
@@ -98,7 +98,7 @@ export function FillCell(p: P) {
       {text}
       <span
         className="po-fill-handle"
-        title="Потягніть униз, щоб скопіювати в рядки нижче (як в Excel). Ctrl+D — взяти з рядка вище"
+        title="Потягніть униз, щоб скопіювати в рядки нижче (як в Excel). Ctrl+D: взяти з рядка вище"
         onMouseDown={(e) => p.context.onFillStart(e, row, p.column?.getColId() ?? '')}
       />
     </>
@@ -119,14 +119,14 @@ export function ChosenCell(p: P) {
   const row = p.data;
   if (row?.kind === 'totals') {
     return (
-      <span className="po-num" title="Закупівля без ПДВ за ефективним вибором (затверджені + рекомендовані)">
+      <span className="po-num" title="Сума входу без ПДВ за ефективним вибором (затверджені + рекомендовані)">
         {formatMoney(row.totals.totalPurchaseNet)}
       </span>
     );
   }
   if (!isLineRow(row)) return null;
   const ch = row.chosen;
-  if (!ch) return <span className="po-muted">—</span>;
+  if (!ch) return null;
   const supplier = p.context.supplierOfBlock(ch.blockId);
   const notApproved = isNotApproved(row.cmp);
   return (
@@ -134,7 +134,7 @@ export function ChosenCell(p: P) {
       {supplier ? <SupplierLogo name={supplier.name} logoUrl={supplier.logoUrl} color={supplier.color} size={16} width={supplier.logoUrl ? 28 : undefined} /> : null}
       <span className="po-num">{formatMoney(ch.oc.unitNetUah)}</span>
       {notApproved ? (
-        <span className="po-mark-not-approved" title="Не затверджено — у націнку й КП піде мінімальна ціна">
+        <span className="po-mark-not-approved" title="Не затверджено: у націнку й КП піде мінімальна ціна">
           !
         </span>
       ) : (
@@ -158,17 +158,17 @@ export function SkuCell(p: P<BlockCellParams>) {
   }
   if (!isLineRow(row)) return null;
   const cell = cellOf(row, p.blockId);
-  if (cell?.offer) return <span className="po-num">{cell.offer.sku ?? '—'}</span>;
+  if (cell?.offer) return <span className="po-num">{cell.offer.sku ?? ''}</span>;
   const readOnly = p.context.isReadOnly();
   if (cell?.miss) {
     const supplier = p.context.supplierOfBlock(p.blockId)?.name ?? 'постачальника';
     const similar = isSimilarMiss(cell.miss);
     const text =
       cell.miss.kind === 'not_found'
-        ? `Артикул не знайдено у ${supplier} — Створити товар?`
+        ? `Артикул не знайдено у ${supplier}. Створити товар?`
         : similar
-          ? `Артикул не знайдено у ${supplier} — є схожі артикули: оберіть або створіть товар`
-          : `Кілька товарів з артикулом ${cell.miss.sku} у ${supplier} — оберіть потрібний`;
+          ? `Артикул не знайдено у ${supplier}, є схожі артикули: оберіть або створіть товар`
+          : `Кілька товарів з артикулом ${cell.miss.sku} у ${supplier}, оберіть потрібний`;
     return (
       <Flex title={text}>
         <span className="po-num po-sku-miss">{cell.miss.sku}</span>
@@ -202,7 +202,7 @@ export function OfferNameCell(p: P<BlockCellParams>) {
   if (!isLineRow(row)) return null;
   const offer = cellOf(row, p.blockId)?.offer;
   if (!offer) return null;
-  const name = offerDisplayName(offer) ?? '—';
+  const name = offerDisplayName(offer) ?? '';
   return (
     <CellMenu getMenu={() => p.context.nameMenu(row, p.blockId)}>
       <span className="po-ellipsis" title={name}>
@@ -218,7 +218,7 @@ export function UnitCell(p: P<BlockCellParams>) {
   if (!cell?.offer) return null;
   return (
     <Flex>
-      {cell.offer.unitCode ?? '—'}
+      {cell.offer.unitCode ?? ''}
       <WarningBadge warnings={cellWarnings(cell.oc, 'unit')} size={12} />
     </Flex>
   );
@@ -245,7 +245,7 @@ export function BlockQtyCell(p: P<BlockCellParams>) {
 function priceTitle(offer: Offer, oc: OfferComputed, markupPct: number | null): string | undefined {
   if (offer.purchasePriceCur == null) return undefined;
   const parts = [`${formatMoney(offer.purchasePriceCur)} ${offer.currency}`];
-  if (offer.currency !== 'UAH') parts.push(`× курс ${formatRate(oc.rate)}`);
+  if (offer.currency !== 'UAH') parts.push(`× курс ${formatRate(oc.rate) || 'немає'}`);
   if (markupPct) parts.push(`+ ${formatPct(markupPct)} націнки постачальника`);
   return parts.length > 1 ? parts.join(' ') : undefined;
 }
@@ -308,7 +308,7 @@ function stockText(offer: Offer): string {
     case 'on_order':
       return 'під замовл.';
     default:
-      return '—';
+      return '';
   }
 }
 
@@ -329,7 +329,7 @@ export function ExcludeCell(p: P<BlockCellParams>) {
   const offer = cellOf(p.data, p.blockId)?.offer;
   if (!offer) return null;
   if (offer.excluded) {
-    const reason = offer.excludeReason ? `Не підходить: ${offer.excludeReason}.` : 'Не підходить — не враховується.';
+    const reason = offer.excludeReason ? `Не підходить: ${offer.excludeReason}.` : 'Не підходить, не враховується.';
     return <UndoOutlined className="po-icon-btn" title={`${reason} Клацніть, щоб повернути`} />;
   }
   return <CloseOutlined className="po-icon-btn po-muted" title={`${EXCLUDE_HINT}. Клацніть, щоб позначити`} />;
@@ -381,7 +381,7 @@ export function CompareCell(p: P<{ blockId: UUID }>) {
         <WarningBadge warnings={cellWarnings(oc, 'net', true)} size={12} />
       </span>
       <span className="po-cmp-sub">
-        <span className="po-num">{cell.offer.sku ?? '—'}</span>
+        <span className="po-num">{cell.offer.sku ?? ''}</span>
         {diff ? <span className="po-cmp-diff po-num"> +{formatPct(diff, 1)}</span> : null}
       </span>
     </div>
@@ -392,7 +392,7 @@ export function CompareChosenCell(p: P) {
   const row = p.data;
   if (row?.kind === 'totals') {
     return (
-      <div className="po-cmp-cell" title="Закупівля без ПДВ за ефективним вибором · переплата без ПДВ відносно мінімальних цін">
+      <div className="po-cmp-cell" title="Сума входу без ПДВ за ефективним вибором · переплата без ПДВ відносно мінімальних цін">
         <span className="po-num">{formatMoney(row.totals.totalPurchaseNet)}</span>
         <span className="po-cmp-sub">
           затверджено {row.approvedCount} з {row.activeCount}
@@ -403,7 +403,7 @@ export function CompareChosenCell(p: P) {
   }
   if (!isLineRow(row)) return null;
   const ch = row.chosen;
-  if (!ch) return <span className="po-muted">—</span>;
+  if (!ch) return null;
   const supplier = p.context.supplierOfBlock(ch.blockId);
   const notApproved = isNotApproved(row.cmp);
   const overpay = row.cmp?.overpayNet ?? 0;
@@ -412,7 +412,7 @@ export function CompareChosenCell(p: P) {
       <span className="po-cell-flex">
         {supplier ? <SupplierLogo name={supplier.name} logoUrl={supplier.logoUrl} color={supplier.color} size={16} showName /> : null}
         {notApproved ? (
-          <span className="po-mark-not-approved" title="Не затверджено — у націнку й КП піде мінімальна ціна">
+          <span className="po-mark-not-approved" title="Не затверджено: у націнку й КП піде мінімальна ціна">
             !
           </span>
         ) : (

@@ -144,7 +144,7 @@ describe('товар у DTO', () => {
   });
 
   it('постачальника немає в контексті — прочерк замість назви', () => {
-    expect(toProductDetail(product(), context({ suppliers: new Map() })).supplierName).toBe('—');
+    expect(toProductDetail(product(), context({ suppliers: new Map() })).supplierName).toBe('');
   });
 
   it('позиція списку — без полів картки', () => {

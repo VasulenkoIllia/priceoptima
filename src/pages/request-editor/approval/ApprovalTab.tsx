@@ -114,7 +114,7 @@ export default function ApprovalTab() {
       <div className="po-tab po-appr">
         <EmptyState
           title="Спершу сформуйте КП"
-          description="Клієнт погоджує позиції з комерційної пропозиції — сформуйте її на вкладці «КП»."
+          description="Клієнт погоджує позиції з комерційної пропозиції. Сформуйте її на вкладці «КП»."
           action={
             <Button type="primary" onClick={() => navigate(`/requests/${requestId}/kp`)}>
               До КП
@@ -221,9 +221,7 @@ export default function ApprovalTab() {
             <QtyInput row={r} disabled={readOnly} onCommit={(v) => commitQty(r, v)} />
             <QtyDiff kpQty={r.kp.qty} approvedQty={r.line.approval.approvedQty ?? r.kp.qty} />
           </Space>
-        ) : (
-          <span className="po-muted">—</span>
-        ),
+        ) : null,
     },
     { key: 'price', title: base.snapshot.columns.priceHeader, width: 132, align: 'right', render: (_, r) => <span className="po-num">{formatMoney(r.kp.price)}</span> },
     {
@@ -254,11 +252,11 @@ export default function ApprovalTab() {
               value={base.id}
               disabled={readOnly || regular.length < 2}
               popupMatchSelectWidth={false}
-              options={regular.map((k, i) => ({ value: k.id, label: `№ ${k.numberLabel} від ${formatDate(k.snapshot.date)}${i === 0 ? ' — остання' : ''}` }))}
+              options={regular.map((k, i) => ({ value: k.id, label: `№ ${k.numberLabel} від ${formatDate(k.snapshot.date)}${i === 0 ? ' (остання)' : ''}` }))}
               onChange={(id) => setHeader({ approvalKpId: id === regular[0]?.id ? null : id })}
             />
           </div>
-          <div className="po-muted">{KP_VAT_MODE_LABELS[base.vatMode]} · ціни — з КП, зміни націнки на погоджену суму не впливають</div>
+          <div className="po-muted">{KP_VAT_MODE_LABELS[base.vatMode]} · ціни з КП, зміни націнки на погоджену суму не впливають</div>
         </div>
         <Space wrap>
           <Button icon={<CheckOutlined />} disabled={readOnly} onClick={() => setAll(true)}>
@@ -295,7 +293,7 @@ export default function ApprovalTab() {
           </b>
         </span>
         <span>
-          Погоджена сума: <b className="po-num po-appr-sum">{approved ? formatMoneyUah(approved.totalGross) : '—'}</b>
+          Погоджена сума: <b className="po-num po-appr-sum">{approved ? formatMoneyUah(approved.totalGross) : ''}</b>
           {sharePct != null ? <span className="po-muted po-num"> ({formatPct(sharePct)} від КП)</span> : null}
         </span>
         {approved && base.vatMode !== 'no_vat' ? (
@@ -307,7 +305,7 @@ export default function ApprovalTab() {
 
       {finalKp ? (
         finalOutdated ? (
-          <Alert type="warning" showIcon message={`Погодження змінилось після фінального КП № ${finalKp.numberLabel} — сформуйте його повторно`} />
+          <Alert type="warning" showIcon message={`Погодження змінилось після фінального КП № ${finalKp.numberLabel}, сформуйте його повторно`} />
         ) : (
           <Alert
             type="success"

@@ -34,7 +34,7 @@ export function PasswordFields() {
         <Input.Password autoComplete="current-password" />
       </Form.Item>
       <div style={GRID_2}>
-        <Form.Item name="newPassword" label="Новий пароль" rules={[{ required: true, min: 8, message: 'Пароль — не менше 8 символів' }]}>
+        <Form.Item name="newPassword" label="Новий пароль" rules={[{ required: true, min: 8, message: 'Пароль: не менше 8 символів' }]}>
           <Input.Password autoComplete="new-password" />
         </Form.Item>
         <Form.Item

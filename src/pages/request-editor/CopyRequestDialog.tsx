@@ -50,7 +50,7 @@ export function CopyRequestDialog({ source, onClose }: CopyRequestDialogProps) {
     onSuccess: (res) => {
       void queryClient.invalidateQueries({ queryKey: qk.requestsAll });
       const r = res.report;
-      let text = `Створено заявку № ${formatRequestNumber(res.number)} — копію № ${formatRequestNumber(r.sourceNumber)}`;
+      let text = `Створено заявку № ${formatRequestNumber(res.number)}, копію № ${formatRequestNumber(r.sourceNumber)}`;
       if (r.priceMode === 'refresh') {
         text += `. Перераховано цін: ${r.offersRefreshed} (▲ ${r.priceUp}, ▼ ${r.priceDown})`;
         if (r.offersNotInCatalog) text += `, немає в каталозі: ${r.offersNotInCatalog}`;
@@ -83,7 +83,7 @@ export function CopyRequestDialog({ source, onClose }: CopyRequestDialogProps) {
           onFinish={(v) => copy.mutate(v)}
           style={{ marginTop: 12 }}
         >
-          <Form.Item name="clientId" label="Клієнт" extra="Можна обрати іншого клієнта — контрагент і контакт підставляться">
+          <Form.Item name="clientId" label="Клієнт" extra="Можна обрати іншого клієнта, контрагент і контакт підставляться">
             <Select
               showSearch
               allowClear
@@ -105,7 +105,7 @@ export function CopyRequestDialog({ source, onClose }: CopyRequestDialogProps) {
         </Form>
       ) : null}
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        Нова заявка отримає наступний номер і статус «В роботі», відповідальний — ви. КП, погодження й історія не копіюються.
+        Нова заявка отримає наступний номер і статус «В роботі», відповідальним будете ви. КП, погодження й історія не копіюються.
       </Typography.Text>
     </Modal>
   );

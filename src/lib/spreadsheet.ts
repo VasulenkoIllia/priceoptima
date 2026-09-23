@@ -163,7 +163,7 @@ async function readLegacyXls(buf: ArrayBuffer, fileName: string): Promise<SheetD
     // BIFF вміщує до 65 536 рядків на аркуш, тож межа тут лише запобіжник
     wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true, sheetRows: MAX_ROWS + 1 });
   } catch {
-    throw new SpreadsheetError(`Не вдалося прочитати ${fileName} — файл пошкоджено або захищено паролем`);
+    throw new SpreadsheetError(`Не вдалося прочитати ${fileName}: файл пошкоджено або захищено паролем`);
   }
   return wb.SheetNames.map((name) => {
     const ws = wb.Sheets[name];
@@ -195,7 +195,7 @@ async function readXlsx(buf: ArrayBuffer): Promise<SheetData[]> {
   try {
     await wb.xlsx.load(buf);
   } catch {
-    throw new SpreadsheetError('Не вдалося прочитати файл — це не xlsx або файл пошкоджено');
+    throw new SpreadsheetError('Не вдалося прочитати файл: це не xlsx або файл пошкоджено');
   }
   const sheets = wb.worksheets.filter((ws) => ws.state === 'visible' || ws.state == null);
   return sheets.map((ws) => ({ name: ws.name, rows: sheetRows(ws) }));

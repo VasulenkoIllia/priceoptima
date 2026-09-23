@@ -22,7 +22,7 @@ export function LogoField({ value = null, onChange, hint }: LogoFieldProps) {
 
   const pick = async (file: File) => {
     if (file.size > MAX_BYTES) {
-      message.error('Файл більший за 5 МБ — виберіть менший');
+      message.error('Файл більший за 5 МБ, виберіть менший');
       return;
     }
     try {

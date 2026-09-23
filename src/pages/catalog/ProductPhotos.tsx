@@ -52,7 +52,7 @@ export function ProductPhotos({ productId }: { productId: UUID }) {
           accept={ACCEPT}
           showUploadList={false}
           beforeUpload={(file) => {
-            if (file.size > MAX_BYTES) message.error('Фото більше за 10 МБ — стисніть або виберіть менше');
+            if (file.size > MAX_BYTES) message.error('Фото більше за 10 МБ, стисніть або виберіть менше');
             else upload.mutate(file as unknown as File);
             return Upload.LIST_IGNORE;
           }}
@@ -68,7 +68,7 @@ export function ProductPhotos({ productId }: { productId: UUID }) {
       ) : images.isError ? (
         <LoadError inline title="Не вдалося завантажити фото" error={images.error} onRetry={images.refetch} />
       ) : list.length === 0 ? (
-        <span className="po-muted">Фото немає — додайте файл або воно зʼявиться з прайсу постачальника</span>
+        <span className="po-muted">Фото немає. Додайте файл або воно зʼявиться з прайсу постачальника</span>
       ) : (
         <Image.PreviewGroup>
           <div className="po-cat-photos">
@@ -76,7 +76,7 @@ export function ProductPhotos({ productId }: { productId: UUID }) {
               <div key={img.id} className="po-cat-photo">
                 <Image src={img.url} alt={img.fileName ?? 'Фото товару'} />
                 {img.isMain ? (
-                  <Tooltip title="Головне фото — показується в списках і в КП">
+                  <Tooltip title="Головне фото: показується в списках і в КП">
                     <StarFilled className="po-cat-photo-main" />
                   </Tooltip>
                 ) : null}

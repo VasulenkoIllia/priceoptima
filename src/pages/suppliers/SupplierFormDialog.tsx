@@ -277,13 +277,13 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
         <Form.Item
           name="searchUrlTemplate"
           label="Пошук на сайті"
-          extra="Посилання пошуку, де {query} — артикул або назва. Напр.: https://site.ua/search?q={query}"
+          extra="Посилання пошуку, де {query} означає артикул або назву. Напр.: https://site.ua/search?q={query}"
           rules={[urlRule]}
         >
           <Input placeholder="https://…{query}" />
         </Form.Item>
         <Form.Item name="deliveryInfo" label="Доставка">
-          <Input placeholder="Напр.: власна доставка по Києву, НП — за рахунок покупця" />
+          <Input placeholder="Напр.: власна доставка по Києву, НП за рахунок покупця" />
         </Form.Item>
 
         <div className="po-sup-section">Ціни й курс</div>
@@ -305,7 +305,7 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
           <Form.Item name="minOrderAmount" label="Мін. замовлення з ПДВ, грн" extra="Порівнюється із сумою з ПДВ по обраних рядках">
             <InputNumber min={0} step={100} decimalSeparator="," style={{ width: '100%' }} placeholder="немає" />
           </Form.Item>
-          <Form.Item name="priceStaleDays" label="Ціна застаріває через, днів" extra="Порожньо — як у налаштуваннях">
+          <Form.Item name="priceStaleDays" label="Ціна застаріває через, днів" extra="Якщо порожньо, як у налаштуваннях">
             <InputNumber min={1} max={365} precision={0} style={{ width: '100%' }} placeholder="за замовчуванням" />
           </Form.Item>
         </div>
@@ -323,7 +323,7 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
           <div className="po-sup-grid-form po-sup-grid-3">
             <ManualRateFields
               label={(c) => (ratePolicy === 'manual' ? `Курс ${c}, грн` : `Ручний курс ${c}, грн`)}
-              extra={ratePolicy === 'price_list' ? 'Якщо в прайсі курсу немає' : 'Порожньо — курс не задано'}
+              extra={ratePolicy === 'price_list' ? 'Якщо в прайсі курсу немає' : 'Порожньо, якщо курс не задано'}
             />
           </div>
         ) : null}

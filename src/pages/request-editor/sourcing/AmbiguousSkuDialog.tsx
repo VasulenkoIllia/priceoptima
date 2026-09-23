@@ -21,7 +21,7 @@ export function AmbiguousSkuDialog() {
   return (
     <Modal
       open={!!target}
-      title={similar ? `Артикул «${sku}» не знайдено — схожі товари` : `Кілька товарів з артикулом «${sku}»`}
+      title={similar ? `Артикул «${sku}» не знайдено: схожі товари` : `Кілька товарів з артикулом «${sku}»`}
       footer={
         similar && target ? (
           <Button

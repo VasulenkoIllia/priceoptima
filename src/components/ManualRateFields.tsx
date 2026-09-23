@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react';
 const POSITIVE = [
   {
     validator: (_: unknown, v: number | null | undefined) =>
-      v == null || v > 0 ? Promise.resolve() : Promise.reject(new Error('Курс має бути більшим за нуль (порожньо — курс не задано)')),
+      v == null || v > 0 ? Promise.resolve() : Promise.reject(new Error('Курс має бути більшим за нуль або порожнім (курс не задано)')),
   },
 ];
 
@@ -17,7 +17,7 @@ export interface ManualRateFieldsProps {
 }
 
 /** Два поля форми — manualRateUsd і manualRateEur; розкладку (сітка чи стовпчик) задає форма навколо. */
-export function ManualRateFields({ label = (c) => `Курс ${c}, грн`, extra = 'Порожньо — курс не задано', inputStyle }: ManualRateFieldsProps) {
+export function ManualRateFields({ label = (c) => `Курс ${c}, грн`, extra = 'Порожньо, якщо курс не задано', inputStyle }: ManualRateFieldsProps) {
   return (
     <>
       {(['USD', 'EUR'] as const).map((c) => (

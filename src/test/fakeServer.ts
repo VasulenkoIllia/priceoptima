@@ -165,7 +165,7 @@ export class FakeServer {
     const holder = Object.values(USERS).find((u) => u.id === l.userId);
     return {
       userId: l.userId,
-      userShortName: holder?.shortName ?? '—',
+      userShortName: holder?.shortName ?? '',
       sessionId: l.sessionId,
       lockedAt: new Date(l.lockedAt).toISOString(),
       expiresAt: new Date(l.expiresAt).toISOString(),
@@ -275,7 +275,7 @@ class FakeTab {
         counterparty: null,
         contact: null,
         ownCompany: { id: 'own-1', nameShort: 'ТОВ «ТЕСТ»', isVatPayer: true },
-        manager: Object.values(USERS).find((u) => u.id === s.header.managerId) ?? { id: s.header.managerId, shortName: '—' },
+        manager: Object.values(USERS).find((u) => u.id === s.header.managerId) ?? { id: s.header.managerId, shortName: '' },
         pricing: pricingSettingsFrom(this.srv.settings),
       },
       meta: {

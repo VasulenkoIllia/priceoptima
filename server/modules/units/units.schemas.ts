@@ -12,7 +12,7 @@ export const unitCodeSchema = z.object({
 export const unitPatchSchema = z.object({
   name: z.string({ message: 'Вкажіть назву' }).trim().min(1, 'Вкажіть назву').max(80, 'Задовга назва'),
   aliases: z
-    .array(z.string().max(40, 'Задовгий синонім (до 40 символів)'), { message: 'Синоніми — список рядків' })
+    .array(z.string().max(40, 'Задовгий синонім (до 40 символів)'), { message: 'Синоніми: список рядків' })
     .max(50, 'Забагато синонімів (до 50)')
     .default([]),
   isActive: z.boolean().default(true),

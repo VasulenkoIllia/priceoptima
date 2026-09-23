@@ -8,24 +8,24 @@ import { EmptyState, LoadError } from '@/components';
 import { ds, qk } from '@/data';
 import { OwnCompanyDialog } from './OwnCompanyDialog';
 
-const mono = (v: string | null): ReactNode => (v ? <span className="po-num">{v}</span> : '—');
+const mono = (v: string | null): ReactNode => (v ? <span className="po-num">{v}</span> : null);
 
 function CompanyCard({ c, onEdit }: { c: OwnCompanyDto; onEdit: () => void }) {
   const items: { key: string; label: string; children: ReactNode }[] = [
     { key: 'edrpou', label: 'ЄДРПОУ', children: mono(c.edrpou) },
     { key: 'ipn', label: 'ІПН', children: mono(c.ipn) },
     { key: 'iban', label: 'IBAN', children: mono(c.iban) },
-    { key: 'bank', label: 'Банк', children: c.bankName ?? '—' },
-    { key: 'address', label: 'Адреса', children: c.addressLegal ?? '—' },
+    { key: 'bank', label: 'Банк', children: c.bankName ?? '' },
+    { key: 'address', label: 'Адреса', children: c.addressLegal ?? '' },
     { key: 'phone', label: 'Телефон', children: mono(c.phone) },
-    { key: 'email', label: 'E-mail', children: c.email ? <a href={`mailto:${c.email}`}>{c.email}</a> : '—' },
-    { key: 'site', label: 'Сайт', children: c.website ?? '—' },
-    { key: 'slogan', label: 'Слоган', children: c.slogan ? <span className="po-set-slogan">{c.slogan}</span> : '—' },
+    { key: 'email', label: 'E-mail', children: c.email ? <a href={`mailto:${c.email}`}>{c.email}</a> : null },
+    { key: 'site', label: 'Сайт', children: c.website ?? '' },
+    { key: 'slogan', label: 'Слоган', children: c.slogan ? <span className="po-set-slogan">{c.slogan}</span> : null },
   ];
   return (
     <Card styles={{ body: { padding: 16 } }}>
       <div className="po-set-company-head">
-        <div className="po-set-company-logo">{c.logoUrl ? <img src={c.logoUrl} alt={c.nameShort} /> : <span className="po-muted">—</span>}</div>
+        <div className="po-set-company-logo">{c.logoUrl ? <img src={c.logoUrl} alt={c.nameShort} /> : null}</div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="po-set-company-name">{c.nameShort}</div>
           <div className="po-set-company-tags">
@@ -93,7 +93,7 @@ export function OwnCompaniesTab() {
 
   return (
     <>
-      <Alert className="po-set-note" type="info" showIcon message="Сформовані КП не змінюються — у них збережено реквізити на момент формування." />
+      <Alert className="po-set-note" type="info" showIcon message="Сформовані КП не змінюються: у них збережено реквізити на момент формування." />
       {companies.data?.length ? <div className="po-set-toolbar">{addButton}</div> : null}
       {body}
       {dialogOpen ? <OwnCompanyDialog open company={editing} isFirst={!companies.data?.length} onClose={() => setDialogOpen(false)} /> : null}

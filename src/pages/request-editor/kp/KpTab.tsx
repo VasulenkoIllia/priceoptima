@@ -92,7 +92,7 @@ function KpSettingsForm() {
           }
         />
       </Field>
-      <Field label="Назва товару в КП" hint="«Код» — завжди артикул постачальника">
+      <Field label="Назва товару в КП" hint="У колонці «Код» завжди артикул постачальника">
         <Select<KpNameSource>
           value={k.nameSource}
           disabled={readOnly}
@@ -155,8 +155,8 @@ function ChecksList({ checks: c }: { checks: KpChecks }) {
       <li>
         У КП підуть позицій: <b className="po-num">{c.inKp}</b>
       </li>
-      {c.notApproved ? <li className="po-kp-check-warn">Не затверджено ✔: {c.notApproved} — з мінімальною ціною</li> : null}
-      {c.notPicked ? <li className="po-muted">Не підібрано: {c.notPicked} — у КП не увійдуть</li> : null}
+      {c.notApproved ? <li className="po-kp-check-warn">Не затверджено ✔: {c.notApproved} (з мінімальною ціною)</li> : null}
+      {c.notPicked ? <li className="po-muted">Не підібрано: {c.notPicked} (у КП не увійдуть)</li> : null}
       {c.belowCost ? <li className="po-kp-check-err">Продаж нижче входу: {c.belowCost}</li> : null}
       {c.noPrice ? <li className="po-kp-check-err">Без ціни продажу: {c.noPrice}. Задайте ціну на вкладці «Націнка»</li> : null}
       {c.nonPositive ? <li className="po-kp-check-err">Ціна продажу 0 або менше: {c.nonPositive}. Змініть націнку чи знижку</li> : null}
@@ -182,7 +182,8 @@ function VersionItem({ kp, active, onSelect }: { kp: KpDocumentDto; active: bool
         ) : null}
       </div>
       <div className="po-muted po-num">
-        {formatDateTime(kp.createdAt)} · {kp.createdBy?.shortName ?? '—'}
+        {formatDateTime(kp.createdAt)}
+        {kp.createdBy ? ` · ${kp.createdBy.shortName}` : ''}
       </div>
       <div className="po-num">
         {KP_VAT_MODE_LABELS[kp.vatMode]} · <b>{formatMoney(kp.snapshot.totals.payable)} грн</b>
@@ -259,7 +260,7 @@ export default function KpTab() {
       c ? { ownCompany: { id: c.id, nameShort: c.nameShort, isVatPayer: c.isVatPayer } } : undefined,
     );
     setSelectedId(null);
-    message.info(`Налаштування взято з КП № ${kp.numberLabel} — перевірте перегляд і натисніть «Сформувати КП»`, 5);
+    message.info(`Налаштування взято з КП № ${kp.numberLabel}. Перевірте перегляд і натисніть «Сформувати КП»`, 5);
   };
 
   // без клієнта КП можна сформувати (напр., на роздрук), але лише свідомо
@@ -301,7 +302,7 @@ export default function KpTab() {
             </Button>
           </Tooltip>
           {outdated && base ? (
-            <Alert type="warning" showIcon style={{ marginTop: 8 }} message={`Ціни змінились після КП № ${base.numberLabel} — сформуйте нову версію`} />
+            <Alert type="warning" showIcon style={{ marginTop: 8 }} message={`Ціни змінились після КП № ${base.numberLabel}, сформуйте нову версію`} />
           ) : null}
         </section>
         <section>
@@ -336,7 +337,8 @@ export default function KpTab() {
                   </Tag>
                 ) : null}
                 <span className="po-muted po-num">
-                  · сформовано {formatDateTime(selected.createdAt)} · {selected.createdBy?.shortName ?? '—'}
+                  · сформовано {formatDateTime(selected.createdAt)}
+                  {selected.createdBy ? ` · ${selected.createdBy.shortName}` : ''}
                 </span>
               </span>
               <span className="po-tab-spacer" />
@@ -355,7 +357,7 @@ export default function KpTab() {
               </Button>
             </>
           ) : (
-            <span className="po-muted">Попередній перегляд за поточними цінами. PDF і Excel — у сформованих версіях.</span>
+            <span className="po-muted">Попередній перегляд за поточними цінами. PDF і Excel доступні у сформованих версіях.</span>
           )}
         </div>
         {selected ? <KpDocumentView snapshot={selected.snapshot} /> : preview ? <KpDocumentView snapshot={preview} draft /> : <Spin />}

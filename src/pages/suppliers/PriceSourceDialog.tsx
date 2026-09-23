@@ -14,7 +14,7 @@ import { LoadError } from '@/components';
 const CONNECTOR_OPTIONS = FEED_CONNECTORS.map((c) => ({ value: c, label: FEED_CONNECTOR_INFO[c].label }));
 
 const AUTH_OPTIONS: { value: PriceFeedAuth; label: string }[] = [
-  { value: 'none', label: 'Без авторизації — ключ уже в посиланні' },
+  { value: 'none', label: 'Без авторизації (ключ уже в посиланні)' },
   { value: 'bearer', label: 'Токен у заголовку (Bearer)' },
   { value: 'query', label: 'Токен параметром посилання (?token=…)' },
   { value: 'basic', label: 'Логін і пароль' },
@@ -24,9 +24,9 @@ const HOURS = Array.from({ length: 24 }, (_, h) => ({ value: h, label: `${String
 
 const KIND_HINTS: Record<PriceSourceKind, string> = {
   auto: 'Усе за посиланням: асортимент, ціни, наявність і фото оновлюються щодня самі.',
-  manual: 'Прайс завантажує менеджер кнопкою «Завантажити прайс» — з файлу Excel або CSV.',
+  manual: 'Прайс завантажує менеджер кнопкою «Завантажити прайс» з файлу Excel або CSV.',
   hybrid:
-    'Асортимент, наявність і фото — щодня за посиланням; ціни — файлом через «Завантажити прайс». Файл із цінами нових позицій не створює й не позначає відсутні.',
+    'Асортимент, наявність і фото оновлюються щодня за посиланням; ціни завантажуються файлом через «Завантажити прайс». Файл із цінами нових позицій не створює й не позначає відсутні.',
 };
 
 interface FormValues {
@@ -110,13 +110,13 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
       queryClient.setQueryData(qk.supplierPriceSource(supplierId), saved);
       void queryClient.invalidateQueries({ queryKey: qk.suppliers });
       void queryClient.invalidateQueries({ queryKey: qk.supplier(supplierId) });
-      message.success(viaLink(saved.kind) ? 'Вигрузку налаштовано — оновлюватиметься щодня' : 'Прайс завантажуватиметься файлом');
+      message.success(viaLink(saved.kind) ? 'Вигрузку налаштовано, оновлюватиметься щодня' : 'Прайс завантажуватиметься файлом');
       onClose();
     },
     onError: (e) => message.error(errorMessage(e)),
   });
 
-  const keepHint = (saved: boolean, what: string) => (saved ? `${what} збережено — залиште порожнім, щоб не змінювати` : undefined);
+  const keepHint = (saved: boolean, what: string) => (saved ? `${what} збережено. Залиште порожнім, щоб не змінювати` : undefined);
   // збережений токен підходить лише до того самого способу доступу
   const secretKept = !!current?.hasSecret && auth === current.auth;
 
@@ -164,7 +164,7 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
               <Form.Item
                 name="connector"
                 label="Вигрузка постачальника"
-                extra={connector ? FEED_CONNECTOR_INFO[connector].hint : 'Кожен постачальник вигружає прайс по-своєму — оберіть, чия це вигрузка'}
+                extra={connector ? FEED_CONNECTOR_INFO[connector].hint : 'Кожен постачальник вигружає прайс по-своєму: оберіть, чия це вигрузка'}
                 rules={[{ required: true, message: 'Оберіть, чия це вигрузка' }]}
               >
                 <Select
@@ -220,7 +220,7 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
                   <Input.Password placeholder={keepHint(secretKept, auth === 'basic' ? 'Пароль' : 'Токен')} autoComplete="new-password" />
                 </Form.Item>
               ) : null}
-              <Form.Item name="scheduleHour" label="Оновлювати щодня о" extra="Якщо не вдалося — ще три спроби щогодини">
+              <Form.Item name="scheduleHour" label="Оновлювати щодня о" extra="Якщо не вдалося, ще три спроби щогодини">
                 <Select options={HOURS} style={{ width: 120 }} />
               </Form.Item>
             </>
@@ -231,13 +231,13 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
               name="hasPurchasePrice"
               label="У вигрузці є вхідні ціни"
               valuePropName="checked"
-              extra="Вимкніть, якщо за посиланням лише РРЦ: ціни підуть у РРЦ, а вхідні краще брати файлом — тоді оберіть «Гібрид»"
+              extra="Вимкніть, якщо за посиланням лише РРЦ: ціни підуть у РРЦ, а вхідні краще брати файлом, тоді оберіть «Гібрид»"
             >
               <Switch />
             </Form.Item>
           ) : null}
           <Form.Item name="note" label="Примітка">
-            <Input.TextArea autoSize={{ minRows: 1, maxRows: 4 }} placeholder="Напр.: договірні ціни — у менеджера" />
+            <Input.TextArea autoSize={{ minRows: 1, maxRows: 4 }} placeholder="Напр.: договірні ціни у менеджера" />
           </Form.Item>
         </Form>
       )}

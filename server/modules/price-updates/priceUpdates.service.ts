@@ -67,7 +67,7 @@ const running = new Set<UUID>();
 
 async function withSupplierLock<T>(supplierId: UUID, task: () => Promise<T>): Promise<T> {
   if (running.has(supplierId)) {
-    throw new ApiError('INVALID_STATE', 'Прайс цього постачальника вже оновлюється — дочекайтесь завершення');
+    throw new ApiError('INVALID_STATE', 'Прайс цього постачальника вже оновлюється, дочекайтесь завершення');
   }
   running.add(supplierId);
   try {
@@ -124,11 +124,11 @@ export async function runFeedUpdate(
   const feed = supplier.feed;
   if (!feed?.url) throw validationError('У постачальника не налаштоване посилання на вигрузку');
   if (feed.kind === 'manual') {
-    throw validationError('Прайс цього постачальника завантажують файлом — оновлення за посиланням вимкнене');
+    throw validationError('Прайс цього постачальника завантажують файлом, оновлення за посиланням вимкнене');
   }
   const connector = feed.connector;
   if (!isFeedConnector(connector)) {
-    throw validationError('Не вибрано, чия це вигрузка — оберіть підключення в налаштуваннях постачальника');
+    throw validationError('Не вибрано, чия це вигрузка: оберіть підключення в налаштуваннях постачальника');
   }
 
   return withSupplierLock(supplierId, async () => {
@@ -178,7 +178,7 @@ async function parseFeedBody(connector: FeedConnector, body: string, supplier: S
     });
   } catch (e) {
     // повідомлення адаптерів українською; технічні (JSON.parse тощо) показувати користувачу нема сенсу
-    const reason = e instanceof Error && /[а-яіїєґ]/iu.test(e.message) ? `: ${e.message}` : ' — вміст не відповідає формату';
+    const reason = e instanceof Error && /[а-яіїєґ]/iu.test(e.message) ? `: ${e.message}` : ': вміст не відповідає формату';
     throw new Error(`Не вдалося розібрати вигрузку (${FEED_CONNECTOR_INFO[connector].label})${reason}`);
   }
 }
@@ -309,7 +309,7 @@ async function applyPriceNow(ctx: RunContext, price: ParsedPrice): Promise<Price
     });
   } catch (e) {
     logger.error({ err: e, supplierId }, 'Не вдалося записати оновлення прайсу');
-    await recordFailure(ctx, 'Не вдалося записати оновлення прайсу в базу — зміни не застосовано', { price });
+    await recordFailure(ctx, 'Не вдалося записати оновлення прайсу в базу, зміни не застосовано', { price });
     throw e;
   }
   invalidateProductCounts();

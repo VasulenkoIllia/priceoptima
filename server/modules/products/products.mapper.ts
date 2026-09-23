@@ -68,7 +68,7 @@ export function toProductDetail(p: Product, ctx: CatalogContext): ProductDetail 
     id: p.id,
     version: p.version,
     supplierId: p.supplierId,
-    supplierName: supplier?.name ?? '—',
+    supplierName: supplier?.name ?? '',
     sku: p.sku,
     nameWork: p.nameWork,
     name1c: p.name1c,

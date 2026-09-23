@@ -99,7 +99,7 @@ export function createSourcingActions(app: AppApi) {
         const key = `miss:${lineId}:${blockId}`;
         notification.warning({
           key,
-          message: `Артикул не знайдено у ${supplier} — Створити товар?`,
+          message: `Артикул не знайдено у ${supplier}. Створити товар?`,
           description: `Артикул «${sku}» відсутній у каталозі постачальника.`,
           duration: 8,
           actions: (
@@ -131,7 +131,7 @@ export function createSourcingActions(app: AppApi) {
   function setLineQtyFromInput(lineId: UUID, raw: unknown): void {
     const n = parseLocaleNumber(raw == null ? '' : String(raw));
     if (!n.valid || (n.value ?? 0) < 0) {
-      message.error('Кількість — невід’ємне число');
+      message.error('Кількість має бути невід’ємним числом');
       return;
     }
     doc().updateLine(lineId, { qty: n.value ?? 0 });
@@ -150,7 +150,7 @@ export function createSourcingActions(app: AppApi) {
     }
     const n = parseLocaleNumber(text);
     if (!n.valid || n.value == null || n.value < 0) {
-      message.error('Кількість — невід’ємне число');
+      message.error('Кількість має бути невід’ємним числом');
       return;
     }
     let qty = n.value;
@@ -200,7 +200,7 @@ export function createSourcingActions(app: AppApi) {
         <>
           {formatWarning({ code: 'CATALOG_PRICE_CHANGED', params })}.
           <br />
-          {params.manual ? 'Ручну ціну входу буде замінено ціною з прайсу. ' : ''}Скасувати — Ctrl+Z.
+          {params.manual ? 'Ручну ціну входу буде замінено ціною з прайсу. ' : ''}Скасувати: Ctrl+Z.
         </>
       ),
       okText: 'Оновити',
@@ -224,7 +224,7 @@ export function createSourcingActions(app: AppApi) {
     else {
       const n = parseLocaleNumber(text);
       if (!n.valid || (n.value ?? 0) < 0) {
-        message.error('Кількість — невід’ємне число');
+        message.error('Кількість має бути невід’ємним числом');
         return;
       }
       input.qty = n.value ?? 0;
@@ -252,7 +252,7 @@ export function createSourcingActions(app: AppApi) {
   function removeLines(ids: UUID[]): void {
     if (!ids.length || !guard()) return;
     doc().removeLines(ids);
-    message.success(`Видалено рядків: ${ids.length}. Скасувати — Ctrl+Z`);
+    message.success(`Видалено рядків: ${ids.length}. Скасувати: Ctrl+Z`);
   }
 
   /** Протягування / Ctrl+D: значення одиниці або кількості рядка-джерела в цільові рядки одним кроком (Ctrl+Z скасовує). */
@@ -263,7 +263,7 @@ export function createSourcingActions(app: AppApi) {
     const patches = planFill(field, source, targets);
     if (!patches.length) return;
     doc().updateLines(patches);
-    if (patches.length > 1) message.success(`Заповнено рядків: ${patches.length}. Скасувати — Ctrl+Z`);
+    if (patches.length > 1) message.success(`Заповнено рядків: ${patches.length}. Скасувати: Ctrl+Z`);
   }
 
   async function applyPastePlan(plan: PastePlan): Promise<void> {
@@ -275,7 +275,7 @@ export function createSourcingActions(app: AppApi) {
     if (!guard()) return;
     if (plan.kind === 'skus') {
       if (!plan.targets.length) {
-        message.warning('Немає рядків для вставки — додайте рядки клієнта');
+        message.warning('Немає рядків для вставки, додайте рядки клієнта');
         return;
       }
       const hide = message.loading('Шукаю артикули в каталозі…', 0);
@@ -306,7 +306,7 @@ export function createSourcingActions(app: AppApi) {
     const parts = [`оновлено рядків: ${plan.updates.length}`];
     if (plan.newRows.length) parts.push(`додано: ${plan.newRows.length}`);
     if (plan.invalid) parts.push(`пропущено некоректних чисел: ${plan.invalid}`);
-    message.success(`Вставлено — ${parts.join(', ')}`);
+    message.success(`Вставлено: ${parts.join(', ')}`);
   }
 
   return {

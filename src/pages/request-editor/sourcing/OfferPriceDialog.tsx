@@ -80,7 +80,7 @@ export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
     >
       <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
         {offer.sku ? `${offer.sku} · ` : ''}
-        {offer.nameWork ?? offer.name1c ?? '—'}
+        {offer.nameWork ?? offer.name1c ?? ''}
         <br />У прайсі: {formatMoney(offer.catalog?.purchasePrice ?? offer.purchasePriceCur)} {currency} без ПДВ
       </Typography.Paragraph>
       <Form<Values>
@@ -95,7 +95,7 @@ export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
       >
         <Form.Item
           name="purchasePrice"
-          label={`Ціна входу без ПДВ, ${currency}`}
+          label={`Вхід без ПДВ, ${currency}`}
           rules={[{ required: true, message: 'Вкажіть ціну' }]}
           extra={price != null && price > 0 ? `з ПДВ: ${formatMoney(netToGross(price, vatRatePct, 2))} ${currency}` : undefined}
         >

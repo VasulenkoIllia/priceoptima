@@ -21,7 +21,7 @@ const COLUMNS: ColDef<ClientListItem>[] = [
   { headerName: 'Клієнт', field: 'name', width: 200, cellStyle: { fontWeight: 600 } },
   { headerName: 'Контрагенти', colId: 'counterparties', valueGetter: (p) => (p.data ? counterpartiesLabel(p.data) : ''), flex: 1, minWidth: 260, tooltipValueGetter: (p) => p.value },
   { headerName: 'Контакти', field: 'contactsCount', width: 100, type: 'rightAligned', cellClass: 'po-num' },
-  { headerName: 'Відповідальний', colId: 'responsible', valueGetter: (p) => p.data?.responsible?.shortName ?? '—', width: 150 },
+  { headerName: 'Відповідальний', colId: 'responsible', valueGetter: (p) => p.data?.responsible?.shortName ?? '', width: 150 },
   { headerName: 'Заявок', field: 'requestsCount', width: 90, type: 'rightAligned', cellClass: 'po-num' },
   { headerName: 'Остання заявка', field: 'lastRequestDate', width: 132, cellClass: 'po-num', valueFormatter: (p) => formatDate(p.value) },
 ];

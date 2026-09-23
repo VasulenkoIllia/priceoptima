@@ -8,7 +8,7 @@ import { ApiError } from '../../http/errors';
  */
 export function assertCountersOnlyGrow(current: AppSettings, patch: AppSettingsPatch): void {
   if (patch.nextRequestNumber != null && patch.nextRequestNumber < current.nextRequestNumber) {
-    throw new ApiError('VALIDATION_ERROR', `Наступний номер заявки — не менше ${current.nextRequestNumber}`);
+    throw new ApiError('VALIDATION_ERROR', `Наступний номер заявки: не менше ${current.nextRequestNumber}`);
   }
 }
 

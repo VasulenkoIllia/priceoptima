@@ -20,7 +20,7 @@ export function AccessLinkModal({ link, onClose }: AccessLinkModalProps) {
     navigator.clipboard
       .writeText(url)
       .then(() => message.success('Посилання скопійовано'))
-      .catch(() => message.warning('Не вдалося скопіювати — виділіть посилання й скопіюйте вручну'));
+      .catch(() => message.warning('Не вдалося скопіювати, виділіть посилання й скопіюйте вручну'));
   return (
     <Modal
       open={!!link}
@@ -46,7 +46,7 @@ export function AccessLinkModal({ link, onClose }: AccessLinkModalProps) {
             </Button>
           </Space.Compact>
           <Typography.Paragraph type="secondary" style={{ marginTop: 10, marginBottom: 0, fontSize: 12 }}>
-            Після закриття цього вікна посилання більше не показується. Загубили — створіть нове, а старе скасуйте в списку нижче.
+            Після закриття цього вікна посилання більше не показується. Якщо загубили, створіть нове, а старе скасуйте в списку нижче.
           </Typography.Paragraph>
         </>
       ) : null}

@@ -103,7 +103,7 @@ export function EditorHeader() {
     setReopening(true);
     try {
       await reopen();
-      message.success('Заявку перевідкрито — знову «В роботі»');
+      message.success('Заявку перевідкрито, знову «В роботі»');
     } catch (e) {
       message.error(errorMessage(e));
     } finally {
@@ -260,7 +260,7 @@ export function EditorHeader() {
         </Field>
         <Tooltip title="Загальний курс на дату заявки: ручний, якщо його задано в «Курси валют», інакше НБУ. Діє для постачальників без курсу в прайсі й без ручного курсу в картці; у блоці постачальника курс можна змінити.">
           <div className="po-editor-rates po-num">
-            Курс {formatDate(header.rates.date ?? header.requestDate)}: USD {formatRate(header.rates.USD)} · EUR {formatRate(header.rates.EUR)}
+            Курс {formatDate(header.rates.date ?? header.requestDate)}: USD {formatRate(header.rates.USD) || 'немає'} · EUR {formatRate(header.rates.EUR) || 'немає'}
           </div>
         </Tooltip>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
@@ -290,7 +290,7 @@ export function EditorHeader() {
             readOnly={readOnly}
             onRetry={() => void flush().catch(() => undefined)}
           />
-          <Tooltip title="Нова заявка на основі цієї — з цінами оригіналу або перерахованими">
+          <Tooltip title="Нова заявка на основі цієї: з цінами оригіналу або перерахованими">
             <Button size="small" icon={<CopyOutlined />} onClick={() => setCopyOpen(true)}>
               Копіювати
             </Button>
@@ -321,8 +321,8 @@ export function EditorHeader() {
           style={{ padding: '4px 12px' }}
           message={
             header.status === 'cancelled'
-              ? `Заявку скасовано${header.cancelReason ? ` (причина: ${header.cancelReason})` : ''} — лише перегляд. Щоб змінити, перевідкрийте її.`
-              : `Заявка «${REQUEST_STATUS_LABELS[header.status]}» — лише перегляд. Щоб змінити, перевідкрийте її.`
+              ? `Заявку скасовано${header.cancelReason ? ` (причина: ${header.cancelReason})` : ''}, лише перегляд. Щоб змінити, перевідкрийте її.`
+              : `Заявка «${REQUEST_STATUS_LABELS[header.status]}», лише перегляд. Щоб змінити, перевідкрийте її.`
           }
           action={
             <Button size="small" loading={reopening} onClick={() => void onReopen()}>

@@ -85,7 +85,7 @@ export function AccessLinkPage({ kind }: { kind: AccessLinkKind }) {
     <>
       <Typography.Paragraph type="secondary" style={{ marginBottom: 20 }}>
         {kind === 'invite'
-          ? `Вас запросили до програми з роллю «${USER_ROLE_LABELS[link.role ?? 'user']}». Заповніть дані — і одразу почнете роботу.`
+          ? `Вас запросили до програми з роллю «${USER_ROLE_LABELS[link.role ?? 'user']}». Заповніть дані, і одразу почнете роботу.`
           : `Новий пароль для ${link.fullName ?? ''} (логін ${link.login ?? ''}). Після збереження ви одразу увійдете, старий пароль перестане діяти.`}
       </Typography.Paragraph>
       <Form<RegisterValues> layout="vertical" requiredMark={false} onFinish={(v) => void submit(v)} onValuesChange={() => setError(null)}>
@@ -113,7 +113,7 @@ export function AccessLinkPage({ kind }: { kind: AccessLinkKind }) {
             </Form.Item>
           </>
         ) : null}
-        <Form.Item name="password" label={kind === 'invite' ? 'Пароль' : 'Новий пароль'} rules={[{ required: true, min: 8, message: 'Пароль — не менше 8 символів' }]}>
+        <Form.Item name="password" label={kind === 'invite' ? 'Пароль' : 'Новий пароль'} rules={[{ required: true, min: 8, message: 'Пароль: не менше 8 символів' }]}>
           <Input.Password prefix={<LockOutlined className="po-muted" />} autoComplete="new-password" autoFocus={kind === 'reset'} />
         </Form.Item>
         <Form.Item name="confirm" label="Ще раз пароль" dependencies={['password']} rules={[{ required: true, message: 'Повторіть пароль' }, confirmRule]}>

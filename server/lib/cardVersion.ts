@@ -23,5 +23,5 @@ export async function staleCardError(what: string, current: CardState | null): P
   if (!current) return notFound(`${what} не знайдено`);
   const by = current.updatedById ? (await userRefs([current.updatedById])).get(current.updatedById)?.shortName : null;
   const who = by ? `${by} о ${formatTime(current.updatedAt.toISOString(), false)}` : `хтось інший о ${formatTime(current.updatedAt.toISOString(), false)}`;
-  return new ApiError('VERSION_CONFLICT', `Картку змінив ${who} — відкрийте її заново, щоб не стерти чужі правки`);
+  return new ApiError('VERSION_CONFLICT', `Картку змінив ${who}. Відкрийте її заново, щоб не стерти чужі правки`);
 }

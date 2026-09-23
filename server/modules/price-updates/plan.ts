@@ -211,8 +211,8 @@ export function isRejected(result: PlanResult): result is PlanRejection {
 
 export const SKIP_REASONS = {
   noCode: 'Немає коду товару',
-  duplicate: 'Код повторюється у прайсі — застосовано останній рядок',
-  ambiguous: 'Кілька товарів каталогу підходять за штрихкодом або артикулом — рядок пропущено',
+  duplicate: 'Код повторюється у прайсі, застосовано останній рядок',
+  ambiguous: 'Кілька товарів каталогу підходять за штрихкодом або артикулом, рядок пропущено',
 } as const;
 
 // ── нормалізація значень рядка ──────────────────────────────────────
@@ -362,13 +362,13 @@ export function planApply(input: PlanInput): PlanResult {
 
   const activeImported = input.existing.filter((p) => p.priceOrigin === 'import' && !p.isArchived).length;
   if (byKey.size === 0) {
-    return { rejected: 'У прайсі немає жодної позиції з кодом товару — оновлення не застосовано' };
+    return { rejected: 'У прайсі немає жодної позиції з кодом товару, оновлення не застосовано' };
   }
   // короткий прайс небезпечний лише тоді, коли відсутні в ньому позиції позначаються зниклими;
   // файл лише з частиною цін (договірні ціни, гібрид) — звичайна ситуація
   if (roles.assortment && input.markMissing && byKey.size < activeImported * MIN_ROWS_SHARE) {
     return {
-      rejected: `Прайс підозріло короткий: ${byKey.size} поз. проти ${activeImported} у каталозі — оновлення не застосовано, щоб не позначити решту товарів зниклими`,
+      rejected: `Прайс підозріло короткий: ${byKey.size} поз. проти ${activeImported} у каталозі. Оновлення не застосовано, щоб не позначити решту товарів зниклими`,
     };
   }
 
@@ -517,7 +517,7 @@ function massChangeRejection(kind: 'currency' | 'price', changes: number, of: nu
   const what = kind === 'currency' ? 'Валюта змінилась' : `Ціна змінилась більш ніж на ${BIG_PRICE_CHANGE * 100}%`;
   return (
     `${what} у ${changes} з ${of} позицій (${Math.round((changes / of) * 100)}%): ` +
-    'схоже, змінився формат або валюта прайсу — оновлення не застосовано, перевірте прайс вручну'
+    'схоже, змінився формат або валюта прайсу, оновлення не застосовано, перевірте прайс вручну'
   );
 }
 

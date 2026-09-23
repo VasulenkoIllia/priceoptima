@@ -73,7 +73,7 @@ export async function listAudit(query: AuditQueryInput): Promise<AuditPage> {
   const items: AuditEventDto[] = page.map((r) => ({
     id: r.id.toString(),
     at: r.at.toISOString(),
-    user: r.userId ? (users.get(r.userId) ?? { id: r.userId, shortName: '—' }) : null,
+    user: r.userId ? (users.get(r.userId) ?? { id: r.userId, shortName: '' }) : null,
     action: r.action,
     entityType: r.entityType,
     entityId: r.entityId,

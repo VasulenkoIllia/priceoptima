@@ -1,7 +1,7 @@
 import { roundHalfUp } from '../pricing/money';
 
 const LOCALE = 'uk-UA';
-const DASH = '—';
+const EMPTY = '';
 const NBSP = ' ';
 
 const cache = new Map<string, Intl.NumberFormat>();
@@ -26,27 +26,27 @@ function fmt(v: number, min: number, max: number): string {
 
 const isNum = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v);
 
-/** '1 234,56' (U+00A0); null → '—'. */
+/** '1 234,56' (U+00A0); null → ''. */
 export function formatMoney(v: number | null | undefined, decimals = 2): string {
-  return isNum(v) ? fmt(v, decimals, decimals) : DASH;
+  return isNum(v) ? fmt(v, decimals, decimals) : EMPTY;
 }
 
 /** До 3 знаків, без зайвих нулів: 120 → '120', 1,5 → '1,5'. */
 export function formatQty(v: number | null | undefined): string {
-  return isNum(v) ? fmt(v, 0, 3) : DASH;
+  return isNum(v) ? fmt(v, 0, 3) : EMPTY;
 }
 
 /** '16,67 %' (перед % — U+00A0). */
 export function formatPct(v: number | null | undefined, decimals = 2): string {
-  return isNum(v) ? `${fmt(v, decimals, decimals)}${NBSP}%` : DASH;
+  return isNum(v) ? `${fmt(v, decimals, decimals)}${NBSP}%` : EMPTY;
 }
 
 /** Курс: від 2 до 4 знаків — '44,5526', '45,00'. */
 export function formatRate(v: number | null | undefined): string {
-  return isNum(v) ? fmt(v, 2, 4) : DASH;
+  return isNum(v) ? fmt(v, 2, 4) : EMPTY;
 }
 
 /** Сума з позначкою валюти: '1 234,56 грн'. */
 export function formatMoneyUah(v: number | null | undefined, decimals = 2): string {
-  return isNum(v) ? `${formatMoney(v, decimals)}${NBSP}грн` : DASH;
+  return isNum(v) ? `${formatMoney(v, decimals)}${NBSP}грн` : EMPTY;
 }

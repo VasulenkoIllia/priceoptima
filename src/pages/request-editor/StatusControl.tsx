@@ -114,7 +114,7 @@ export function StatusControl() {
         onCancel={() => setCancelOpen(false)}
         destroyOnHidden
       >
-        <p style={{ marginTop: 0 }}>Причина — за бажанням, збережеться в заявці. Скасовану заявку можна перевідкрити.</p>
+        <p style={{ marginTop: 0 }}>Причина необов’язкова, вона збережеться в заявці. Скасовану заявку можна перевідкрити.</p>
         <Input.TextArea
           autoFocus
           rows={3}

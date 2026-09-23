@@ -36,7 +36,7 @@ export function sniffImageType(buffer: Buffer): ImageMimeType | null {
 /** Перевіряє розмір і вміст завантаженого файлу; повертає справжній тип. */
 export function assertUploadedImage(buffer: Buffer): ImageMimeType {
   if (buffer.length === 0) throw validationError('Файл порожній');
-  if (buffer.length > MAX_IMAGE_BYTES) throw validationError(`Файл завеликий — до ${MAX_IMAGE_MB} МБ`);
+  if (buffer.length > MAX_IMAGE_BYTES) throw validationError(`Файл завеликий (до ${MAX_IMAGE_MB} МБ)`);
   const type = sniffImageType(buffer);
   if (!type) throw new ApiError('UNSUPPORTED_MEDIA_TYPE', 'Підтримуємо лише JPEG, PNG і WebP');
   return type;

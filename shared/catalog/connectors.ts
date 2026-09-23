@@ -18,13 +18,13 @@ export interface FeedConnectorInfo {
 
 export const FEED_CONNECTOR_INFO: Record<FeedConnector, FeedConnectorInfo> = {
   sandi: {
-    label: 'САНДІ — JSON',
+    label: 'САНДІ (JSON)',
     hint: 'Постійне посилання з кабінету b2b: закупівельна ціна, РРЦ, залишки, фото.',
     auth: 'none',
     hasPurchasePrice: true,
   },
   sanwell: {
-    label: 'SANWELL — XML',
+    label: 'SANWELL (XML)',
     hint: 'Вигрузка з токеном у заголовку (токен діє місяць): РРЦ, залишки діапазоном, фото; закупівельних цін немає.',
     auth: 'bearer',
     hasPurchasePrice: false,

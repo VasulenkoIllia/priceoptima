@@ -102,7 +102,7 @@ export function PriceHistoryChart({ history, currency, vatRatePct }: PriceHistor
             stroke={BRAND_COLOR}
             strokeWidth={1.5}
           >
-            <title>{`${formatDateTime(p.at)} — ${formatRate(p.v)} ${cur}`}</title>
+            <title>{`${formatDateTime(p.at)}: ${formatRate(p.v)} ${cur}`}</title>
           </circle>
         ))}
         <text x={PAD.left} y={H - 6} fontSize={10} fill={AXIS_TEXT}>

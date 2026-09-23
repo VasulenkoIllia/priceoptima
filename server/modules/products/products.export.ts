@@ -56,7 +56,7 @@ export async function exportProducts(query: ProductListQueryInput, res: Response
   const { total, ids } = await productIdsForExport(query, MAX_EXPORT_ROWS);
   if (total > MAX_EXPORT_ROWS) {
     throw validationError(
-      `Позицій ${total.toLocaleString('uk-UA')} — за раз вивантажуємо до ${MAX_EXPORT_ROWS.toLocaleString('uk-UA')}. Уточніть фільтри (постачальник, пошук).`,
+      `Позицій ${total.toLocaleString('uk-UA')}, а за раз вивантажуємо до ${MAX_EXPORT_ROWS.toLocaleString('uk-UA')}. Уточніть фільтри (постачальник, пошук).`,
     );
   }
 

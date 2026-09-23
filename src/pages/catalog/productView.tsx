@@ -9,7 +9,7 @@ import { ds, qk } from '@/data';
 /** '8,602 USD'; null → '—'. */
 /** Ціна в каталозі — 2 знаки, як в Excel-вивантаженні. */
 export function priceCur(v: number | null | undefined, currency: CurrencyCode): string {
-  return v == null ? '—' : `${formatMoney(v)} ${CURRENCY_LABELS[currency]}`;
+  return v == null ? '' : `${formatMoney(v)} ${CURRENCY_LABELS[currency]}`;
 }
 
 /** Каталог показує вхід з ПДВ (п.7 правок клієнта); зберігається без ПДВ — для підбору, порівняння й КП. */

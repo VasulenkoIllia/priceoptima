@@ -26,7 +26,7 @@ describe('лічильники номерів', () => {
     }
     expect(thrown).toBeInstanceOf(ApiError);
     expect((thrown as ApiError).code).toBe('VALIDATION_ERROR');
-    expect((thrown as ApiError).message).toBe('Наступний номер заявки — не менше 42');
+    expect((thrown as ApiError).message).toBe('Наступний номер заявки: не менше 42');
   });
 
   it('номер КП — стала частина («2114 / номер заявки»), його можна й зменшити', () => {

@@ -43,7 +43,7 @@ export const settingsPatchSchema = z
           value: z.string({ message: 'Умова КП: вкажіть значення' }).trim().max(300, 'Значення умови КП: не довше 300 символів'),
         }),
       )
-      .max(KP_TERMS_MAX, `Умов у КП — не більше ${KP_TERMS_MAX}`)
+      .max(KP_TERMS_MAX, `Умов у КП: не більше ${KP_TERMS_MAX}`)
       .transform((terms) => terms.filter((t) => t.label)),
     fopPriceBasis: enumOf(FOP_PRICE_BASES, 'база ціни ФОП'),
     nextRequestNumber: int(1, 9_999_999, 'Наступний номер заявки'),

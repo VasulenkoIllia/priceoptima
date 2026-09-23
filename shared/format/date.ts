@@ -1,6 +1,6 @@
 import type { ISODate, ISODateTime } from '../types';
 
-const DASH = '—';
+const EMPTY = '';
 const MONTHS_GENITIVE = [
   'січня',
   'лютого',
@@ -76,26 +76,26 @@ const pad = (n: number) => String(n).padStart(2, '0');
 /** '18.08.2026' */
 export function formatDate(d: ISODate | ISODateTime | Date | null | undefined): string {
   const p = d ? parts(d) : null;
-  return p ? `${pad(p.d)}.${pad(p.m)}.${p.y}` : DASH;
+  return p ? `${pad(p.d)}.${pad(p.m)}.${p.y}` : EMPTY;
 }
 
 /** '18 серпня 2026 р.' */
 export function formatDateLong(d: ISODate | ISODateTime | Date | null | undefined): string {
   const p = d ? parts(d) : null;
-  return p ? `${p.d} ${MONTHS_GENITIVE[p.m - 1]} ${p.y} р.` : DASH;
+  return p ? `${p.d} ${MONTHS_GENITIVE[p.m - 1]} ${p.y} р.` : EMPTY;
 }
 
 /** '12:03:15' */
 export function formatTime(d: ISODateTime | Date | null | undefined, withSeconds = true): string {
   const p = d ? parts(d) : null;
-  if (!p) return DASH;
+  if (!p) return EMPTY;
   return withSeconds ? `${pad(p.hh)}:${pad(p.mm)}:${pad(p.ss)}` : `${pad(p.hh)}:${pad(p.mm)}`;
 }
 
 /** '18.08.2026 12:03' */
 export function formatDateTime(d: ISODateTime | Date | null | undefined): string {
   const p = d ? parts(d) : null;
-  return p ? `${pad(p.d)}.${pad(p.m)}.${p.y} ${pad(p.hh)}:${pad(p.mm)}` : DASH;
+  return p ? `${pad(p.d)}.${pad(p.m)}.${p.y} ${pad(p.hh)}:${pad(p.mm)}` : EMPTY;
 }
 
 /** Календарна дата за Києвом: Date → '2026-09-11'. */

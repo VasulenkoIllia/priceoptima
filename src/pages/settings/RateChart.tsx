@@ -61,7 +61,7 @@ export function RateChart({ points, currency, color }: RateChartProps) {
         <path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {points.map((p, i) => (
           <circle key={p.date} cx={x(i)} cy={y(p.rate)} r={5} fill="transparent">
-            <title>{`${formatDate(p.date)} — ${formatRate(p.rate)} грн`}</title>
+            <title>{`${formatDate(p.date)}: ${formatRate(p.rate)} грн`}</title>
           </circle>
         ))}
         <circle cx={x(n)} cy={y(last.rate)} r={3.5} fill={color} stroke="#fff" strokeWidth={1.5} pointerEvents="none" />

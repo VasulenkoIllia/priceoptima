@@ -63,7 +63,7 @@ describe('знімок КП', () => {
     expect(base.extraInfo).toBeNull();
     expect(base.buyer).toMatchObject({ title: 'ТОВ «КЛІЄНТ»', lines: ['код ЄДРПОУ 41000011'], contactName: 'Петренко Андрій', phone: '067' });
     expect(base.managerName).toBe('Коваль О.В., тел. 067 000');
-    expect(kpNumberLabel(null, 7)).toBe('— / 000007');
+    expect(kpNumberLabel(null, 7)).toBe('чернетка / 000007');
   });
 
   it('умови КП (п.3 правок): без порожніх; свої в заявці або типові з Налаштувань', () => {

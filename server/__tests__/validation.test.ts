@@ -64,9 +64,9 @@ describe('перевірка користувача', () => {
     const base = { login: ' Olena.K ', fullName: ' Коваль Олена ', password: '12345678' };
     expect(parse(registerSchema, base)).toEqual({ login: 'olena.k', fullName: 'Коваль Олена', phone: null, email: null, password: '12345678' });
     expect(errorOf(() => parse(registerSchema, { ...base, login: 'олена' })).message).toBe(
-      'Логін — латинські літери, цифри, крапка, дефіс або підкреслення',
+      'Логін: латинські літери, цифри, крапка, дефіс або підкреслення',
     );
-    expect(errorOf(() => parse(registerSchema, { ...base, password: '1234' })).message).toBe('Пароль — не менше 8 символів');
+    expect(errorOf(() => parse(registerSchema, { ...base, password: '1234' })).message).toBe('Пароль: не менше 8 символів');
     expect(errorOf(() => parse(registerSchema, { ...base, email: 'не пошта' })).message).toBe('Невірний e-mail');
   });
 
@@ -116,6 +116,6 @@ describe('перевірка налаштувань', () => {
       ],
     });
     const many = Array.from({ length: 13 }, (_, i) => ({ label: `Умова ${i}`, value: 'x' }));
-    expect(errorOf(() => parse(settingsPatchSchema, { kpTerms: many })).message).toBe('Умов у КП — не більше 12');
+    expect(errorOf(() => parse(settingsPatchSchema, { kpTerms: many })).message).toBe('Умов у КП: не більше 12');
   });
 });

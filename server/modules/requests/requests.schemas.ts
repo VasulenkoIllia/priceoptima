@@ -16,7 +16,7 @@ import { MAX_DISCOUNT_PCT } from '@shared/pricing';
 
 const id = z.string().min(1).max(64);
 const uuid = (label: string) => z.uuid(`Невірний ідентифікатор: ${label}`);
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, 'Дата — у форматі РРРР-ММ-ДД');
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, 'Дата: у форматі РРРР-ММ-ДД');
 const isoDateTime = z.string().max(40);
 const text = (max: number) => z.string().max(max, `Задовге значення (до ${max} символів)`);
 const nullableText = (max: number) => text(max).nullable();

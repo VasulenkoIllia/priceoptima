@@ -34,7 +34,7 @@ function uploadSingle(field: string): RequestHandler {
       if (!err) return next();
       if (err instanceof multer.MulterError) {
         const message =
-          err.code === 'LIMIT_FILE_SIZE' ? `Файл завеликий — до ${MAX_IMAGE_MB} МБ` : 'Не вдалося прочитати файл';
+          err.code === 'LIMIT_FILE_SIZE' ? `Файл завеликий (до ${MAX_IMAGE_MB} МБ)` : 'Не вдалося прочитати файл';
         return next(validationError(message));
       }
       return next(err);

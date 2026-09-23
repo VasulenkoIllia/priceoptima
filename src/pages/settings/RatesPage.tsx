@@ -210,7 +210,7 @@ function SupplierRateDialog({ supplier, onClose }: { supplier: SupplierListItem 
       width={460}
     >
       <p className="po-muted" style={{ marginTop: 0 }}>
-        Діє для заявок цього постачальника, коли в його прайсі курсу немає. Прайс у {supplier.defaultCurrency}, спосіб —{' '}
+        Діє для заявок цього постачальника, коли в його прайсі курсу немає. Прайс у {supplier.defaultCurrency}, спосіб:{' '}
         {RATE_POLICY_LABELS[supplier.ratePolicy]}.
       </p>
       {ignored ? (
@@ -218,7 +218,7 @@ function SupplierRateDialog({ supplier, onClose }: { supplier: SupplierListItem 
           type="warning"
           showIcon
           style={{ marginBottom: 12 }}
-          message={`Зараз курс береться за способом «${RATE_POLICY_LABELS[supplier.ratePolicy]}» — цей ручний курс не застосується, доки спосіб не змінити в картці постачальника.`}
+          message={`Зараз курс береться за способом «${RATE_POLICY_LABELS[supplier.ratePolicy]}», тому цей ручний курс не застосується, доки спосіб не змінити в картці постачальника.`}
         />
       ) : null}
       <Form<SupplierRateValues>
@@ -245,9 +245,7 @@ function supplierColumns(
       <span className="po-num">{formatRate(fromPrice)}</span>
     ) : manual != null ? (
       <Tag bordered={false} title="Ручний курс постачальника">ручний {formatRate(manual)}</Tag>
-    ) : (
-      <span className="po-muted">—</span>
-    );
+    ) : null;
   return [
     {
       title: 'Постачальник',
@@ -353,7 +351,7 @@ export default function RatesPage() {
               columns={supplierColumns(setRateSupplier, todayRates.data, maxAgeDays)}
               dataSource={foreignSuppliers}
               pagination={false}
-              locale={{ emptyText: 'Немає постачальників із прайсом у валюті — курс нікому не потрібен' }}
+              locale={{ emptyText: 'Немає постачальників із прайсом у валюті, курс нікому не потрібен' }}
             />
           )}
           <div className="po-rates-hint">

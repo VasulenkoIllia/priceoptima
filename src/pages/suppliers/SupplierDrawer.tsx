@@ -18,7 +18,7 @@ import { hostOf, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSource
 
 function ExtLink({ url: raw }: { url: string | null }) {
   const url = webUrl(raw);
-  if (!url) return raw ? <span>{raw}</span> : <span className="po-muted">—</span>;
+  if (!url) return raw ? <span>{raw}</span> : null;
   return (
     <Typography.Link href={url} target="_blank" rel="noopener noreferrer">
       <GlobalOutlined /> {hostOf(url)}
@@ -71,13 +71,13 @@ const LOG_COLUMNS: TableColumnsType<PriceUpdateDto> = [
     title: 'Нові',
     dataIndex: 'added',
     align: 'right',
-    render: (v: number) => <span className="po-num">{v || <span className="po-muted">—</span>}</span>,
+    render: (v: number) => <span className="po-num">{v || null}</span>,
   },
   {
     title: 'Зникли',
     dataIndex: 'missing',
     align: 'right',
-    render: (v: number) => <span className="po-num">{v || <span className="po-muted">—</span>}</span>,
+    render: (v: number) => <span className="po-num">{v || null}</span>,
   },
   {
     title: 'Джерело',
@@ -143,7 +143,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
     mutationFn: () => ds.refreshSupplierPrices(detail.id, { dryRun: true }),
     onSuccess: (dry) =>
       modal.info({
-        title: `Перевірка вигрузки ${detail.name} — нічого не записано`,
+        title: `Перевірка вигрузки ${detail.name}: нічого не записано`,
         width: 880,
         icon: null,
         okText: 'Закрити',
@@ -159,7 +159,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
   const info: { key: string; label: string; children: ReactNode }[] = [
     { key: 'site', label: 'Сайт', children: <ExtLink url={detail.website} /> },
     { key: 'b2b', label: 'B2B-кабінет', children: <ExtLink url={detail.b2bUrl} /> },
-    { key: 'delivery', label: 'Доставка', children: detail.deliveryInfo ?? '—' },
+    { key: 'delivery', label: 'Доставка', children: detail.deliveryInfo ?? '' },
   ];
   const terms: { key: string; label: string; children: ReactNode }[] = [
     {
@@ -181,9 +181,9 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
     },
     { key: 'rates', label: 'Курс з прайсу', children: <span className="po-num">{priceListRatesLabel(detail.priceListRates)}</span> },
     { key: 'markup', label: 'Націнка постачальника', children: <span className="po-num">{pctLabel(detail.supplierMarkupPct)}</span> },
-    { key: 'min', label: 'Мін. замовлення з ПДВ', children: <span className="po-num">{detail.minOrderAmount != null ? formatMoneyUah(detail.minOrderAmount) : '—'}</span> },
+    { key: 'min', label: 'Мін. замовлення з ПДВ', children: <span className="po-num">{detail.minOrderAmount != null ? formatMoneyUah(detail.minOrderAmount) : null}</span> },
     { key: 'stale', label: 'Ціна актуальна', children: detail.priceStaleDays != null ? `${detail.priceStaleDays} дн.` : 'як у налаштуваннях' },
-    { key: 'notes', label: 'Примітки', children: detail.notes ? <span style={{ whiteSpace: 'pre-line' }}>{detail.notes}</span> : '—' },
+    { key: 'notes', label: 'Примітки', children: detail.notes ? <span style={{ whiteSpace: 'pre-line' }}>{detail.notes}</span> : null },
   ];
 
   return (

@@ -110,7 +110,7 @@ describe('вигрузка САНДІ (JSON)', () => {
     const { rows, warnings } = parseSandiJson(body);
     expect(rows).toHaveLength(5);
     expect(byCode(rows, 'TS10045201')?.stockQty).toBe(99);
-    expect(warnings).toEqual(['Повтори коду: 1 — узято перший рядок (TS10045201)']);
+    expect(warnings).toEqual(['Повтори коду: 1, узято перший рядок (TS10045201)']);
   });
 
   it('частина позицій без закупівельної ціни', () => {

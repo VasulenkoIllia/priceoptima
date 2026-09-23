@@ -14,7 +14,7 @@ export function usePriceListRateMaxAge(): number {
 }
 
 /** «загальний» — ручний курс із «Курси валют» на цю дату, якщо його задано, інакше НБУ. */
-export const GENERAL_RATE_HINT = 'Загальний курс — ручний курс із розділу «Курси валют» на цю дату, якщо його задано, інакше курс НБУ';
+export const GENERAL_RATE_HINT = 'Загальний курс: ручний курс із розділу «Курси валют» на цю дату, якщо його задано, інакше курс НБУ';
 
 /** Звідки курс: «з прайсу від 12.09.2026», «ручний курс постачальника», «загальний на 12.09.2026», «НБУ ± %». */
 export function rateOriginLabel(origin: RatePolicy | null, date: ISODate | null): string {
@@ -54,13 +54,13 @@ export function headerRatesOf(eff: EffectiveRates | undefined): HeaderRates {
  */
 export function requestRatesLabel(s: SupplierListItem, eff: EffectiveRates | undefined, maxAgeDays?: number): string {
   const currencies = relevantCurrencies(s.defaultCurrency);
-  if (!currencies.length) return 'не потрібен — прайс у гривнях';
+  if (!currencies.length) return 'не потрібен, прайс у гривнях';
   const info = supplierDefaultRatesInfo(toSupplierRef(s), headerRatesOf(eff), { maxAgeDays });
   const expired = info.priceListExpired ? `; курс із прайсу від ${formatDate(s.priceListRates.date)} застарів` : '';
   return currencies
     .map((c) => {
       const rate = info.rates[c];
-      if (rate == null) return `${c} — немає курсу`;
+      if (rate == null) return `${c}: немає курсу`;
       const origin = info.origins[c];
       const date = origin === 'price_list' ? info.date : origin === 'nbu' || origin === 'nbu_adjusted' ? (eff?.date ?? null) : null;
       return `${c} ${formatRate(rate)} (${rateOriginLabel(origin, date)}${expired})`;

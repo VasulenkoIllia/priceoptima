@@ -61,7 +61,7 @@ export default function HistoryTab() {
         Журнал доповнюється автоматично: позиції, постачальники й курси, ✔ і «не підходить», націнка, оновлення цін з прайсу, КП, погодження,
         статуси, копіювання. Сусідні дрібні зміни одного користувача зливаються в один запис.
       </Typography.Paragraph>
-      {dirty ? <Alert type="info" showIcon message="Є незбережені зміни — вони з’являться тут після автозбереження" style={{ marginBottom: 12 }} /> : null}
+      {dirty ? <Alert type="info" showIcon message="Є незбережені зміни: вони з’являться тут після автозбереження" style={{ marginBottom: 12 }} /> : null}
       {history.isPending ? (
         <Spin />
       ) : events.length ? (

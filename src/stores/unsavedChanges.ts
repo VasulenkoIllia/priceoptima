@@ -104,9 +104,9 @@ export function describeUnsavedChanges(prev: RequestDocument, next: RequestDocum
     const parts: string[] = [];
     if (was.sku !== o.sku) parts.push(`артикул ${was.sku || 'без артикула'} → ${o.sku || 'без артикула'}`);
     if (was.purchasePriceCur !== o.purchasePriceCur) {
-      parts.push(`ціна ${formatMoney(was.purchasePriceCur)} → ${formatMoney(o.purchasePriceCur)}`);
+      parts.push(`ціна ${formatMoney(was.purchasePriceCur) || 'немає'} → ${formatMoney(o.purchasePriceCur) || 'немає'}`);
     }
-    if (was.qty !== o.qty) parts.push(`к-сть ${formatQty(was.qty)} → ${formatQty(o.qty)}`);
+    if (was.qty !== o.qty) parts.push(`к-сть ${formatQty(was.qty) || 'немає'} → ${formatQty(o.qty) || 'немає'}`);
     if (was.excluded !== o.excluded) parts.push(o.excluded ? '«не підходить»' : 'повернуто');
     if (was.note !== o.note) parts.push('примітка');
     if (!!was.noRounding !== !!o.noRounding) parts.push(o.noRounding ? 'без округлення до кратності' : 'з округленням до кратності');

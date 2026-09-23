@@ -44,7 +44,7 @@ const pct = (v: unknown) => formatPct(v as number | null, 1);
 
 function ProductCell({ data }: P) {
   if (!data) return null;
-  if (!data.offer) return <span className="po-muted">не підібрано — у КП не увійде</span>;
+  if (!data.offer) return <span className="po-muted">не підібрано, у КП не увійде</span>;
   const name = offerDisplayName(data.offer) ?? '';
   return (
     <span className="po-mk-product" title={`${data.offer.sku ?? ''} ${name}`}>
@@ -92,7 +92,7 @@ function WarnCell({ data }: P) {
   return (
     <span className="po-mk-warn">
       {data.mr.notApproved ? (
-        <Tooltip title="Не затверджено ✔ — ціна від рекомендованої (мінімальної) пропозиції">
+        <Tooltip title="Не затверджено ✔: ціна від рекомендованої (мінімальної) пропозиції">
           <ExclamationCircleOutlined style={{ color: 'var(--po-warning)' }} />
         </Tooltip>
       ) : null}
@@ -170,7 +170,7 @@ function SupplierProfitBreakdown({ doc, computed }: { doc: RequestDocument; comp
         { title: fop ? 'Вхід з ПДВ' : 'Вхід без ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.costNet) },
         { title: fop ? 'Продаж як у КП' : 'Продаж без ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.saleNet) },
         {
-          title: 'Заробіток',
+          title: 'Прибуток',
           align: 'right',
           className: 'po-num',
           render: (_, r) => <b className="po-mk-stat-good">{formatMoney(r.selected.profitNet)}</b>,
@@ -186,7 +186,7 @@ function SupplierProfitBreakdown({ doc, computed }: { doc: RequestDocument; comp
     />
   );
   return (
-    <Popover content={table} title={fop ? 'Заробіток по постачальниках (ФОП: продаж мінус вхід з ПДВ)' : 'Заробіток по постачальниках (без ПДВ)'} placement="topLeft">
+    <Popover content={table} title={fop ? 'Прибуток по постачальниках (ФОП: продаж мінус вхід з ПДВ)' : 'Прибуток по постачальниках (без ПДВ)'} placement="topLeft">
       <div className="po-mk-stat po-mk-by-supplier">
         <span className="po-mk-stat-label">По постачальниках</span>
         <span className="po-mk-sup-list">
@@ -197,7 +197,7 @@ function SupplierProfitBreakdown({ doc, computed }: { doc: RequestDocument; comp
                   <span className="po-num">{formatMoney(r.selected.profitNet)}</span>
                 </span>
               ))
-            : '—'}
+            : null}
         </span>
       </div>
     </Popover>
@@ -274,7 +274,7 @@ export default function MarkupTab() {
         colId: 'cost',
         width: 116,
         cellRenderer: CostCell,
-        headerTooltip: 'Ціна обраної пропозиції без ПДВ, грн за од. (C); логотип — постачальник',
+        headerTooltip: 'Ціна обраної пропозиції без ПДВ, грн за од. (C); логотип показує постачальника',
         cellClassRules: { 'po-cell-not-approved': (p) => !!p.data?.mr.notApproved },
       },
       {
@@ -301,7 +301,7 @@ export default function MarkupTab() {
         width: 64,
         type: 'rightAligned',
         cellClass: 'po-num',
-        headerTooltip: 'Націнка на вхід або знижка від РРЦ, % (Enter — змінити)',
+        headerTooltip: 'Націнка на вхід або знижка від РРЦ, % (Enter: змінити)',
         editable: (p) => canEdit(p) && !!p.data && isPctMethod(p.data.mr.method),
         cellEditor: 'agTextCellEditor',
         valueGetter: (p) => (p.data && isPctMethod(p.data.mr.method) ? p.data.mr.value : null),
@@ -313,7 +313,7 @@ export default function MarkupTab() {
         width: 104,
         type: 'rightAligned',
         cellClass: 'po-num po-mk-editable',
-        headerTooltip: 'Ціна продажу без ПДВ (N). Введіть ціну — рядок перейде на «Вручну». Змінюється лише в цій заявці',
+        headerTooltip: 'Ціна продажу без ПДВ (N). Введіть ціну, і рядок перейде на «Вручну». Змінюється лише в цій заявці',
         editable: canEdit,
         cellEditor: 'agTextCellEditor',
         valueGetter: (p) => p.data?.mr.saleNet,
@@ -326,7 +326,7 @@ export default function MarkupTab() {
         width: 104,
         type: 'rightAligned',
         cellClass: 'po-num po-mk-editable',
-        headerTooltip: 'Ціна продажу з ПДВ (G). Введіть ціну — рядок перейде на «Вручну»',
+        headerTooltip: 'Ціна продажу з ПДВ (G). Введіть ціну, і рядок перейде на «Вручну»',
         editable: canEdit,
         cellEditor: 'agTextCellEditor',
         valueGetter: (p) => p.data?.mr.saleGross,
@@ -422,7 +422,7 @@ export default function MarkupTab() {
   const applyToAll = () =>
     modal.confirm({
       title: 'Застосувати спосіб заявки до всіх рядків?',
-      content: `Власний спосіб і ручні ціни ${overrides} рядк. буде скинуто — усі рядки рахуватимуться як «${MARKUP_METHOD_LABELS[markup.method]}».`,
+      content: `Власний спосіб і ручні ціни ${overrides} рядк. буде скинуто, усі рядки рахуватимуться як «${MARKUP_METHOD_LABELS[markup.method]}».`,
       okText: 'Застосувати',
       cancelText: 'Скасувати',
       onOk: () => store.resetLineMarkups(),
@@ -461,7 +461,7 @@ export default function MarkupTab() {
           </Tooltip>
         ) : null}
         {overrides ? (
-          <Tooltip title={`Рядків із власним способом або ручною ціною: ${overrides}. Скинути — усі рахуватимуться за способом заявки`}>
+          <Tooltip title={`Рядків із власним способом або ручною ціною: ${overrides}. Скинути: усі рахуватимуться за способом заявки`}>
             <Button size="small" disabled={readOnly} onClick={applyToAll}>
               Застосувати до всіх ({overrides})
             </Button>
@@ -541,9 +541,9 @@ export default function MarkupTab() {
         </div>
         <div className="po-mk-totals">
           {isFop ? (
-            <Stat label="Собівартість з ПДВ" value={formatMoney(totals.costGross)} />
+            <Stat label="Вхід з ПДВ" value={formatMoney(totals.costGross)} />
           ) : (
-            <Stat label="Собівартість без ПДВ" value={formatMoney(totals.costNet)} />
+            <Stat label="Вхід без ПДВ" value={formatMoney(totals.costNet)} />
           )}
           {vatMode === 'no_vat' ? (
             <Stat label="Разом" value={formatMoney(totals.saleNet)} strong />

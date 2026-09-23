@@ -169,7 +169,7 @@ export const name1cImportSchema = z.object({
   supplierId: z.uuid('Невірний ідентифікатор постачальника'),
   rows: z
     .array(z.object({ sku: z.string().max(100, 'Артикул: не довше 100 символів'), name1c: z.string().max(500, 'Назва 1С: не довше 500 символів') }))
-    .max(NAME1C_MAX_ROWS, `Рядків — не більше ${NAME1C_MAX_ROWS}`),
+    .max(NAME1C_MAX_ROWS, `Рядків: не більше ${NAME1C_MAX_ROWS}`),
   dryRun: z.boolean().optional(),
 });
 

@@ -13,6 +13,13 @@ const str = (p: Params, key: string): string => {
   return v == null ? '' : String(v);
 };
 
+/** Значення в реченні: суми немає, тож пишемо «немає» (порожнє місце незрозуміле). */
+const amount = (v: number | null): string => (v == null ? 'немає' : formatMoney(v));
+/** «A → B валюта»; валюту дописуємо, лише коли нове значення є. */
+const change = (a: number | null, b: number | null, cur: string): string => `${amount(a)} → ${amount(b)}${b == null ? '' : ` ${cur}`}`;
+/** Сума з валютою або «немає». */
+const amountCur = (v: number | null, cur: string): string => (v == null ? 'немає' : `${formatMoney(v)} ${cur}`);
+
 /** «Змінилось у каталозі»: лише те, що справді змінилось; ціну входу, змінену вручну в заявці, так і називаємо. */
 function catalogChangeText(p: Params): string {
   const cur = str(p, 'catalogCurrency');
@@ -21,30 +28,30 @@ function catalogChangeText(p: Params): string {
   const others: string[] = [];
   if (prevCur !== cur) others.push(`валюта ${prevCur} → ${cur}`);
   if ('catalogRrp' in p && num(p, 'snapshotRrp') !== num(p, 'catalogRrp')) {
-    others.push(`РРЦ ${formatMoney(num(p, 'snapshotRrp'))} → ${formatMoney(num(p, 'catalogRrp'))} ${cur}`);
+    others.push(`РРЦ ${change(num(p, 'snapshotRrp'), num(p, 'catalogRrp'), cur)}`);
   }
   if (num(p, 'manual') === 1) {
-    const text = `Ціну входу змінено вручну в заявці: ${formatMoney(num(p, 'snapshotPrice'))} ${prevCur}, у прайсі ${formatMoney(num(p, 'catalogPrice'))} ${cur}`;
+    const text = `Ціну входу змінено вручну в заявці: ${amountCur(num(p, 'snapshotPrice'), prevCur)}, у прайсі ${amountCur(num(p, 'catalogPrice'), cur)}`;
     return others.length ? `${text}; у каталозі також змінились: ${others.join(', ')}` : text;
   }
-  const parts = priceChanged ? [`вхід без ПДВ ${formatMoney(num(p, 'snapshotPrice'))} → ${formatMoney(num(p, 'catalogPrice'))} ${cur}`, ...others] : others;
+  const parts = priceChanged ? [`вхід без ПДВ ${change(num(p, 'snapshotPrice'), num(p, 'catalogPrice'), cur)}`, ...others] : others;
   return `У каталозі змінились: ${parts.join(', ')}`;
 }
 
 const MESSAGES: Record<WarningCode, (p: Params) => string> = {
-  RATE_MISSING: (p) => `Немає курсу ${str(p, 'currency')} — вкажіть курс у блоці постачальника`,
+  RATE_MISSING: (p) => `Немає курсу ${str(p, 'currency')}, вкажіть курс у блоці постачальника`,
   PRICE_MISSING: () => 'Товар без вхідної ціни',
   MULTIPLICITY_MISMATCH: (p) =>
-    `Кількість ${formatQty(num(p, 'qty'))} не кратна ${formatQty(num(p, 'multiplicity'))} — рекомендовано ${formatQty(num(p, 'suggestedQty'))}`,
+    `Кількість ${formatQty(num(p, 'qty'))} не кратна ${formatQty(num(p, 'multiplicity'))}, рекомендовано ${formatQty(num(p, 'suggestedQty'))}`,
   QTY_ROUNDED: (p) => `Округлено з ${formatQty(num(p, 'from'))}, кратно ${formatQty(num(p, 'multiplicity'))}`,
   INSUFFICIENT_STOCK: (p) => `Замовлено ${formatQty(num(p, 'qty'))}, у наявності ${formatQty(num(p, 'stock'))}`,
   OUT_OF_STOCK: () => 'Немає в наявності',
-  NOT_IN_PRICE_LIST: (p) => `Немає у прайсі постачальника з ${formatDate(str(p, 'since'))} — ціна остання відома, уточніть у постачальника`,
-  PRICE_STALE: (p) => `Ціна застаріла: ${formatQty(num(p, 'ageDays'))} дн. (норма ${formatQty(num(p, 'staleDays'))}) — перевірте на сайті постачальника`,
+  NOT_IN_PRICE_LIST: (p) => `Немає у прайсі постачальника${str(p, 'since') ? ` з ${formatDate(str(p, 'since'))}` : ''}: ціна остання відома, уточніть у постачальника`,
+  PRICE_STALE: (p) => `Ціна застаріла: ${formatQty(num(p, 'ageDays'))} дн. (норма ${formatQty(num(p, 'staleDays'))}), перевірте на сайті постачальника`,
   CATALOG_PRICE_CHANGED: catalogChangeText,
   INPUT_ABOVE_RRP: () => 'Вхідна ціна вища за РРЦ',
   UNIT_MISMATCH: (p) => `Одиниця постачальника «${str(p, 'offerUnit')}» ≠ одиниця клієнта «${str(p, 'clientUnit')}»`,
-  SELECTED_EXCLUDED: () => 'Затверджена пропозиція виключена або порожня — діє рекомендація',
+  SELECTED_EXCLUDED: () => 'Затверджена пропозиція виключена або порожня, діє рекомендація',
   SELECTION_NOT_OPTIMAL: (p) =>
     num(p, 'overpayNet') != null
       ? `Обрано не мінімальну ціну: переплата ${formatMoney(num(p, 'overpayNet'))} грн без ПДВ`
@@ -52,7 +59,7 @@ const MESSAGES: Record<WarningCode, (p: Params) => string> = {
   NO_OFFERS: () => 'Немає жодної пропозиції',
   QTY_ZERO: () => 'Не вказано кількість',
   BELOW_MIN_ORDER: (p) =>
-    `Сума обраних з ПДВ ${formatMoney(num(p, 'selectedGross'))} < мін. замовлення з ПДВ ${formatMoney(num(p, 'minOrderAmount'))} — нерентабельно`,
+    `Сума обраних з ПДВ ${formatMoney(num(p, 'selectedGross'))} < мін. замовлення з ПДВ ${formatMoney(num(p, 'minOrderAmount'))}, нерентабельно`,
   NO_RRP: () => 'Немає РРЦ для обраного способу націнки',
   BELOW_COST: () => 'Ціна продажу нижча за вхідну',
   ABOVE_RRP: () => 'Ціна продажу вища за РРЦ',

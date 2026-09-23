@@ -59,7 +59,7 @@ const PRICE_HEADERS: Record<KpVatMode, { priceHeader: string; sumHeader: string 
 
 /** Рядок «Менеджер» бланка: 'Коваль О.В., тел. 067 000 11 22'. */
 export function kpManagerName(u: { shortName: string; phone?: string | null } | null | undefined): string {
-  return u ? `${u.shortName}${u.phone ? `, тел. ${u.phone}` : ''}` : '—';
+  return u ? `${u.shortName}${u.phone ? `, тел. ${u.phone}` : ''}` : '';
 }
 
 /** Покупець бланка з контрагента (коротка назва), клієнта й контакту заявки. */
@@ -77,9 +77,9 @@ export function kpBuyerOf(
   };
 }
 
-/** '2114 / 000001'; без номера (попередній перегляд) — '— / 000001'. */
+/** '2114 / 000001'; без номера (попередній перегляд) — 'чернетка / 000001'. */
 export function kpNumberLabel(kpNumber: number | null, requestNumber: number): string {
-  return kpNumber == null ? `— / ${formatRequestNumber(requestNumber)}` : formatKpNumber(kpNumber, requestNumber);
+  return kpNumber == null ? `чернетка / ${formatRequestNumber(requestNumber)}` : formatKpNumber(kpNumber, requestNumber);
 }
 
 /** '2026-09-15' + 3 → '2026-09-18'. */
@@ -121,7 +121,7 @@ export function buildKpSnapshot(input: KpSnapshotInput): KpSnapshot {
     header: { slogan: seller.slogan, phone: seller.phone, email: seller.email, website: seller.website, logoPath: seller.logoUrl },
     seller: kpSellerBlock(seller),
     buyer: {
-      title: buyer.name ?? '—',
+      title: buyer.name ?? '',
       lines: buyer.edrpou ? [`код ЄДРПОУ ${buyer.edrpou}`] : [],
       contactName: buyer.contactName,
       email: buyer.email,

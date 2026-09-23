@@ -34,7 +34,7 @@ describe('джерело курсу — однакові назви в блоц�
     const nbu = { ...base, ratePolicy: 'nbu' } as unknown as Parameters<typeof requestRatesLabel>[0];
     expect(requestRatesLabel(nbu, eff)).toBe('USD 41,50 (загальний на 13.09.2026)');
     const uah = { ...base, defaultCurrency: 'UAH' } as unknown as Parameters<typeof requestRatesLabel>[0];
-    expect(requestRatesLabel(uah, eff)).toBe('не потрібен — прайс у гривнях');
+    expect(requestRatesLabel(uah, eff)).toBe('не потрібен, прайс у гривнях');
   });
 });
 

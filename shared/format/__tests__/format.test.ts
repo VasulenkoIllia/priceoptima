@@ -28,9 +28,9 @@ describe('числа (uk-UA)', () => {
     expect(formatMoney(0)).toBe('0,00');
     expect(formatMoney(-0.001)).toBe('0,00');
     expect(formatMoney(465, 0)).toBe('465');
-    expect(formatMoney(null)).toBe('—');
-    expect(formatMoney(undefined)).toBe('—');
-    expect(formatMoney(Number.NaN)).toBe('—');
+    expect(formatMoney(null)).toBe('');
+    expect(formatMoney(undefined)).toBe('');
+    expect(formatMoney(Number.NaN)).toBe('');
     expect(formatMoneyUah(21012)).toBe(`21${NB}012,00${NB}грн`);
   });
 
@@ -39,14 +39,14 @@ describe('числа (uk-UA)', () => {
     expect(formatQty(1.5)).toBe('1,5');
     expect(formatQty(0.125)).toBe('0,125');
     expect(formatQty(1234.5)).toBe(`1${NB}234,5`);
-    expect(formatQty(null)).toBe('—');
+    expect(formatQty(null)).toBe('');
   });
 
   it('formatPct і formatRate', () => {
     expect(formatPct(16.6667)).toBe(`16,67${NB}%`);
     expect(formatPct(0.8466)).toBe(`0,85${NB}%`);
     expect(formatPct(-0.6316, 1)).toBe(`-0,6${NB}%`);
-    expect(formatPct(null)).toBe('—');
+    expect(formatPct(null)).toBe('');
     expect(formatRate(44.5526)).toBe('44,5526');
     expect(formatRate(45)).toBe('45,00');
     expect(formatRate(44.998126)).toBe('44,9981');
@@ -66,8 +66,8 @@ describe('дати (Київ)', () => {
     expect(formatDate('2026-08-18')).toBe('18.08.2026');
     expect(formatDateLong('2026-08-18')).toBe('18 серпня 2026 р.');
     expect(formatDateLong('2026-01-01')).toBe('1 січня 2026 р.');
-    expect(formatDate(null)).toBe('—');
-    expect(formatDate('не дата')).toBe('—');
+    expect(formatDate(null)).toBe('');
+    expect(formatDate('не дата')).toBe('');
   });
 
   it('ISODateTime переводиться в київський час', () => {
@@ -122,14 +122,14 @@ describe('сума прописом', () => {
 describe('тексти попереджень', () => {
   it('немає у прайсі', () => {
     expect(formatWarning({ code: 'NOT_IN_PRICE_LIST', params: { since: '2026-09-08' } })).toBe(
-      'Немає у прайсі постачальника з 08.09.2026 — ціна остання відома, уточніть у постачальника',
+      'Немає у прайсі постачальника з 08.09.2026: ціна остання відома, уточніть у постачальника',
     );
   });
 
   it('кратність, мін. замовлення', () => {
     expect(formatWarning({ code: 'QTY_ROUNDED', params: { from: 118, to: 120, multiplicity: 4 } })).toBe('Округлено з 118, кратно 4');
     expect(formatWarning({ code: 'BELOW_MIN_ORDER', params: { selectedGross: 464.51, minOrderAmount: 1000 } })).toBe(
-      `Сума обраних з ПДВ 464,51 < мін. замовлення з ПДВ 1${NB}000,00 — нерентабельно`,
+      `Сума обраних з ПДВ 464,51 < мін. замовлення з ПДВ 1${NB}000,00, нерентабельно`,
     );
     expect(formatWarning({ code: 'NO_CLIENT' })).toBe('Не обрано клієнта');
   });

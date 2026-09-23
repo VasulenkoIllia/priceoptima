@@ -54,7 +54,7 @@ function uploadSingle(field: string): RequestHandler {
     handler(req, res, (err: unknown) => {
       if (!err) return next();
       if (err instanceof multer.MulterError) {
-        return next(validationError(err.code === 'LIMIT_FILE_SIZE' ? `Файл завеликий — до ${MAX_ATTACHMENT_MB} МБ` : 'Не вдалося прочитати файл'));
+        return next(validationError(err.code === 'LIMIT_FILE_SIZE' ? `Файл завеликий (до ${MAX_ATTACHMENT_MB} МБ)` : 'Не вдалося прочитати файл'));
       }
       return next(err);
     });

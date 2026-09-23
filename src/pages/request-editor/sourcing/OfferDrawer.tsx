@@ -78,17 +78,17 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
       label: 'Артикул',
       children: (
         <Typography.Text className="po-num" copyable={offer.sku ? { text: offer.sku, tooltips: ['Копіювати', 'Скопійовано'] } : false}>
-          {offer.sku ?? '—'}
+          {offer.sku ?? ''}
         </Typography.Text>
       ),
     },
-    { key: 'name', label: 'Назва', children: offerDisplayName(offer) ?? '—' },
+    { key: 'name', label: 'Назва', children: offerDisplayName(offer) ?? '' },
     {
       key: 'unit',
       label: 'Од.',
       children: (
         <Space size={6}>
-          {offer.unitCode ?? '—'}
+          {offer.unitCode ?? ''}
           <Warn codes={['UNIT_MISMATCH']} warnings={warnings} />
         </Space>
       ),
@@ -115,7 +115,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
     },
     {
       key: 'input',
-      label: 'Ціна вх. без ПДВ',
+      label: 'Вхід без ПДВ',
       children: (
         <Space size={6} wrap>
           <span className="po-num">
@@ -142,7 +142,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
           <span className="po-muted">гривня</span>
         ) : (
           <span className="po-num">
-            {formatRate(oc?.rate)} <span className="po-muted">({blockRateLabel(block)})</span>
+            {formatRate(oc?.rate) || 'немає курсу'} <span className="po-muted">({blockRateLabel(block)})</span>
           </span>
         ),
     },
@@ -209,7 +209,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
     <div className="po-drawer-body">
       {offer.excluded ? (
         <Tag color="default" icon={<StopOutlined />} style={{ marginBottom: 8 }}>
-          Не підходить — не враховується в порівнянні{offer.excludeReason ? `: ${offer.excludeReason}` : ''}
+          Не підходить, не враховується в порівнянні{offer.excludeReason ? `: ${offer.excludeReason}` : ''}
         </Tag>
       ) : manual ? (
         <Tag color="blue" icon={<CheckCircleOutlined />} style={{ marginBottom: 8 }}>
@@ -217,7 +217,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
         </Tag>
       ) : oc?.isSelected ? (
         <Tag color="gold" style={{ marginBottom: 8 }}>
-          Рекомендовано (не затверджено) — піде в націнку як мінімальна ціна
+          Рекомендовано (не затверджено): піде в націнку як мінімальна ціна
         </Tag>
       ) : null}
       <Descriptions column={1} size="small" items={items} styles={{ label: { width: 150 } }} />

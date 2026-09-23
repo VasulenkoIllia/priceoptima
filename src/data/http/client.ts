@@ -55,7 +55,7 @@ export async function apiFile(path: string, query?: Record<string, QueryValue>):
   try {
     res = await fetch(url(path, query), { credentials: 'include', headers: { 'X-Session-Id': SESSION_ID } });
   } catch (e) {
-    throw new DataSourceError('INTERNAL', 'Сервер недоступний — перевірте зʼєднання', e, true);
+    throw new DataSourceError('INTERNAL', 'Сервер недоступний, перевірте зʼєднання', e, true);
   }
   if (res.ok) return await res.blob();
   const data: unknown = safeJson(await res.text());
@@ -87,7 +87,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       body: form ?? json,
     });
   } catch (e) {
-    throw new DataSourceError('INTERNAL', 'Сервер недоступний — перевірте зʼєднання', e, true);
+    throw new DataSourceError('INTERNAL', 'Сервер недоступний, перевірте зʼєднання', e, true);
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();

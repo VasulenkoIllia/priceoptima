@@ -34,16 +34,16 @@ const STOCK_SHORT: Record<AvailabilityStatus, string> = {
   low_stock: 'мало',
   out_of_stock: 'немає',
   on_order: 'під замовл.',
-  unknown: '—',
+  unknown: '',
 };
 
 function priceTitle(r: PickerRow): string {
   const p = r.product;
   if (p.purchasePrice == null) return 'Немає вхідної ціни';
   const parts = [`${formatMoney(p.purchasePrice)} ${CURRENCY_LABELS[p.currency]} без ПДВ`];
-  if (p.currency !== 'UAH') parts.push(`× ${r.blockId ? 'курс блоку' : 'курс постачальника'} ${formatRate(r.rate)}`);
+  if (p.currency !== 'UAH') parts.push(`× ${r.blockId ? 'курс блоку' : 'курс постачальника'} ${formatRate(r.rate) || 'немає'}`);
   if (r.supplierMarkupPct) parts.push(`+ ${formatPct(r.supplierMarkupPct)} націнки постачальника`);
-  if (r.cheapestInGroup) parts.push('— найдешевший серед однакових назв');
+  if (r.cheapestInGroup) parts.push('(найдешевший серед однакових назв)');
   return parts.join(' ');
 }
 
@@ -111,12 +111,12 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
       const offer = block ? s.findOffer(ln.id, block.id) : undefined;
       if (!block || !offer || offer.productId === p.id) return [];
       if (request.mode === 'replace' && block.id === request.blockId) return [];
-      return [{ supplier: supplierRef(p.supplierId)?.name ?? p.supplierName, from: `${offer.sku ?? '—'} ${offerDisplayName(offer) ?? ''}`, to: `${p.sku} ${p.nameWork}` }];
+      return [{ supplier: supplierRef(p.supplierId)?.name ?? p.supplierName, from: [offer.sku, offerDisplayName(offer)].filter(Boolean).join(' '), to: `${p.sku} ${p.nameWork}` }];
     });
     const run = () => {
       const res = getRequestDocStore().getState().addProductsToLine(ln.id, products);
       if (!res.offerIds.length) {
-        message.error('Не вдалося додати товари — заявка відкрита лише для перегляду');
+        message.error('Не вдалося додати товари: заявка відкрита лише для перегляду');
         return;
       }
       const after = getRequestDocStore().getState().doc;
@@ -234,7 +234,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
           <span>
             {r.inLine ? <Tag color="blue">уже в рядку</Tag> : null}
             {r.product.missingSince ? (
-              <Tag color="red" bordered={false} title="Товару немає в останньому прайсі постачальника — ціна остання відома">
+              <Tag color="red" bordered={false} title="Товару немає в останньому прайсі постачальника: ціна остання відома">
                 немає у прайсі з {formatDate(r.product.missingSince)}
               </Tag>
             ) : null}
@@ -255,7 +255,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
     },
     {
       key: 'net',
-      title: 'Вх. без ПДВ, грн',
+      title: 'Вхід без ПДВ, грн',
       width: 104,
       align: 'right',
       sorter: (a, b) => (a.unitNetUah ?? Number.POSITIVE_INFINITY) - (b.unitNetUah ?? Number.POSITIVE_INFINITY),
@@ -285,7 +285,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
       title: 'Дата ціни',
       width: 88,
       render: (_, r) => (
-        <span className={r.product.isStale ? 'po-num po-picker-warn' : 'po-num'} title={r.product.isStale ? 'Ціна застаріла — перевірте на сайті постачальника' : undefined}>
+        <span className={r.product.isStale ? 'po-num po-picker-warn' : 'po-num'} title={r.product.isStale ? 'Ціна застаріла: перевірте на сайті постачальника' : undefined}>
           {formatDate(r.product.priceUpdatedAt)}
         </span>
       ),
@@ -344,7 +344,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
       {search.isError ? <Alert type="error" showIcon message={errorMessage(search.error)} style={{ marginBottom: 8 }} /> : null}
       {fuzzy ? (
         <Typography.Text type="secondary" className="po-picker-hint">
-          Сірим — частковий збіг: знайдено не всі слова запиту. Однакові назви стоять поруч, найдешевша — зелена.
+          Сірим позначено частковий збіг: знайдено не всі слова запиту. Однакові назви стоять поруч, найдешевша позначена зеленим.
         </Typography.Text>
       ) : null}
       <Table<PickerRow>
@@ -379,7 +379,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
       />
       {results && results.length >= SEARCH_LIMIT ? (
         <Typography.Text type="secondary" className="po-picker-hint">
-          Показано {SEARCH_LIMIT} найкращих збігів — уточніть запит, щоб знайти інший товар.
+          Показано {SEARCH_LIMIT} найкращих збігів. Уточніть запит, щоб знайти інший товар.
         </Typography.Text>
       ) : null}
       <div className="po-picker-selected">
@@ -405,7 +405,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
             })}
           </>
         ) : (
-          <span className="po-muted">Оберіть 1–3 товари різних постачальників (клік по рядку; подвійний клік — додати один товар одразу)</span>
+          <span className="po-muted">Оберіть 1–3 товари різних постачальників (клік по рядку; подвійний клік додає один товар одразу)</span>
         )}
       </div>
       <div className="po-dialog-footer">

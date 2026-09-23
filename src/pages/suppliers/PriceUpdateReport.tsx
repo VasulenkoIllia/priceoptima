@@ -54,12 +54,12 @@ const DIFF_COLUMNS: TableColumnsType<PriceDetailDiff> = [
 const NOT_FOUND_COLUMNS: TableColumnsType<PriceNotFoundRow> = [
   { title: 'Рядок', dataIndex: 'row', width: 70, align: 'right', render: num },
   { title: 'Код', dataIndex: 'code', width: 150 },
-  { title: 'Назва', dataIndex: 'name', render: (v: string | null) => v ?? <span className="po-muted">—</span> },
+  { title: 'Назва', dataIndex: 'name', render: (v: string | null) => v ?? null },
 ];
 
 const SKIPPED_COLUMNS: TableColumnsType<PriceSkippedRow> = [
   { title: 'Рядок', dataIndex: 'row', width: 70, align: 'right', render: num },
-  { title: 'Код', dataIndex: 'code', width: 150, render: (v: string) => v || <span className="po-muted">—</span> },
+  { title: 'Код', dataIndex: 'code', width: 150, render: (v: string) => v || null },
   { title: 'Причина', dataIndex: 'reason' },
 ];
 
@@ -138,7 +138,7 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
               ),
               children: (
                 <>
-                  <div className="po-muted po-pu-hint">{verb} застосовано — перевірте, чи це не помилка у прайсі.</div>
+                  <div className="po-muted po-pu-hint">{verb} застосовано. Перевірте, чи це не помилка у прайсі.</div>
                   {sectionTable(report.bigPriceChanges, BIG_COLUMNS)}
                 </>
               ),
@@ -149,13 +149,13 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
               key: 'diff',
               label: (
                 <span>
-                  Описи відрізняються — не змінено <Tag>{formatQty(report.detailsDiffer.total)}</Tag>
+                  Описи відрізняються, не змінено <Tag>{formatQty(report.detailsDiffer.total)}</Tag>
                 </span>
               ),
               children: (
                 <>
                   <div className="po-muted po-pu-hint">
-                    Заповнені назви, бренди й одиниці в каталозі прайс не перезаписує. Якщо значення з прайсу правильне — виправте в картці товару.
+                    Заповнені назви, бренди й одиниці в каталозі прайс не перезаписує. Якщо значення з прайсу правильне, виправте в картці товару.
                   </div>
                   {sectionTable(report.detailsDiffer, DIFF_COLUMNS)}
                 </>
@@ -201,7 +201,7 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
               ),
               children: (
                 <>
-                  <div className="po-muted po-pu-hint">Код товару в каталозі замінено кодом із прайсу — ціни й історія лишаються при товарі.</div>
+                  <div className="po-muted po-pu-hint">Код товару в каталозі замінено кодом із прайсу, ціни й історія лишаються при товарі.</div>
                   {sectionTable(report.relinked, RELINKED_COLUMNS)}
                 </>
               ),

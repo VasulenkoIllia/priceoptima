@@ -97,7 +97,7 @@ async function lockLost(requestId: UUID, actor: User, sessionId: string, now: Da
   const info = await lockInfoOf(holder, actor, sessionId);
   return new ApiError(
     'LOCK_LOST',
-    info ? `Заявку зараз редагує ${info.userShortName} — зміни не збережено` : 'Редагування заявки втрачено — відкрийте її знову',
+    info ? `Заявку зараз редагує ${info.userShortName}, зміни не збережено` : 'Редагування заявки втрачено, відкрийте її знову',
     { lock: info },
   );
 }
