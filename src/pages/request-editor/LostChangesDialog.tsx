@@ -14,7 +14,7 @@ export function LostChangesDialog() {
 
   const why =
     lockLost?.reason === 'forced'
-      ? `Редагування забрав ${lockLost.byUserShortName ?? 'інший користувач'}.`
+      ? `Редагування забрав ${(lockLost.byUserShortName ?? 'інший користувач').replace(/\.$/u, '')}.`
       : lockLost
         ? 'Редагування втрачено (довго не було зв’язку або комп’ютер засинав).'
         : 'Заявку тим часом змінили в іншій вкладці.';
