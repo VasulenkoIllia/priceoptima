@@ -2,13 +2,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Tag } from 'antd';
 import { AVAILABILITY_LABELS, CURRENCY_LABELS, type AvailabilityStatus, type CurrencyCode, type PriceSource } from '@shared/enums';
-import { formatQty, formatRate } from '@shared/format';
+import { formatMoney, formatQty } from '@shared/format';
 import { DEFAULT_APP_SETTINGS, netToGross } from '@shared/pricing';
 import { ds, qk } from '@/data';
 
 /** '8,602 USD'; null → '—'. */
+/** Ціна в каталозі — 2 знаки, як в Excel-вивантаженні. */
 export function priceCur(v: number | null | undefined, currency: CurrencyCode): string {
-  return v == null ? '—' : `${formatRate(v)} ${CURRENCY_LABELS[currency]}`;
+  return v == null ? '—' : `${formatMoney(v)} ${CURRENCY_LABELS[currency]}`;
 }
 
 /** Каталог показує вхід з ПДВ (п.7 правок клієнта); зберігається без ПДВ — для підбору, порівняння й КП. */

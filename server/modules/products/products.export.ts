@@ -1,11 +1,13 @@
-// Вивантаження номенклатури в Excel (НОМ-7): те саме, що видно на екрані з поточними фільтрами.
+// Вивантаження номенклатури в Excel (НОМ-7): ті самі колонки й фільтри, що на екрані.
 // Файл пишемо потоком у відповідь — на десятках тисяч позицій книга не збирається в пам'яті.
 import type { Response } from 'express';
 import ExcelJS from 'exceljs';
 import { AVAILABILITY_LABELS } from '@shared/enums';
 import { formatDate } from '@shared/format';
+import { netToGross, round2 } from '@shared/pricing';
 import type { ProductDetail } from '@shared/types';
 import { validationError } from '../../http/errors';
+import { getSettings } from '../settings/settings.service';
 import { productDetailsByIds, productIdsForExport } from './products.service';
 import type { ProductListQueryInput } from './products.schemas';
 
@@ -13,35 +15,31 @@ import type { ProductListQueryInput } from './products.schemas';
 export const MAX_EXPORT_ROWS = 100_000;
 const BATCH = 2000;
 
-const COLUMNS: { header: string; width: number; value: (p: ProductDetail) => string | number | null }[] = [
+type Column = { header: string; width: number; numFmt?: string; value: (p: ProductDetail, vatRatePct: number) => string | number | null };
+
+const MONEY = '#,##0.00';
+const QTY = '#,##0.###';
+const gross = (net: number | null, vatRatePct: number) => (net == null ? null : netToGross(net, vatRatePct, 2));
+
+/** Ті самі колонки, що на екрані «Номенклатура» (ціни з ПДВ, 2 знаки); валюта й залишок — окремими колонками, щоб лишались числами. */
+const COLUMNS: Column[] = [
   { header: 'Постачальник', width: 26, value: (p) => p.supplierName },
   { header: 'Артикул', width: 18, value: (p) => p.sku },
-  { header: 'Найменування', width: 52, value: (p) => p.nameWork },
+  { header: 'Найменування робоче', width: 52, value: (p) => p.nameWork },
   { header: 'Найменування 1С', width: 40, value: (p) => p.name1c },
-  { header: 'Бренд', width: 18, value: (p) => p.brand },
   { header: 'Од.', width: 8, value: (p) => p.unitCode },
-  { header: 'Кратність', width: 10, value: (p) => p.multiplicity },
+  { header: 'Кратн.', width: 10, numFmt: QTY, value: (p) => p.multiplicity },
+  { header: 'Вхід з ПДВ', width: 14, numFmt: MONEY, value: (p, vat) => gross(p.purchasePrice, vat) },
   { header: 'Валюта', width: 8, value: (p) => p.currency },
-  { header: 'Вхід без ПДВ', width: 14, value: (p) => p.purchasePrice },
-  { header: 'Вхід без ПДВ, грн', width: 16, value: (p) => p.purchasePriceUah },
-  { header: 'РРЦ з ПДВ', width: 14, value: (p) => p.rrp },
-  { header: 'Залишок', width: 10, value: (p) => p.stockQty },
+  { header: 'Вхід з ПДВ, грн', width: 16, numFmt: MONEY, value: (p, vat) => gross(p.purchasePriceUah, vat) },
+  { header: 'РРЦ з ПДВ', width: 14, numFmt: MONEY, value: (p) => (p.rrp == null ? null : round2(p.rrp)) },
   { header: 'Наявність', width: 14, value: (p) => AVAILABILITY_LABELS[p.availability] },
-  { header: 'Дата ціни', width: 12, value: (p) => (p.priceUpdatedAt ? formatDate(p.priceUpdatedAt) : null) },
-  { header: 'Джерело ціни', width: 14, value: (p) => (p.priceSource === 'manual' ? 'Вручну' : 'Прайс') },
+  { header: 'Залишок', width: 10, numFmt: QTY, value: (p) => p.stockQty },
   { header: 'Немає у прайсі з', width: 16, value: (p) => (p.missingSince ? formatDate(p.missingSince) : null) },
-  { header: 'Архів', width: 8, value: (p) => (p.isArchived ? 'так' : '') },
+  { header: 'Дата ціни', width: 12, value: (p) => (p.priceUpdatedAt ? formatDate(p.priceUpdatedAt) : null) },
+  { header: 'Ціна застаріла', width: 14, value: (p) => (p.isStale ? 'так' : '') },
+  { header: 'Джерело', width: 10, value: (p) => (p.priceSource === 'manual' ? 'Вручну' : 'Прайс') },
 ];
-
-const MONEY = '#,##0.0000';
-const QTY = '#,##0.###';
-const NUMERIC = new Map<number, string>([
-  [7, QTY],
-  [9, MONEY],
-  [10, MONEY],
-  [11, MONEY],
-  [12, QTY],
-]);
 
 export function exportFileName(now = new Date()): string {
   return `Номенклатура ${formatDate(now.toISOString())}.xlsx`;
@@ -66,14 +64,17 @@ export async function exportProducts(query: ProductListQueryInput, res: Response
   res.setHeader('Content-Disposition', contentDisposition(exportFileName()));
   const wb = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res, useStyles: true });
   const ws = wb.addWorksheet('Номенклатура', { views: [{ state: 'frozen', ySplit: 1 }] });
+  const { vatRatePct } = await getSettings();
   ws.columns = COLUMNS.map((c) => ({ header: c.header, width: c.width }));
   ws.getRow(1).font = { bold: true };
   ws.getRow(1).commit();
 
   for (let i = 0; i < ids.length; i += BATCH) {
     for (const p of await productDetailsByIds(ids.slice(i, i + BATCH))) {
-      const row = ws.addRow(COLUMNS.map((c) => c.value(p)));
-      for (const [index, format] of NUMERIC) row.getCell(index).numFmt = format;
+      const row = ws.addRow(COLUMNS.map((c) => c.value(p, vatRatePct)));
+      COLUMNS.forEach((c, i) => {
+        if (c.numFmt) row.getCell(i + 1).numFmt = c.numFmt;
+      });
       row.commit();
     }
   }
