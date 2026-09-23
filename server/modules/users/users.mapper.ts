@@ -2,7 +2,7 @@
 import type { User, UserRole } from '@prisma/client';
 import type { UserDto } from '@shared/types';
 
-export const ROLE_LABEL: Record<UserRole, string> = { admin: 'Адміністратор', user: 'Користувач' };
+export const ROLE_LABEL: Record<UserRole, string> = { admin: 'Адміністратор', user: 'Менеджер' };
 
 export function toUserDto(user: User, invitedBy: string | null = null): UserDto {
   return {

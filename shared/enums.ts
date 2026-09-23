@@ -52,7 +52,7 @@ export const DEFAULT_RATE_POLICY: RatePolicy = 'price_list';
 // ── Підписи для UI ────────────────────────────────────────────────
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Адміністратор',
-  user: 'Користувач',
+  user: 'Менеджер',
 };
 
 export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {

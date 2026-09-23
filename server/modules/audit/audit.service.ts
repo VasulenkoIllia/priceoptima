@@ -14,7 +14,7 @@ export interface AuditEntry {
   action: string;
   entityType?: AuditEntity | null;
   entityId?: string | null;
-  /** Рядок для людини: «Запрошено користувача (роль Користувач)». */
+  /** Рядок для людини: «Запрошено користувача (роль Менеджер)». */
   summary: string;
   details?: Prisma.InputJsonValue;
 }
