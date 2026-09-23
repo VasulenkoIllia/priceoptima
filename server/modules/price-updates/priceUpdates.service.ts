@@ -9,18 +9,18 @@ import { config } from '../../config';
 import { prisma } from '../../db';
 import { ApiError, notFound, validationError } from '../../http/errors';
 import { dateOnly } from '../../lib/mapping';
+import { runPriceTask } from '../../lib/priceWorker';
 import { createSecretBox } from '../../lib/secretBox';
 import { logger } from '../../logger';
 import { imageUrlOf } from '../images/images.mapper';
 import { removeImageFile, safeFileName, saveImageFile } from '../images/images.storage';
 import { today } from '../rates/rates.service';
 import { listUnits } from '../units/units.service';
-import { parseFeed, type AdapterResult, type PriceRow } from './connectors';
 import { invalidateProductCounts } from '../suppliers/suppliers.service';
+import type { AdapterResult, PriceRow } from './connectors';
 import { importRowsToPriceRows } from './importRows';
 import {
   isRejected,
-  planApply,
   type ApplyPlan,
   type ExistingProduct,
   type PlanCounters,
@@ -142,7 +142,7 @@ export async function runFeedUpdate(
       fileName: null,
     };
     const body = await step(ctx, () => downloadFeed(feed, secrets));
-    const parsed = await step(ctx, async () => parseFeedBody(connector, body, supplier, feed));
+    const parsed = await step(ctx, () => parseFeedBody(connector, body, supplier, feed));
     // без закупівельних цін у вигрузці ціну входу не чіпаємо, хоч би що віддав розбір
     const priced = feed.hasPurchasePrice ? parsed.rows : parsed.rows.map((r) => ({ ...r, purchasePrice: null }));
     const rows = vatNormalizedRows(priced, supplier, (await getSettings()).vatRatePct);
@@ -167,9 +167,15 @@ async function step<T>(ctx: RunContext, task: () => Promise<T>): Promise<T> {
   }
 }
 
-function parseFeedBody(connector: FeedConnector, body: string, supplier: Supplier, feed: SupplierPriceFeed): AdapterResult {
+async function parseFeedBody(connector: FeedConnector, body: string, supplier: Supplier, feed: SupplierPriceFeed): Promise<AdapterResult> {
   try {
-    return parseFeed(connector, body, { hasPurchasePrice: feed.hasPurchasePrice, defaultCurrency: supplier.defaultCurrency });
+    // розбір у окремому потоці: вигрузка на 100 тис. позицій розбирається секунди
+    return await runPriceTask({
+      kind: 'parseFeed',
+      connector,
+      body,
+      options: { hasPurchasePrice: feed.hasPurchasePrice, defaultCurrency: supplier.defaultCurrency },
+    });
   } catch (e) {
     // повідомлення адаптерів українською; технічні (JSON.parse тощо) показувати користувачу нема сенсу
     const reason = e instanceof Error && /[а-яіїєґ]/iu.test(e.message) ? `: ${e.message}` : ' — вміст не відповідає формату';
@@ -258,14 +264,18 @@ function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpdateRun
 async function applyPriceNow(ctx: RunContext, price: ParsedPrice): Promise<PriceUpdateRunDetail> {
   const supplierId = ctx.supplier.id;
   const [existing, units] = await Promise.all([loadExisting(supplierId), listUnits()]);
-  const result = planApply({
-    existing,
-    rows: price.rows,
-    markMissing: price.markMissing,
-    today: today(ctx.startedAt),
-    roles: price.roles,
-    defaultCurrency: ctx.supplier.defaultCurrency,
-    units: units.filter((u) => u.isActive),
+  // звірка сотень тисяч позицій — в окремому потоці, щоб сервер відповідав іншим
+  const result = await runPriceTask({
+    kind: 'plan',
+    input: {
+      existing,
+      rows: price.rows,
+      markMissing: price.markMissing,
+      today: today(ctx.startedAt),
+      roles: price.roles,
+      defaultCurrency: ctx.supplier.defaultCurrency,
+      units: units.filter((u) => u.isActive),
+    },
   });
 
   if (isRejected(result)) {
