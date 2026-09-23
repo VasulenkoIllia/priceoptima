@@ -1,6 +1,6 @@
 import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 // API сервера під час розробки (npm run dev:server)
 const API_TARGET = process.env.API_TARGET ?? "http://127.0.0.1:3000";
@@ -39,6 +39,8 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
-    include: ["shared/**/*.test.ts", "src/**/*.test.{ts,tsx}", "server/**/*.test.ts"]
+    include: ["shared/**/*.test.ts", "src/**/*.test.{ts,tsx}", "server/**/*.test.ts"],
+    // тести з реальною базою — окремо: npm run test:db
+    exclude: [...configDefaults.exclude, "server/**/*.db.test.ts"]
   }
 });

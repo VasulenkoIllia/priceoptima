@@ -21,6 +21,7 @@
     "db:studio": "prisma studio --schema server/prisma/schema.prisma",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "test": "vitest run",
+    "test:db": "vitest run --config vitest.db.config.ts",
     "test:watch": "vitest",
     "postinstall": "prisma generate --schema server/prisma/schema.prisma"
   },
