@@ -313,7 +313,7 @@ model Client {
 model Counterparty {
   id            String          @id @default(uuid())
   clientId      String
-  client        Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client        Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
   nameShort     String
   nameFull      String?
   edrpou        String?
@@ -334,7 +334,7 @@ model Counterparty {
 model ClientContact {
   id             String        @id @default(uuid())
   clientId       String
-  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client         Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
   counterpartyId String?
   counterparty   Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
   fullName       String
@@ -382,7 +382,7 @@ model Product {
   /// Лічильник змін картки: зберігаємо лише з тією версією, яку відкрив користувач (ДОВ-6).
   version        Int          @default(1)
   supplierId     String
-  supplier       Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplier       Supplier     @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   /// Код постачальника як у прайсі.
   sku            String
   /// normalizeSku(sku) — за ним звіряємо прайс.
@@ -489,7 +489,7 @@ model PriceHistory {
 model PriceImportRun {
   id            Int              @id @default(autoincrement())
   supplierId    String
-  supplier      Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplier      Supplier         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   startedAt     DateTime         @default(now())
   finishedAt    DateTime?
   source        ImportRunSource
@@ -721,7 +721,7 @@ model RequestOffer {
 model KpDocument {
   id           String    @id @default(uuid())
   requestId    String
-  request      Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request      Request   @relation(fields: [requestId], references: [id], onDelete: Restrict)
   kpNumber     Int
   version      Int
   vatMode      String
