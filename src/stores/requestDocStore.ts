@@ -47,6 +47,7 @@ import { DataSourceError, errorMessage, isDataSourceError } from '@/data/errors'
 import { newId } from '@/lib/ids';
 import { toSupplierRef } from '@/lib/supplierRef';
 import { diffDocuments } from './requestDocDiff';
+import { describeUnsavedChanges } from './unsavedChanges';
 
 // ── типи ────────────────────────────────────────────────────────────
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -118,6 +119,12 @@ export interface LockLostInfo {
   reason: 'forced' | 'lost';
 }
 
+/** Зміни, які не збереглися (редагування втрачено або заявку змінили деінде) — щоб внести їх ще раз. */
+export interface LostChanges {
+  at: ISODateTime;
+  items: string[];
+}
+
 export interface RequestDocData {
   requestId: UUID | null;
   loadState: LoadState;
@@ -134,6 +141,7 @@ export interface RequestDocData {
   /** Ця вкладка тримає блокування. */
   hasLock: boolean;
   lockLost: LockLostInfo | null;
+  lostChanges: LostChanges | null;
   readOnly: boolean;
   readOnlyReason: 'status' | 'lock' | null;
   save: { state: SaveState; savedAt: ISODateTime | null; error: string | null };
@@ -153,6 +161,8 @@ export interface RequestDocActions {
   retryLock(): Promise<boolean>;
   /** «Забрати редагування» (адміністратор). */
   forceLock(): Promise<void>;
+  /** Закрити вікно «Ці зміни не збереглися». */
+  dismissLostChanges(): void;
   /** Зберегти незбережені зміни зараз; помилка — якщо зберегти не вдалося (зміни лишились незбереженими). */
   flush(): Promise<void>;
 
@@ -230,6 +240,7 @@ const INITIAL_DATA: RequestDocData = {
   lock: null,
   hasLock: false,
   lockLost: null,
+  lostChanges: null,
   readOnly: true,
   readOnlyReason: null,
   save: { state: 'idle', savedAt: null, error: null },
@@ -357,17 +368,29 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       if (after.dirty && after.hasLock && after.save.state === 'saved' && !saveTimer) scheduleSave();
     }
 
+    /** Перед перечитуванням з сервера — запам'ятати, що саме не збереглося. */
+    function captureLostChanges(): void {
+      const { doc } = get();
+      if (!doc || !lastSaved || doc === lastSaved) return;
+      const items = describeUnsavedChanges(lastSaved, doc);
+      if (items.length) set({ lostChanges: { at: new Date().toISOString(), items } });
+    }
+
     function onSaveError(e: unknown): void {
       const prev = get().save;
       if (isDataSourceError(e, 'LOCK_LOST') || isDataSourceError(e, 'LOCKED')) {
         const holder = (e.details as { lock?: LockInfo | null } | undefined)?.lock ?? null;
         loseLock(holder && !holder.isMySession ? 'forced' : 'lost', holder?.userShortName ?? null);
         set({ save: { state: 'error', savedAt: prev.savedAt, error: `${e.message}` } });
+        captureLostChanges();
         void refresh();
         return;
       }
       set({ save: { state: 'error', savedAt: prev.savedAt, error: errorMessage(e) } });
-      if (isDataSourceError(e, 'VERSION_CONFLICT') || isDataSourceError(e, 'READ_ONLY')) void refresh();
+      if (isDataSourceError(e, 'VERSION_CONFLICT') || isDataSourceError(e, 'READ_ONLY')) {
+        captureLostChanges();
+        void refresh();
+      }
     }
 
     // ── блокування ────────────────────────────────────────────────
@@ -396,6 +419,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
           const holder = (e.details as { lock?: LockInfo | null } | undefined)?.lock ?? null;
           loseLock(holder ? 'forced' : 'lost', holder?.userShortName ?? null);
           set({ lock: holder });
+          captureLostChanges();
           void refresh();
         }
       }
@@ -770,6 +794,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       retryLock,
       forceLock,
       flush,
+      dismissLostChanges: () => set({ lostChanges: null }),
 
       setHeader(patch, refs) {
         edit((d) => {

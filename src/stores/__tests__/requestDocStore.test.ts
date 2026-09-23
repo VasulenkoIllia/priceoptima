@@ -338,6 +338,10 @@ describe('requestDocStore', () => {
     expect(a.readOnly).toBe(true);
     expect(a.lockLost).toMatchObject({ reason: 'forced', byUserShortName: 'Адміністратор' });
     expect((await admin.getRequestDocument(REQ1)).header.notes).toBeNull();
+    // що саме не збереглося — видно, щоб внести ще раз
+    expect(a.lostChanges?.items).toEqual(['Шапка: змінено «Нотатки»']);
+    storeA.getState().dismissLostChanges();
+    expect(storeA.getState().lostChanges).toBeNull();
   });
 
   it('режим перегляду сам підтягує збережені зміни й звільнення заявки', async () => {

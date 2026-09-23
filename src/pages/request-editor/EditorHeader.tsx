@@ -13,6 +13,7 @@ import { contactRef, contactsFor, counterpartyRef, defaultContact, defaultCounte
 import { useRequestDoc } from '@/stores/requestDocStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { CopyRequestDialog } from './CopyRequestDialog';
+import { LostChangesDialog } from './LostChangesDialog';
 import { StatusControl } from './StatusControl';
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -277,6 +278,7 @@ export function EditorHeader() {
       {showLockBanner ? (
         <LockBanner lock={lock} lockLost={lockLost} isAdmin={isAdmin} onRefresh={() => retryLock()} onForce={() => forceLock()} />
       ) : null}
+      <LostChangesDialog />
       {readOnlyReason === 'status' ? (
         <Alert
           type="info"
