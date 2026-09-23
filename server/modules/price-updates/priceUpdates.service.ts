@@ -295,6 +295,8 @@ async function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpd
 
 /** Скільки товарів постачальника читаємо за раз: без цього великий прайс (100+ тис.) тримав би в пам'яті ще й сирий результат Prisma. */
 const EXISTING_BATCH = 10_000;
+/** Календарний день дати ціни — як у застосунку (toIsoDate). */
+const APP_TIME_ZONE = 'Europe/Kyiv';
 
 type ExistingRow = Omit<ExistingProduct, 'hasImages'>;
 
@@ -391,8 +393,14 @@ async function writePlan(tx: Prisma.TransactionClient, ctx: RunContext, price: P
   for (const batch of chunks(images, INSERT_BATCH)) await tx.productImage.createMany({ data: batch });
   for (const batch of chunks(plan.imageAttachments, UPDATE_BATCH)) await setMainImageUrls(tx, batch);
 
+  // «ціну підтвердив прайс» — дата ціни; показується й рахується з точністю до дня, тож рядки, підтверджені сьогодні,
+  // не переписуємо вдруге (повторне «Оновити зараз» чи той самий файл удруге не перезаписують увесь каталог постачальника)
+  const confirmDay = today(now);
   for (const ids of chunks(plan.priceConfirmedIds, ID_BATCH)) {
-    await tx.product.updateMany({ where: { id: { in: ids } }, data: { priceUpdatedAt: now } });
+    await tx.$executeRaw`
+      UPDATE "Product" SET "priceUpdatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+      WHERE id IN (${Prisma.join(ids)})
+        AND ("priceUpdatedAt" IS NULL OR (("priceUpdatedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${APP_TIME_ZONE})::date < ${confirmDay}::date)`;
   }
   for (const ids of chunks(plan.adoptedIds, ID_BATCH)) {
     await tx.product.updateMany({ where: { id: { in: ids } }, data: { priceOrigin: 'import' } });
