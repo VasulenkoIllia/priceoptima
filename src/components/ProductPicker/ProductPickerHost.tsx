@@ -1,6 +1,6 @@
 // Вікно вибору товару (§6.7): пошук по всьому каталогу (артикул/назви), фільтр постачальника, вибір 1–3 товарів
 // різних постачальників → пропозиції в блоках їх постачальників (блоки створюються автоматично).
-import { GlobalOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { GlobalOutlined, LoadingOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Alert, App, Button, Dropdown, Empty, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -24,6 +24,10 @@ export interface ProductPickerHostProps {
   /** Після додавання товарів у рядок (наприклад, прибрати підказки невдалих артикулів у цих блоках). */
   onAdded?(info: { lineId: UUID; blockIds: UUID[] }): void;
 }
+
+/** Скільки найкращих збігів показує вікно; мінімальна довжина запиту. */
+const SEARCH_LIMIT = 50;
+const MIN_QUERY = 2;
 
 const STOCK_SHORT: Record<AvailabilityStatus, string> = {
   in_stock: 'є',
@@ -57,12 +61,16 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
   const [selected, setSelected] = useState<ProductPickDto[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
 
+  // шукаємо від 2 символів: одна літера дає випадковий список і пропозицію «Створити товар» не до місця
+  const searchable = q.length >= MIN_QUERY;
   const search = useQuery({
     queryKey: ['product-search', q, supplierId],
-    queryFn: () => ds.searchProducts({ q, supplierId: supplierId === 'all' ? null : supplierId, limit: 50 }),
+    queryFn: () => ds.searchProducts({ q, supplierId: supplierId === 'all' ? null : supplierId, limit: SEARCH_LIMIT }),
+    enabled: searchable,
     placeholderData: keepPreviousData,
     staleTime: 15_000,
   });
+  const results = searchable ? search.data : undefined;
 
   const supplierRef = useCallback(
     (id: UUID): SupplierRef | null => {
@@ -75,8 +83,8 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
   );
 
   const rows = useMemo(
-    () => (doc && ctx && line && search.data ? buildPickerRows(search.data, { doc, ctx, line, supplierRef }) : []),
-    [doc, ctx, line, search.data, supplierRef],
+    () => (doc && ctx && line && results ? buildPickerRows(results, { doc, ctx, line, supplierRef }) : []),
+    [doc, ctx, line, results, supplierRef],
   );
 
   const toggle = (p: ProductPickDto) => {
@@ -284,17 +292,20 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
     },
   ];
 
-  const emptyText = search.isFetching ? (
-    'Шукаю…'
-  ) : (
-    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={q ? `Нічого не знайдено за «${q}»` : 'Введіть артикул або назву'}>
-      {q && !readOnly ? (
-        <Button icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-          Створити товар
-        </Button>
-      ) : null}
-    </Empty>
-  );
+  const emptyText =
+    searchable && search.isFetching ? (
+      'Шукаю…'
+    ) : q.length > 0 && !searchable ? (
+      'Введіть щонайменше 2 символи'
+    ) : (
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={q ? `Нічого не знайдено за «${q}»` : 'Введіть артикул або назву'}>
+        {q && !readOnly ? (
+          <Button icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            Створити товар
+          </Button>
+        ) : null}
+      </Empty>
+    );
 
   return (
     <div className="po-picker">
@@ -314,6 +325,8 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
           onChange={(e) => setQuery(e.target.value)}
           onFocus={(e) => e.target.select()}
           prefix={<SearchOutlined className="po-muted" />}
+          // новий пошук іде — спінер, попередні результати лишаються видимими до відповіді
+          suffix={searchable && search.isFetching && search.data ? <LoadingOutlined className="po-muted" /> : <span />}
           placeholder="Артикул або назва (усі слова)"
         />
         <Select<UUID | 'all'>
@@ -341,7 +354,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
         pagination={false}
         dataSource={rows}
         columns={columns}
-        loading={search.isFetching && !search.data}
+        loading={searchable && search.isFetching && !search.data}
         scroll={{ y: 380 }}
         locale={{ emptyText }}
         rowClassName={(r) => (r.product.matchKind === 'fuzzy' ? 'po-picker-fuzzy' : '')}
@@ -364,6 +377,11 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
           },
         })}
       />
+      {results && results.length >= SEARCH_LIMIT ? (
+        <Typography.Text type="secondary" className="po-picker-hint">
+          Показано {SEARCH_LIMIT} найкращих збігів — уточніть запит, щоб знайти інший товар.
+        </Typography.Text>
+      ) : null}
       <div className="po-picker-selected">
         {selected.length ? (
           <>
