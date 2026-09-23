@@ -129,6 +129,8 @@ export interface BlockTotals {
   deltaPct: number | null;
   /** Дельта без ПДВ. */
   deltaNet: number;
+  /** Рядків, де пропозиція блоку бере участь у порівнянні (кандидат) — з них рахується дельта. */
+  comparedCount: number;
   /** «Найдешевший» — лише в одного блоку заявки (markCheapestBlock). */
   cheapest: boolean;
   minOrderAmount: number | null;

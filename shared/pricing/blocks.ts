@@ -28,15 +28,16 @@ function minSums(
 }
 
 /**
- * «Найдешевший» — лише один блок: без переплати на своїх рядках; якщо таких кілька — той, що покриває більше рядків
+ * «Найдешевший» — лише один блок: без переплати на своїх рядках, де його пропозиція бере участь у порівнянні;
+ * якщо таких кілька — той, що покриває більше рядків
  * (нічия — вищий у списку).
  */
 export function markCheapestBlock(totals: Record<UUID, BlockTotals>, blocks: readonly SupplierBlock[]): void {
   let best: BlockTotals | null = null;
   for (const block of [...blocks].sort((a, b) => a.position - b.position)) {
     const t = totals[block.id];
-    if (!t?.filledCount || t.deltaNet > 0) continue;
-    if (!best || t.filledCount > best.filledCount) best = t;
+    if (!t?.comparedCount || t.deltaNet > 0) continue;
+    if (!best || t.comparedCount > best.comparedCount) best = t;
   }
   if (best) best.cheapest = true;
 }
@@ -53,6 +54,7 @@ export function computeBlockTotals(
   const active = lines.filter(isActiveLine);
   let filledCount = 0;
   let selectedCount = 0;
+  let comparedCount = 0;
   const all: number[] = [];
   const included: number[] = [];
   const includedNet: number[] = [];
@@ -79,9 +81,11 @@ export function computeBlockTotals(
       selGross.push(oc.sumGrossUah ?? 0);
     }
 
-    // Ф11: дельта — vs найменша сума по тих самих рядках (сума, а не ціна за од.: кратність у різних постачальників різна)
-    const min = minSums(line.id, offers, offerIndex);
+    // Ф11: дельта — vs найменша сума по тих самих рядках (сума, а не ціна за од.: кратність у різних постачальників різна);
+    // пропозиція, що не бере участі в порівнянні (немає в наявності при «не враховувати відсутні»), у дельту не йде
+    const min = oc.isCandidate ? minSums(line.id, offers, offerIndex) : null;
     if (min) {
+      comparedCount++;
       deltas.push((oc.sumGrossUah ?? 0) - min.gross);
       deltasNet.push((oc.sumNetUah ?? 0) - min.net);
       recSums.push(min.gross);
@@ -121,6 +125,7 @@ export function computeBlockTotals(
     deltaGross,
     deltaPct: recTotal ? round2((deltaGross / recTotal) * 100) : null,
     deltaNet: round2(deltasNet.reduce((a, b) => a + b, 0)),
+    comparedCount,
     cheapest: false,
     minOrderAmount,
     belowMinOrder,

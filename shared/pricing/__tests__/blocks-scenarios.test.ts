@@ -78,6 +78,17 @@ describe('«найдешевший» і дельта за сумою з урах
     expect(c.blocks.B!.cheapest).toBe(true);
   });
 
+  it('«не враховувати відсутні»: дешевша, але відсутня пропозиція не робить блок «найдешевшим»', () => {
+    const d = makeDoc({
+      lines: [makeLine('L1', 1)],
+      blocks: [makeBlock('A', 0), makeBlock('B', 1)],
+      offers: [uah('L1', 'A', 5, { availability: 'out_of_stock' }), uah('L1', 'B', 10)],
+    });
+    const r = computeRequest({ ...d, markup: { ...d.markup, excludeUnavailable: true } }, makeCtx([makeSupplier('A'), makeSupplier('B')]));
+    expect(r.blocks.A!.comparedCount).toBe(0);
+    expect([r.blocks.A!.cheapest, r.blocks.B!.cheapest]).toEqual([false, true]);
+  });
+
   it('кілька блоків без переплати — позначка в того, що покриває більше рядків', () => {
     const two = makeDoc({
       lines: [makeLine('L1', 1), makeLine('L2', 1)],
