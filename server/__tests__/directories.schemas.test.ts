@@ -88,6 +88,16 @@ describe('постачальник', () => {
     expect(out.manualRateUsd).toBeNull();
   });
 
+  it('посилання: лише http(s); адреса без схеми доповнюється https://', () => {
+    const out = parse(supplierInputSchema, { name: 'С', website: 'sandi.ua', b2bUrl: 'https://b2b.sandi.ua', searchUrlTemplate: 'https://sandi.ua/?q={query}' });
+    expect(out.website).toBe('https://sandi.ua');
+    expect(out.b2bUrl).toBe('https://b2b.sandi.ua');
+    expect(() => parse(supplierInputSchema, { name: 'С', website: 'javascript:alert(1)' })).toThrow(ApiError);
+    expect(() => parse(supplierInputSchema, { name: 'С', searchUrlTemplate: 'javascript:fetch("{query}")' })).toThrow(ApiError);
+    expect(() => parse(supplierInputSchema, { name: 'С', logoUrl: 'data:text/html;base64,PHNjcmlwdD4=' })).toThrow(ApiError);
+    expect(parse(supplierInputSchema, { name: 'С', logoUrl: 'data:image/png;base64,iVBORw0KGgo=' }).logoUrl).toMatch(/^data:image\/png/u);
+  });
+
   it('політика курсу «НБУ ± %» приймається', () => {
     expect(parse(supplierInputSchema, { name: 'С', ratePolicy: 'nbu_adjusted', rateAdjustPct: 1.5 }).rateAdjustPct).toBe(1.5);
   });

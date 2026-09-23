@@ -5,6 +5,7 @@ import { Alert, App, Button, Descriptions, Drawer, Result, Space, Spin, Table, T
 import { useState, type ReactNode } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatDateTime, formatMoneyUah, formatQty, formatRequestNumber } from '@shared/format';
+import { webUrl } from '@shared/parse';
 import type { PriceHistoryEntry, ProductDetail, SupplierListItem } from '@shared/types';
 import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
@@ -133,8 +134,8 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
           Редагувати
         </Button>
       </div>
-      {product.productUrl ? (
-        <Typography.Link href={product.productUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginBottom: 12 }}>
+      {webUrl(product.productUrl) ? (
+        <Typography.Link href={webUrl(product.productUrl)!} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginBottom: 12 }}>
           <GlobalOutlined /> Сторінка товару на сайті постачальника
         </Typography.Link>
       ) : null}

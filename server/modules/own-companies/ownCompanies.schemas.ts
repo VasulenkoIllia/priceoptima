@@ -1,7 +1,7 @@
 // Перевірка реквізитів власної юрособи. Реквізити потрапляють у КП, тож назви обов'язкові,
 // а решта полів може лишатися порожньою.
 import { z } from 'zod';
-import { optionalText, trimmed } from '../../lib/fields';
+import { imageSrcField, optionalText, trimmed, webUrlField } from '../../lib/fields';
 
 export const ownCompanyInputSchema = z.object({
   /** Версія картки, яку відкрив користувач (ДОВ-6). */
@@ -17,10 +17,10 @@ export const ownCompanyInputSchema = z.object({
   addressLegal: optionalText(400),
   phone: optionalText(40),
   email: optionalText(160),
-  website: optionalText(200),
+  website: webUrlField(200, 'Сайт'),
   slogan: optionalText(200),
   // логотип зберігаємо як посилання або data-URL зображення
-  logoUrl: optionalText(300_000),
+  logoUrl: imageSrcField(300_000, 'Логотип'),
   kpFooter: optionalText(2000),
   isDefault: z.boolean().default(false),
   isActive: z.boolean().default(true),

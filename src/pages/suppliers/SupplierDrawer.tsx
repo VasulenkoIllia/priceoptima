@@ -5,6 +5,7 @@ import { Alert, App, Button, Descriptions, Drawer, Modal, Result, Spin, Table, T
 import { useState, type ReactNode } from 'react';
 import { CURRENCY_LABELS, RATE_POLICY_LABELS } from '@shared/enums';
 import { formatDateTime, formatMoneyUah, formatRate } from '@shared/format';
+import { webUrl } from '@shared/parse';
 import type { PriceUpdateDto, SupplierDetail, SupplierListItem } from '@shared/types';
 import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
@@ -24,8 +25,9 @@ function ratePolicyLabel(s: SupplierDetail): string {
   return RATE_POLICY_LABELS[s.ratePolicy];
 }
 
-function ExtLink({ url }: { url: string | null }) {
-  if (!url) return <span className="po-muted">—</span>;
+function ExtLink({ url: raw }: { url: string | null }) {
+  const url = webUrl(raw);
+  if (!url) return raw ? <span>{raw}</span> : <span className="po-muted">—</span>;
   return (
     <Typography.Link href={url} target="_blank" rel="noopener noreferrer">
       <GlobalOutlined /> {hostOf(url)}

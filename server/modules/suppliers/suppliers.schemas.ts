@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { FEED_CONNECTORS } from '@shared/catalog/connectors';
 import { CURRENCY_CODES, PRICE_COLUMN_ROLES, RATE_POLICIES } from '@shared/enums';
-import { numberField, optionalIsoDateString, optionalNumberField, optionalText, trimmed } from '../../lib/fields';
+import { imageSrcField, numberField, optionalIsoDateString, optionalNumberField, optionalText, searchUrlTemplateField, trimmed, webUrlField } from '../../lib/fields';
 
 const FEED_AUTH = ['none', 'bearer', 'basic', 'query'] as const;
 const FEED_KINDS = ['auto', 'manual', 'hybrid'] as const;
@@ -37,7 +37,7 @@ export const supplierInputSchema = z.object({
   /** Версія картки, яку відкрив користувач: чужі правки не перезаписуємо (ДОВ-6). */
   version: z.number().int().min(1).optional(),
   name: trimmed(200, 'Вкажіть назву постачальника'),
-  logoUrl: optionalText(300_000),
+  logoUrl: imageSrcField(300_000, 'Логотип'),
   color: optionalText(20),
   defaultCurrency: z.enum(CURRENCY_CODES, { message: 'Невідома валюта' }).default('UAH'),
   pricesIncludeVat: z.boolean().default(false),
@@ -64,9 +64,9 @@ export const supplierInputSchema = z.object({
     .max(365, 'Актуальність ціни: не більше 365')
     .nullish()
     .transform((v) => v ?? null),
-  searchUrlTemplate: optionalText(500),
-  website: optionalText(300),
-  b2bUrl: optionalText(300),
+  searchUrlTemplate: searchUrlTemplateField(500, 'Шаблон пошуку на сайті'),
+  website: webUrlField(300, 'Сайт'),
+  b2bUrl: webUrlField(300, 'B2B-кабінет'),
   notes: optionalText(4000),
   deliveryInfo: optionalText(2000),
   isActive: z.boolean().default(true),

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { NAME1C_MAX_ROWS } from '@shared/catalog/name1c';
 import { AVAILABILITY_STATUSES, CURRENCY_CODES } from '@shared/enums';
 import type { ProductSortField } from '@shared/types';
+import { webUrlField } from '../../lib/fields';
 
 /** Найбільше значення, яке вміщує Decimal(14,4) у базі. */
 const MONEY_MAX = 999_999_999;
@@ -126,7 +127,7 @@ export const productInputSchema = z.object({
   minOrderQty: qty('Мінімальна партія'),
   stockQty: qty('Залишок'),
   availability: availability.optional(),
-  productUrl: optionalText(500),
+  productUrl: webUrlField(500, 'Сторінка товару'),
   notes: optionalText(2000),
   /** true — вхідну ціну введено з ПДВ, нормалізуємо її до ціни без ПДВ (Ф1). */
   priceIncludesVat: z.boolean().optional(),
@@ -143,7 +144,7 @@ export const productPatchSchema = z
     unitCode: z.string().trim().min(1, 'Вкажіть одиницю виміру').max(20, 'Задовга одиниця виміру'),
     multiplicity: z.number({ message: 'Кратність: вкажіть число' }).gt(0, 'Кратність: більше нуля').max(100_000, 'Кратність: завелике значення'),
     minOrderQty: qty('Мінімальна партія'),
-    productUrl: optionalText(500),
+    productUrl: webUrlField(500, 'Сторінка товару'),
     notes: optionalText(2000),
     isArchived: z.boolean(),
   })

@@ -1,7 +1,7 @@
 // Вікно вибору товару (§6.7): рядки результатів (ціна в грн за курсом блоку/постачальника), групування однакових назв,
 // правила вибору (1–3 товари різних постачальників), посилання на сайт постачальника. Ранжування — у DataSource.searchProducts.
 import { computeOfferBase, createOfferFromProduct, createSupplierBlock } from '@shared/pricing';
-import { searchTokens } from '@shared/parse';
+import { isHttpUrl, searchTokens } from '@shared/parse';
 import type { PricingContext, ProductPickDto, RequestDocument, RequestLine, SupplierRef, UUID } from '@shared/types';
 
 export const MAX_PICK = 3;
@@ -137,5 +137,7 @@ export function siteSearchUrl(template: string | null | undefined, params: { que
   const sku = (params.sku ?? '').trim();
   const query = (params.query ?? '').trim() || sku;
   if (!query) return null;
-  return template.replaceAll('{query}', encodeURIComponent(query)).replaceAll('{sku}', encodeURIComponent(sku || query));
+  const url = template.replaceAll('{query}', encodeURIComponent(query)).replaceAll('{sku}', encodeURIComponent(sku || query));
+  // шаблон міг зберегтися до перевірки на сервері: відкриваємо лише http(s)
+  return isHttpUrl(url) ? url : null;
 }
