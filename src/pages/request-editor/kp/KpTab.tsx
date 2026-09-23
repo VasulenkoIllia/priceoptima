@@ -158,6 +158,7 @@ function ChecksList({ checks: c }: { checks: KpChecks }) {
       {c.notApproved ? <li className="po-kp-check-warn">Не затверджено ✔: {c.notApproved} (з мінімальною ціною)</li> : null}
       {c.notPicked ? <li className="po-muted">Не підібрано: {c.notPicked} (у КП не увійдуть)</li> : null}
       {c.belowCost ? <li className="po-kp-check-err">Продаж нижче входу: {c.belowCost}</li> : null}
+      {c.zeroQty ? <li className="po-kp-check-err">Кількість 0: {c.zeroQty}. Вкажіть кількість або видаліть рядок</li> : null}
       {c.noPrice ? <li className="po-kp-check-err">Без ціни продажу: {c.noPrice}. Задайте ціну на вкладці «Націнка»</li> : null}
       {c.nonPositive ? <li className="po-kp-check-err">Ціна продажу 0 або менше: {c.nonPositive}. Змініть націнку чи знижку</li> : null}
     </ul>

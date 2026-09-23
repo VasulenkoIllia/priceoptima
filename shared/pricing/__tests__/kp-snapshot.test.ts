@@ -5,13 +5,17 @@ import {
   approvedTotalsFromKp,
   buildFinalKpSnapshot,
   buildKpSnapshot,
+  kpBlockReason,
   kpBuyerOf,
+  kpChecks,
   kpManagerName,
   kpNumberLabel,
   kpSellerBlock,
   latestBaseKp,
 } from '../kp-snapshot';
 import { DEFAULT_KP_TERMS, resolveKpTerms } from '../defaults';
+import { computeRequest } from '../request';
+import { makeBlock, makeCtx, makeDoc, makeLine, makeSupplier, uah } from './fixtures';
 
 const seller = {
   nameShort: 'ТОВ «ДЕМО»',
@@ -110,5 +114,23 @@ describe('знімок КП', () => {
     expect(latestBaseKp(kps)?.version).toBe(2);
     expect(latestBaseKp([])).toBeNull();
     expect(addDaysIso('2026-12-30', 3)).toBe('2027-01-02');
+  });
+});
+
+describe('перевірки перед КП', () => {
+  const ctx = makeCtx([makeSupplier('A')]);
+  const withMarkup = (lines: ReturnType<typeof makeLine>[]) =>
+    makeDoc({ lines, blocks: [makeBlock('A', 0)], offers: lines.map((l) => uah(l.id, 'A', 100, { rrpCur: 150 })) });
+
+  it('рядок з підібраним товаром і к-стю 0 блокує КП (ТЗ: к-сть більше 0)', () => {
+    const doc = withMarkup([makeLine('L1', 2), makeLine('L2', 0)]);
+    const c = kpChecks(doc.lines, computeRequest(doc, ctx));
+    expect([c.inKp, c.zeroQty]).toEqual([1, 1]);
+    expect(kpBlockReason(c)).toMatch(/^Кількість 0: 1 поз\./u);
+  });
+
+  it('без проблем — КП можна формувати', () => {
+    const doc = withMarkup([makeLine('L1', 2)]);
+    expect(kpBlockReason(kpChecks(doc.lines, computeRequest(doc, ctx)))).toBeNull();
   });
 });

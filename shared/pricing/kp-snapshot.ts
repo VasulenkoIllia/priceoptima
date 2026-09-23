@@ -182,6 +182,8 @@ export interface KpChecks {
   inKp: number;
   /** Не підібрано — у КП не увійдуть. */
   notPicked: number;
+  /** Товар підібрано, а кількість 0 — КП не формується (ТЗ: к-сть більше 0). */
+  zeroQty: number;
   /** Ідуть з мінімальною ціною без ✔. */
   notApproved: number;
   /** Пропозиція є, а ціни продажу немає (напр., «по РРЦ» без РРЦ) — КП не формується (НАЦ-4). */
@@ -193,11 +195,12 @@ export interface KpChecks {
 }
 
 export function kpChecks(lines: readonly RequestLine[], computed: Pick<RequestComputed, 'markup'>): KpChecks {
-  const c: KpChecks = { inKp: 0, notPicked: 0, notApproved: 0, noPrice: 0, nonPositive: 0, belowCost: 0 };
+  const c: KpChecks = { inKp: 0, notPicked: 0, zeroQty: 0, notApproved: 0, noPrice: 0, nonPositive: 0, belowCost: 0 };
   for (const line of lines) {
     if (!isActiveLine(line)) continue;
     const mr = computed.markup.rows[line.id];
     if (!mr?.effectiveOfferId) c.notPicked++;
+    else if (line.qty <= 0) c.zeroQty++;
     else if (mr.saleNet == null) c.noPrice++;
     else if (mr.saleNet <= 0) c.nonPositive++;
     else {
@@ -211,6 +214,7 @@ export function kpChecks(lines: readonly RequestLine[], computed: Pick<RequestCo
 
 /** Чому КП не можна сформувати; null — можна. Рядки без підбору лише попереджають (у КП не увійдуть). */
 export function kpBlockReason(c: KpChecks): string | null {
+  if (c.zeroQty) return `Кількість 0: ${c.zeroQty} поз. Вкажіть кількість або видаліть рядок`;
   if (c.noPrice) return `Без ціни продажу: ${c.noPrice} поз. Задайте спосіб націнки або ціну вручну на вкладці «Націнка»`;
   if (c.nonPositive) return `Ціна продажу 0 або менше: ${c.nonPositive} поз. Змініть націнку чи знижку на вкладці «Націнка»`;
   if (!c.inKp) return 'Немає позицій з ціною продажу: підберіть товари й задайте націнку';
