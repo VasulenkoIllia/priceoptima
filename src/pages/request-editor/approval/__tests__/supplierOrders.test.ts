@@ -46,8 +46,8 @@ describe('замовлення постачальникам (п.4.2 правок
 
   it('к-сть — погоджена (або з КП), некратна — вгору до кратності пропозиції', () => {
     const [alpha, beta] = result.orders;
-    expect(alpha.rows[0]).toMatchObject({ name: 'Кран', unit: 'шт', qty: 2, roundedFrom: null });
-    expect(alpha.rows[1]).toMatchObject({ name: 'Труба', unit: 'м', qty: 120, roundedFrom: 118 });
+    expect(alpha.rows[0]).toMatchObject({ name: 'Кран', unit: 'шт', qty: 2, roundedFrom: null, price: 100, sum: 200, currency: 'UAH' });
+    expect(alpha.rows[1]).toMatchObject({ name: 'Труба', unit: 'м', qty: 120, roundedFrom: 118, price: 10, sum: 1200 });
     expect(beta.rows[0]).toMatchObject({ qty: 4, roundedFrom: null });
   });
 
@@ -55,7 +55,10 @@ describe('замовлення постачальникам (п.4.2 правок
     const wb = await buildSupplierOrdersWorkbook(result.orders, { requestNumber: 6, requestDate: '2026-09-14', clientName: 'БУДІНВЕСТ' });
     expect(wb.worksheets.map((w) => w.name)).toEqual(['Альфа', 'Бета']);
     const pipe = wb.getWorksheet('Альфа')!.getRow(6).values as unknown[];
-    expect(pipe.slice(1)).toEqual([2, 'Альфа', 'A-2', 'Труба', 'м', 120]);
+    expect(pipe.slice(1)).toEqual([2, 'Альфа', 'A-2', 'Труба', 'м', 120, 10, 1200]);
+    // «Разом» по постачальнику — сума входу без ПДВ
+    const total = wb.getWorksheet('Альфа')!.getRow(7);
+    expect([total.getCell(7).value, total.getCell(8).value]).toEqual(['Разом', 1400]);
   });
 
   it('назва аркуша: без заборонених символів, до 31 знака, унікальна', () => {

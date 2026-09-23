@@ -1,7 +1,8 @@
 // Замовлення постачальникам (п.4.2 правок): лише погоджені позиції, по постачальниках обраних пропозицій,
 // к-сть — погоджена, кратна пропозиції (округлення вгору). Один Excel, аркуш на кожного постачальника.
 import { formatDate, formatRequestNumber } from '@shared/format';
-import { checkMultiplicity, offerMultiplicity } from '@shared/pricing';
+import { checkMultiplicity, offerMultiplicity, round2 } from '@shared/pricing';
+import type { CurrencyCode } from '@shared/enums';
 import type { DocumentRefs, KpRow, RequestComputed, RequestDocument, UUID } from '@shared/types';
 import { loadExcelJs, saveBlob, XLSX_MIME } from '@/lib/files';
 
@@ -13,6 +14,10 @@ export interface SupplierOrderRow {
   qty: number;
   /** Погоджена к-сть була некратна — округлено вгору до кратності. */
   roundedFrom: number | null;
+  /** Ціна входу без ПДВ у валюті прайсу постачальника (як у його прайсі, без нашої націнки постачальника). */
+  price: number | null;
+  sum: number | null;
+  currency: CurrencyCode;
 }
 
 export interface SupplierOrder {
@@ -56,6 +61,9 @@ export function buildSupplierOrders(
       unit: offer.unitCode ?? line.clientUnit ?? '',
       qty,
       roundedFrom: qty !== approved ? approved : null,
+      price: offer.purchasePriceCur,
+      sum: offer.purchasePriceCur != null ? round2(offer.purchasePriceCur * qty) : null,
+      currency: offer.currency,
     });
     byBlock.set(offer.blockId, list);
   }
@@ -80,6 +88,9 @@ export function sheetName(name: string, taken: Set<string>): string {
 }
 
 const LINE = { style: 'thin' as const, color: { argb: 'FFB8C2D0' } };
+const COLS = 8;
+/** Гроші з валютою в самому форматі клітинки: число лишається числом. */
+const moneyFmt = (currency: CurrencyCode) => `#,##0.00" ${currency === 'UAH' ? 'грн' : currency}"`;
 const BOX = { top: LINE, left: LINE, bottom: LINE, right: LINE };
 
 export interface OrderMeta {
@@ -96,11 +107,11 @@ export async function buildSupplierOrdersWorkbook(orders: readonly SupplierOrder
     const ws = wb.addWorksheet(sheetName(order.supplierName, taken), {
       pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
     });
-    ws.columns = [{ width: 5 }, { width: 24 }, { width: 18 }, { width: 60 }, { width: 8 }, { width: 12 }];
-    ws.mergeCells(1, 1, 1, 6);
+    ws.columns = [{ width: 5 }, { width: 24 }, { width: 18 }, { width: 60 }, { width: 8 }, { width: 12 }, { width: 14 }, { width: 16 }];
+    ws.mergeCells(1, 1, 1, COLS);
     ws.getCell(1, 1).value = `Замовлення: ${order.supplierName}`;
     ws.getCell(1, 1).font = { bold: true, size: 13 };
-    ws.mergeCells(2, 1, 2, 6);
+    ws.mergeCells(2, 1, 2, COLS);
     ws.getCell(2, 1).value = [
       `Заявка № ${formatRequestNumber(meta.requestNumber)} від ${formatDate(meta.requestDate)}`,
       meta.clientName ? `клієнт ${meta.clientName}` : null,
@@ -111,7 +122,7 @@ export async function buildSupplierOrdersWorkbook(orders: readonly SupplierOrder
     ws.getCell(2, 1).font = { color: { argb: 'FF555555' } };
 
     const head = ws.getRow(4);
-    head.values = ['№', 'Постачальник', 'Артикул', 'Найменування', 'Од.', 'Кількість'];
+    head.values = ['№', 'Постачальник', 'Артикул', 'Найменування', 'Од.', 'Кількість', 'Ціна без ПДВ', 'Сума без ПДВ'];
     head.eachCell((c) => {
       c.font = { bold: true };
       c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2F8' } };
@@ -120,14 +131,25 @@ export async function buildSupplierOrdersWorkbook(orders: readonly SupplierOrder
     });
     order.rows.forEach((r, i) => {
       const row = ws.getRow(5 + i);
-      row.values = [i + 1, order.supplierName, r.sku, r.name, r.unit, r.qty];
-      for (let c = 1; c <= 6; c++) row.getCell(c).border = BOX;
+      row.values = [i + 1, order.supplierName, r.sku, r.name, r.unit, r.qty, r.price ?? '', r.sum ?? ''];
+      for (let c = 1; c <= COLS; c++) row.getCell(c).border = BOX;
       row.getCell(1).alignment = { horizontal: 'center', vertical: 'top' };
       row.getCell(4).alignment = { wrapText: true, vertical: 'top' };
       row.getCell(5).alignment = { horizontal: 'center', vertical: 'top' };
       row.getCell(6).numFmt = '#,##0.###';
+      row.getCell(7).numFmt = moneyFmt(r.currency);
+      row.getCell(8).numFmt = moneyFmt(r.currency);
       if (r.roundedFrom != null) row.getCell(6).note = `Погоджено ${r.roundedFrom}, округлено до кратності`;
     });
+    // «Разом» — якщо всі позиції в одній валюті (різні валюти не складаємо)
+    const currencies = new Set(order.rows.map((r) => r.currency));
+    if (currencies.size === 1) {
+      const total = ws.getRow(5 + order.rows.length);
+      total.getCell(7).value = 'Разом';
+      total.getCell(8).value = round2(order.rows.reduce((a, r) => a + (r.sum ?? 0), 0));
+      total.getCell(8).numFmt = moneyFmt(order.rows[0]!.currency);
+      total.font = { bold: true };
+    }
     ws.views = [{ state: 'frozen', ySplit: 4 }];
   }
   return wb;
