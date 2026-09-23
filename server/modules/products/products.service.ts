@@ -253,17 +253,35 @@ export async function listProductsPage(input: ProductListQueryInput): Promise<Pr
   const query = catalogSortAllowed(input.sortField, !!input.supplierId || !!input.q) ? input : { ...input, sortField: undefined };
   const ctx = await catalogContext();
   if (isPlainListing(query)) return plainPage(query, ctx);
-  const [total, rows] = await Promise.all([
+  const where = listWhere(query, ctx);
+  const orderBy = productOrderBy(query.sortField, query.sortDir, !!query.supplierId);
+  // пошук за артикулом без власного сортування: точний збіг артикула — першим, решта — у звичному порядку
+  const plan = searchPlan(query.q);
+  const candidates =
+    !query.sortField && plan.matchExact
+      ? await prisma.product.findMany({ where: { AND: [where, { skuKey: plan.skuKey }] }, orderBy, take: EXACT_FIRST_MAX + 1 })
+      : [];
+  // таких збігів забагато (артикул-«слово») — звичний порядок, щоб гортання не пропускало позицій
+  const exactKey = candidates.length && candidates.length <= EXACT_FIRST_MAX ? plan.skuKey : null;
+  const exact = exactKey ? candidates : [];
+  const head = exact.slice(query.offset, query.offset + query.limit);
+  const restTake = query.limit - head.length;
+  const [total, rest] = await Promise.all([
     query.offset === 0 ? countProducts(query, ctx) : Promise.resolve(null),
-    prisma.product.findMany({
-      where: listWhere(query, ctx),
-      orderBy: productOrderBy(query.sortField, query.sortDir, !!query.supplierId),
-      skip: query.offset,
-      take: query.limit,
-    }),
+    restTake > 0
+      ? prisma.product.findMany({
+          where: exactKey ? { AND: [where, { NOT: { skuKey: exactKey } }] } : where,
+          orderBy,
+          skip: Math.max(0, query.offset - exact.length),
+          take: restTake,
+        })
+      : Promise.resolve([]),
   ]);
-  return { items: rows.map((p) => toProductDetail(p, ctx)), total };
+  return { items: [...head, ...rest].map((p) => toProductDetail(p, ctx)), total };
 }
+
+/** Скільки точних збігів артикула ставимо на початок (далі — у звичному порядку). */
+const EXACT_FIRST_MAX = 100;
 
 export async function getProduct(id: UUID): Promise<ProductDetail> {
   const ctx = await catalogContext();
