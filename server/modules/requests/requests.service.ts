@@ -207,11 +207,14 @@ export function requestListWhere(query: RequestListQueryInput, actor: Pick<User,
   };
 }
 
-function listOrderBy(sort: RequestListQueryInput['sort']): Prisma.RequestOrderByWithRelationInput[] {
+export function requestListOrderBy(sort: RequestListQueryInput['sort']): Prisma.RequestOrderByWithRelationInput[] {
   const s = sort ?? '-number';
   const dir = s.startsWith('-') ? 'desc' : 'asc';
   const field = s.replace(/^-/u, '') as 'number' | 'requestDate' | 'totalSaleGross' | 'approvedSaleGross';
-  return field === 'number' ? [{ number: dir }] : [{ [field]: { sort: dir, nulls: 'last' } }, { number: 'desc' }];
+  if (field === 'number') return [{ number: dir }];
+  // погодженої суми може не бути — такі заявки завжди в кінці
+  if (field === 'approvedSaleGross') return [{ approvedSaleGross: { sort: dir, nulls: 'last' } }, { number: 'desc' }];
+  return [{ [field]: dir }, { number: 'desc' }];
 }
 
 type ListRow = Prisma.RequestGetPayload<{ include: { lock: true } }>;
@@ -257,7 +260,7 @@ async function toListItems(rows: ListRow[], actor: User, sessionId: string | nul
 export async function listRequests(query: RequestListQueryInput, actor: User, sessionId: string | null, now = new Date()): Promise<RequestListItem[]> {
   const rows = await prisma.request.findMany({
     where: requestListWhere(query, actor),
-    orderBy: listOrderBy(query.sort),
+    orderBy: requestListOrderBy(query.sort),
     take: query.limit ?? DEFAULT_LIST_LIMIT,
     include: { lock: true },
   });
@@ -269,7 +272,7 @@ export async function listRequestsPage(query: RequestPageQueryInput, actor: User
   const where = requestListWhere(query, actor);
   const [total, rows] = await Promise.all([
     query.offset === 0 ? prisma.request.count({ where }) : Promise.resolve(null),
-    prisma.request.findMany({ where, orderBy: listOrderBy(query.sort), skip: query.offset, take: query.limit, include: { lock: true } }),
+    prisma.request.findMany({ where, orderBy: requestListOrderBy(query.sort), skip: query.offset, take: query.limit, include: { lock: true } }),
   ]);
   return { items: await toListItems(rows, actor, sessionId, now), total };
 }
