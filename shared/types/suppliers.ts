@@ -312,6 +312,8 @@ export interface PriceImportBody {
   markMissing: boolean;
   /** Порахувати зміни, нічого не зберігаючи. */
   dryRun?: boolean;
+  /** Курс прайсу — з клітинки чи колонки файлу або введений у діалозі; стає «курсом із прайсу» постачальника. */
+  rates?: { USD: number | null; EUR: number | null } | null;
 }
 
 /** Мапа статусів наявності з прайсу: 'є' → in_stock, 'під замовлення' → on_order. */

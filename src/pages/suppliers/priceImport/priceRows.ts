@@ -149,6 +149,67 @@ export function detectHeaderCurrency(header: string | null | undefined): Currenc
   return null;
 }
 
+// ── курс прайсу у файлі ────────────────────────────────────────────
+export interface FileRates {
+  USD: number | null;
+  EUR: number | null;
+  /** Де знайдено: «клітинка C2» / «колонка «Курс»»; null — не знайдено. */
+  where: string | null;
+}
+
+const RATE_WORD = /курс|rate/iu;
+/** Правдоподібний курс гривні до долара чи євро. */
+const plausibleRate = (v: number | null): v is number => v != null && v >= 1 && v <= 1000;
+
+function numberIn(text: string): number | null {
+  const m = /\d+(?:[\s\u00a0]\d{3})*(?:[.,]\d+)?/u.exec(text.replace(RATE_WORD, ' '));
+  const v = m ? parseLocaleNumber(m[0]).value : null;
+  return plausibleRate(v) ? v : null;
+}
+
+function currencyIn(text: string): 'USD' | 'EUR' | null {
+  if (/usd|\$|дол/iu.test(text)) return 'USD';
+  if (/eur|€|євро/iu.test(text)) return 'EUR';
+  return null;
+}
+
+const colName = (c: number) => (c < 26 ? String.fromCharCode(65 + c) : `${String.fromCharCode(64 + Math.floor(c / 26))}${String.fromCharCode(65 + (c % 26))}`);
+
+/**
+ * Курс прайсу у файлі: клітинка «Курс USD: 41,20» (число в ній, праворуч або під нею) у перших рядках
+ * або колонка «Курс» (перше число під заголовком). Валюта — з тексту, інакше валюта прайсу.
+ */
+export function detectFileRates(rows: readonly string[][], priceCurrency: CurrencyCode): FileRates {
+  const out: FileRates = { USD: null, EUR: null, where: null };
+  const fallback: 'USD' | 'EUR' = priceCurrency === 'EUR' ? 'EUR' : 'USD';
+  const scan = Math.min(rows.length, 30);
+  for (let r = 0; r < scan; r++) {
+    const row = rows[r] ?? [];
+    for (let c = 0; c < row.length; c++) {
+      const cell = (row[c] ?? '').trim();
+      if (!cell || !RATE_WORD.test(cell)) continue;
+      const rc = row.findIndex((x, i) => i > c && (x ?? '').trim() !== '');
+      const right = rc >= 0 ? row[rc]! : '';
+      const below = (rows[r + 1]?.[c] ?? '').trim();
+      // де саме число: у самій клітинці, праворуч чи під нею (тоді це колонка «Курс»)
+      const found =
+        numberIn(cell) != null
+          ? { value: numberIn(cell)!, where: `клітинка ${colName(c)}${r + 1}` }
+          : numberIn(right) != null
+            ? { value: numberIn(right)!, where: `клітинка ${colName(rc)}${r + 1}` }
+            : numberIn(below) != null
+              ? { value: numberIn(below)!, where: `колонка «${cell}»` }
+              : null;
+      if (!found) continue;
+      const cur = currencyIn(cell) ?? currencyIn(right) ?? fallback;
+      if (out[cur] != null) continue;
+      out[cur] = found.value;
+      out.where ??= found.where;
+    }
+  }
+  return out;
+}
+
 // ── побудова рядків ────────────────────────────────────────────────
 export interface BuildRowsOptions {
   /** Колонка ціни закупівлі — з ПДВ (ділимо на 1 + ПДВ). */

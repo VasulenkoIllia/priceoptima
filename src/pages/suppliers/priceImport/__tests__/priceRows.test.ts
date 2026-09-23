@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildPriceRows,
+  detectFileRates,
   detectColumns,
   detectHeaderCurrency,
   detectPriceIncludesVat,
@@ -241,5 +242,27 @@ describe('buildPriceRows — рядки прайсу', () => {
     const res = buildPriceRows([['A-1', 'Кран', '100']], mapping, DEFAULT_BUILD_OPTIONS);
     expect(res.rows).toHaveLength(1);
     expect(res.preview[0].rowNumber).toBe(1);
+  });
+});
+
+describe('курс прайсу у файлі', () => {
+  it('клітинка з курсом у шапці прайсу', () => {
+    const rows = [['Прайс ТОВ «Постачальник»', '', 'Курс USD: 41,20'], ['Код', 'Назва', 'Ціна, $'], ['A1', 'Кран', '10']];
+    expect(detectFileRates(rows, 'USD')).toEqual({ USD: 41.2, EUR: null, where: 'клітинка C1' });
+  });
+
+  it('курс праворуч від підпису і дві валюти', () => {
+    const rows = [['Курс', '41.5'], ['Курс EUR', '48,10'], ['Код', 'Ціна']];
+    expect(detectFileRates(rows, 'USD')).toEqual({ USD: 41.5, EUR: 48.1, where: 'клітинка B1' });
+  });
+
+  it('колонка «Курс»: перше число під заголовком; валюта — з валюти прайсу', () => {
+    const rows = [['Код', 'Ціна', 'Курс'], ['A1', '10', '48,3']];
+    expect(detectFileRates(rows, 'EUR')).toEqual({ USD: null, EUR: 48.3, where: 'колонка «Курс»' });
+  });
+
+  it('немає курсу або число неправдоподібне — нічого', () => {
+    expect(detectFileRates([['Код', 'Ціна'], ['A1', '10']], 'USD')).toEqual({ USD: null, EUR: null, where: null });
+    expect(detectFileRates([['Курс', '0,5']], 'USD').USD).toBeNull();
   });
 });

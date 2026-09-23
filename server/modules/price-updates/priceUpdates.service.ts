@@ -214,7 +214,8 @@ export async function importPriceRows(
     };
     return applyPrice(ctx, {
       rows: importRowsToPriceRows(body.rows),
-      rates: null,
+      // курс із файлу або введений при завантаженні — такий самий «курс із прайсу», як у вигрузці
+      rates: body.rates,
       warnings: [],
       roles,
       markMissing: roles.assortment && body.markMissing,
@@ -537,7 +538,7 @@ async function setMainImageUrls(
     WHERE p.id = v.id`;
 }
 
-/** Курси з прайсу (YML): оновлюємо лише ті, що прийшли. */
+/** Курси з прайсу (вигрузка або файл): оновлюємо лише ті, що прийшли. */
 function priceListRates(rates: RatesPair | null, ctx: RunContext): Prisma.SupplierUpdateInput {
   if (!rates || (rates.USD == null && rates.EUR == null)) return {};
   return {

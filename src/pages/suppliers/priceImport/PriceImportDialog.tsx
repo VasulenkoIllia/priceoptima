@@ -14,6 +14,7 @@ import { columnOptions, RowsPreview, SheetPreview } from './PriceTablePreview';
 import {
   buildPriceRows,
   detectColumns,
+  detectFileRates,
   detectHeaderCurrency,
   detectPriceIncludesVat,
   EMPTY_COLUMN_MAP,
@@ -26,6 +27,7 @@ import {
 } from './priceRows';
 import { applySavedMapping, savedMappingFits, toSavedMapping } from './mappingStore';
 import { useIsAdmin } from '@/app/session';
+import { usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { readSpreadsheetFile, sheetFromText, SpreadsheetError, type SheetData } from '@/lib/spreadsheet';
 import { downloadPriceTemplate } from './template';
 import './priceImport.css';
@@ -89,6 +91,10 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   const [sheetName, setSheetName] = useState('');
   const [pasted, setPasted] = useState('');
   const [mapping, setMapping] = useState<PriceColumnMap>(EMPTY_COLUMN_MAP);
+  // курс прайсу: знайдений у файлі або введений вручну — стає «курсом із прайсу» постачальника
+  const [rates, setRates] = useState<{ USD: number | null; EUR: number | null }>({ USD: null, EUR: null });
+  const [ratesWhere, setRatesWhere] = useState<string | null>(null);
+  const maxAgeDays = usePriceListRateMaxAge();
   const [options, setOptions] = useState<ImportOptions>({
     pricesIncludeVat: false,
     rrpIncludesVat: true,
@@ -116,13 +122,17 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     const next = applySavedMapping(detected, saved, picked.rows);
     const head = next.headerRow != null ? (picked.rows[next.headerRow] ?? []) : [];
     const priceHeader = next.purchasePrice != null ? head[next.purchasePrice] : null;
+    const currency = detectHeaderCurrency(priceHeader) ?? saved?.currency ?? supplier.data?.defaultCurrency ?? 'UAH';
+    const found = detectFileRates(picked.rows, currency);
     setSheetName(picked.name);
     setMapping(next);
+    setRates({ USD: found.USD, EUR: found.EUR });
+    setRatesWhere(found.where);
     setOptions({
       pricesIncludeVat: detectPriceIncludesVat(priceHeader) ?? saved?.pricesIncludeVat ?? supplier.data?.pricesIncludeVat ?? false,
       // РРЦ у каталозі зберігається з ПДВ; як у прайсі — з картки постачальника, якщо профіль ще не збережено
       rrpIncludesVat: saved?.rrpIncludesVat ?? supplier.data?.rrpIncludesVat ?? true,
-      currency: detectHeaderCurrency(priceHeader) ?? saved?.currency ?? supplier.data?.defaultCurrency ?? 'UAH',
+      currency,
       skipRowsWithoutPrice: saved?.skipRowsWithoutPrice ?? true,
       markMissing: saved?.markMissing ?? false,
     });
@@ -175,20 +185,21 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   const markMissing = sourceKind !== 'hybrid' && options.markMissing;
   const hasPriceColumns = mapping.purchasePrice != null || mapping.rrp != null;
 
+  const fileRates = rates.USD != null || rates.EUR != null ? rates : null;
   const importPrices = useMutation({
-    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing }),
+    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, rates: fileRates }),
   });
 
   // «Перегляд»: що зміниться в каталозі — рахує сервер без запису (нова спроба заміняє попередню)
   const preview = useMutation({
-    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, dryRun: true }),
+    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, rates: fileRates, dryRun: true }),
   });
   const runPreview = preview.mutate;
   const resetPreview = preview.reset;
   useEffect(() => {
     if (step === 3 && built.rows.length) runPreview();
     else resetPreview();
-  }, [step, built.rows, markMissing, runPreview, resetPreview]);
+  }, [step, built.rows, markMissing, fileRates, runPreview, resetPreview]);
 
   const isAdmin = useIsAdmin();
   const switchToHybrid = useMutation({
@@ -274,6 +285,25 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
         description="Нові позиції з файлу не створюються й відсутні не позначаються — асортимент веде вигрузка за посиланням. Коди, яких немає в каталозі, покажемо у звіті перед записом."
       />
     ) : null;
+
+  // курс має сенс, коли прайс у валюті (або валюта в колонці) чи курс уже знайдено у файлі
+  const needsRate = options.currency !== 'UAH' || mapping.currency != null || fileRates != null;
+  const setRate = (c: 'USD' | 'EUR', v: number | null) => setRates((r) => ({ ...r, [c]: v != null && v > 0 ? v : null }));
+  const ratesRow = needsRate ? (
+    <div className="po-pi-options">
+      <span>Курс прайсу:</span>
+      {(['USD', 'EUR'] as const).map((c) => (
+        <label key={c} className="po-pi-field">
+          <span style={{ flexBasis: 'auto' }}>{c}</span>
+          <InputNumber size="small" min={0.0001} max={10_000} step={0.01} decimalSeparator="," value={rates[c]} onChange={(v) => setRate(c, v)} placeholder="немає" style={{ width: 100 }} />
+        </label>
+      ))}
+      <span className="po-muted" style={{ fontSize: 12 }}>
+        {ratesWhere && fileRates ? `знайдено у файлі: ${ratesWhere}` : 'у файлі не знайдено — можна ввести вручну'}. Стане курсом із прайсу для нових заявок
+        (діє {maxAgeDays} дн.); порожньо — ручний курс постачальника або загальний.
+      </span>
+    </div>
+  ) : null;
 
   const summary = (
     <div className="po-pi-summary">
@@ -481,6 +511,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
                 </Tooltip>
               )}
             </div>
+            {ratesRow}
             {sourceAlert}
             {missingRoles.length ? (
               <Alert
@@ -503,6 +534,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               {sheets.length > 1 ? `, аркуш «${sheet?.name ?? ''}»` : ''}. Нижче — що зміниться в каталозі; поки ви не натиснете «Завантажити», нічого не
               записано.
             </div>
+            {ratesRow}
             {sourceAlert}
             {summary}
             {built.rows.length ? null : (

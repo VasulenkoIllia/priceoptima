@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { MAX_IMPORT_ROWS } from '@shared/catalog/limits';
 import { AVAILABILITY_STATUSES, CURRENCY_CODES } from '@shared/enums';
 import { ApiError } from '../../http/errors';
-import { optionalNumberField, optionalText, trimmed } from '../../lib/fields';
+import { optionalNumberField, optionalRateField, optionalText, trimmed } from '../../lib/fields';
 
 /** Найбільше значення, яке вміщує Decimal(14,4) у базі. */
 const MONEY_MAX = 999_999_999;
@@ -69,6 +69,10 @@ export const importBodySchema = z.object({
   fileName: trimmed(255, 'Вкажіть назву файлу прайсу'),
   markMissing: z.boolean({ message: 'markMissing: так або ні' }).default(false),
   dryRun: z.boolean({ message: 'dryRun: так або ні' }).default(false),
+  rates: z
+    .object({ USD: optionalRateField('Курс USD'), EUR: optionalRateField('Курс EUR') })
+    .nullish()
+    .transform((v) => (v && (v.USD != null || v.EUR != null) ? v : null)),
 });
 
 export type PriceUpdatesQuery = z.infer<typeof priceUpdatesQuerySchema>;
@@ -85,12 +89,21 @@ export function importBodyFromForm(fields: Record<string, unknown>, uploadedName
       throw new ApiError('VALIDATION_ERROR', 'Рядки прайсу мають бути JSON-списком');
     }
   }
+  let rates: unknown = fields.rates;
+  if (typeof rates === 'string') {
+    try {
+      rates = JSON.parse(rates) as unknown;
+    } catch {
+      throw new ApiError('VALIDATION_ERROR', 'Курс прайсу має бути JSON-об’єктом');
+    }
+  }
   return {
     supplierId: fields.supplierId,
     rows,
     fileName: typeof fields.fileName === 'string' && fields.fileName.trim() ? fields.fileName : (uploadedName ?? undefined),
     markMissing: formFlag(fields.markMissing),
     dryRun: formFlag(fields.dryRun),
+    rates,
   };
 }
 

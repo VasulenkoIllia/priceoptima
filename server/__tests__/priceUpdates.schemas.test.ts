@@ -104,6 +104,25 @@ describe('прайс файлом', () => {
   });
 });
 
+describe('курс прайсу при завантаженні файлом', () => {
+  const body = { supplierId: SUPPLIER, fileName: 'прайс.xlsx', rows: [{ code: 'A-1', purchasePrice: 10 }] };
+
+  it('курс із файлу чи введений вручну передається; порожній — null', () => {
+    expect(parseImportBody({ ...body, rates: { USD: 41.2, EUR: null } }).rates).toEqual({ USD: 41.2, EUR: null });
+    expect(parseImportBody({ ...body, rates: { USD: null, EUR: null } }).rates).toBeNull();
+    expect(parseImportBody(body).rates).toBeNull();
+  });
+
+  it('курс 0 — помилка', () => {
+    expect(() => parseImportBody({ ...body, rates: { USD: 0, EUR: null } })).toThrow(ApiError);
+  });
+
+  it('у формі multipart курс приходить JSON-рядком', () => {
+    const value = importBodyFromForm({ supplierId: SUPPLIER, rows: '[{"code":"A"}]', rates: '{"USD":41.2,"EUR":null}' }, 'x.xlsx');
+    expect((value as { rates: unknown }).rates).toEqual({ USD: 41.2, EUR: null });
+  });
+});
+
 describe('прайс формою multipart', () => {
   it('рядки — JSON-рядок, прапорці — текстом, назва файлу — з самого файлу', () => {
     const value = importBodyFromForm(

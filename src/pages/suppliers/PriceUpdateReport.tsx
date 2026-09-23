@@ -2,7 +2,7 @@
 // Той самий вигляд — у попередньому перегляді перед записом і в журналі оновлень.
 import { Alert, Collapse, Table, Tag, type TableColumnsType } from 'antd';
 import type { ReactNode } from 'react';
-import { formatMoney, formatQty } from '@shared/format';
+import { formatMoney, formatQty, formatRate } from '@shared/format';
 import type {
   PriceBigChange,
   PriceDetailDiff,
@@ -123,6 +123,8 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
   if (u.relinked) counters.push({ label: 'Знайдено за штрихкодом / артикулом', value: formatQty(u.relinked) });
   if (u.detailsDiffer) counters.push({ label: 'Описи відрізняються (не змінено)', value: formatQty(u.detailsDiffer) });
   if (u.skipped) counters.push({ label: 'Пропущено рядків', value: formatQty(u.skipped) });
+  const rates = [u.rates.USD != null ? `USD ${formatRate(u.rates.USD)}` : null, u.rates.EUR != null ? `EUR ${formatRate(u.rates.EUR)}` : null].filter(Boolean);
+  if (rates.length) counters.push({ label: 'Курс прайсу', value: rates.join(' · '), hint: 'Стає курсом із прайсу постачальника для нових заявок' });
 
   const sections = report
     ? [
@@ -215,7 +217,7 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
       ) : null}
       <dl className="po-pu-counters">
         {counters.map((c) => (
-          <div key={c.label}>
+          <div key={c.label} title={c.hint}>
             <dt>{c.label}</dt>
             <dd className="po-num">{c.value}</dd>
           </div>
