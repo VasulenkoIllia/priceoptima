@@ -296,6 +296,12 @@ export interface RequestTotalsSummary {
   approvedSaleGross: number | null;
 }
 
+/** Підсумки, пораховані в редакторі: плюс те, що в реєстрі не зберігається. */
+export interface RequestComputedTotals extends RequestTotalsSummary {
+  /** Закупівля без ПДВ за ефективним вибором (підбір показує суми без ПДВ). */
+  totalPurchaseNet: number;
+}
+
 export interface SaveDocumentResponse {
   version: number;
   updatedAt: ISODateTime;

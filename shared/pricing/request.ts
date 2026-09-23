@@ -7,12 +7,12 @@ import type {
   PricingContext,
   RequestComputed,
   RequestDocument,
-  RequestTotalsSummary,
+  RequestComputedTotals,
   SupplierBlock,
   UUID,
   Warning,
 } from '../types';
-import { computeBlockTotals } from './blocks';
+import { computeBlockTotals, markCheapestBlock } from './blocks';
 import { compareLine, type LineOfferEntry } from './comparison';
 import { isActiveLine } from './lines';
 import { computeMarkupRow, computeMarkupTotals } from './markup';
@@ -72,6 +72,7 @@ export function computeRequest(doc: RequestDocInput, ctx: PricingContext): Reque
     const supplier = block.supplierId ? (ctx.suppliers[block.supplierId] ?? null) : null;
     blockTotals[block.id] = computeBlockTotals(block, lines, offers, offerIndex, comparisons, supplier);
   }
+  markCheapestBlock(blockTotals, blocks);
   const scenarios = computeScenarios(lines, blocks, offers, offerIndex, comparisons, ctx.suppliers);
 
   // націнка; прибуток ФОП — від цін КП ФОП мінус вхід з ПДВ (ФОП не повертає вхідний ПДВ)
@@ -127,16 +128,18 @@ export function computeRequest(doc: RequestDocInput, ctx: PricingContext): Reque
 export function computeTotalsSummary(
   doc: { lines: RequestDocument['lines']; blocks: readonly SupplierBlock[] },
   computed: Omit<RequestComputed, 'totals'>,
-): RequestTotalsSummary {
+): RequestComputedTotals {
   const active = doc.lines.filter(isActiveLine);
   const blockById = new Map(doc.blocks.map((b) => [b.id, b]));
   const usedBlocks = new Set<UUID>();
   const purchase: (number | null)[] = [];
+  const purchaseNet: (number | null)[] = [];
   for (const line of active) {
     const cmp = computed.lines[line.id];
     if (!cmp?.effectiveOfferId) continue;
     const eff = computed.offers[cmp.effectiveOfferId];
     purchase.push(eff?.sumGrossUah ?? null);
+    purchaseNet.push(eff?.sumNetUah ?? null);
     const block = cmp.effectiveBlockId ? blockById.get(cmp.effectiveBlockId) : undefined;
     if (block?.supplierId) usedBlocks.add(block.id);
   }
@@ -146,6 +149,7 @@ export function computeTotalsSummary(
     linesCount: active.length,
     suppliersCount: usedBlocks.size,
     totalPurchaseGross: sumMoney(purchase),
+    totalPurchaseNet: sumMoney(purchaseNet),
     totalSaleNet: t.saleNet,
     totalSaleGross: t.saleGross,
     profitNet: t.profitNet,

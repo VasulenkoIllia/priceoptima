@@ -71,7 +71,8 @@ describe('F10 ефективний вибір рядка', () => {
     expect(c.offers['L1:B']!.sumGrossUah).toBe(3072);
     expect(line.overpayGross).toBe(146.4);
     const w = line.warnings.find((x) => x.code === 'SELECTION_NOT_OPTIMAL');
-    expect(w?.params).toEqual({ overpayGross: 146.4 });
+    expect(w?.params).toEqual({ overpayGross: 146.4, overpayNet: 122 });
+    expect(line.overpayNet).toBe(122);
     expect(c.offers['L1:C']!.isSelected).toBe(true);
     expect(c.offers['L1:B']!.isSelected).toBe(false);
   });

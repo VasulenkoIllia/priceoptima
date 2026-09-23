@@ -92,7 +92,7 @@ describe('фільтр і пошук рядків', () => {
     const t = buildTotalsRow(doc, computeRequest(doc, CTX));
     expect(t).toMatchObject({ kind: 'totals', activeCount: 3, approvedCount: 1 });
     expect(t.blocks.b1.filledCount).toBe(3);
-    expect(t.overpayGross).toBeGreaterThan(0);
+    expect(t.overpayNet).toBeGreaterThan(0);
   });
 });
 
@@ -105,9 +105,10 @@ describe('підсумки і стани вибору — з computeRequest', ()
     expect(t.blocks).toBe(computed.blocks);
     expect(t.totals).toBe(computed.totals);
     expect(t.totals.totalPurchaseGross).toBe(current.totalGross);
-    // l2: затверджено 55 замість 50 → (55 − 50) × 1,2 = 6,00
-    expect(t.overpayGross).toBe(6);
-    expect(t.overpayGross).toBe(current.diffVsMixGross);
+    expect(t.totals.totalPurchaseNet).toBe(current.totalNet);
+    // l2: затверджено 55 замість 50 → переплата без ПДВ 5,00
+    expect(t.overpayNet).toBe(5);
+    expect(t.overpayNet).toBe(current.diffVsMixNet);
   });
 
   it('виключена пропозиція не входить у «Всього з ПДВ», покриття і Дельту блоку', () => {

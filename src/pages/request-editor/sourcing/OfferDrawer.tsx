@@ -161,7 +161,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
         </Space>
       ),
     },
-    { key: 'sum', label: 'Сума з ПДВ', children: <b className="po-num">{formatMoneyUah(oc?.sumGrossUah)}</b> },
+    { key: 'sum', label: 'Сума без ПДВ', children: <b className="po-num">{formatMoneyUah(oc?.sumNetUah)}</b> },
     { key: 'rrp', label: 'РРЦ з ПДВ', children: <span className="po-num">{formatMoneyUah(oc?.rrpGrossUah)}</span> },
     {
       key: 'stock',
@@ -231,7 +231,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
         </div>
       ) : null}
       {cmp?.selectionState === 'manual_non_optimal' && manual ? (
-        <Typography.Text type="warning">Обрано не мінімальну ціну: переплата {formatMoneyUah(cmp.overpayGross)}</Typography.Text>
+        <Typography.Text type="warning">Обрано не мінімальну ціну: переплата {formatMoneyUah(cmp.overpayNet)} без ПДВ</Typography.Text>
       ) : null}
       <div className="po-drawer-actions">
         {manual ? (

@@ -25,7 +25,9 @@ describe('F13–F14 підсумки блоків і дельта (T8)', () => {
     expect(a.selectedNet).toBe(800);
     expect(a.selectedCount).toBe(2);
     expect(a.deltaGross).toBe(24);
+    expect(a.deltaNet).toBe(20);
     expect(a.deltaPct).toBe(2.04);
+    expect(a.totalNet).toBe(1000);
     expect(a.coveragePct).toBe(100);
     expect(a.filledCount).toBe(3);
   });
@@ -53,6 +55,37 @@ describe('F13–F14 підсумки блоків і дельта (T8)', () => {
     expect(b.coveragePct).toBe(33.33);
     expect(b.deltaGross).toBe(0);
     expect(b.deltaPct).toBe(0);
+  });
+});
+
+describe('«найдешевший» і дельта за сумою з урахуванням кратності', () => {
+  // L1 qty 10: A 10 грн, кратність 12 (у постачальника 12 шт) = 120; B 11 грн, кратність 1 → 110. За ціною дешевший A, за сумою — B.
+  const doc = makeDoc({
+    lines: [makeLine('L1', 10)],
+    blocks: [makeBlock('A', 0), makeBlock('B', 1)],
+    offers: [uah('L1', 'A', 10, { multiplicity: 12, qty: 12 }), uah('L1', 'B', 11)],
+  });
+  const c = computeRequest(doc, makeCtx([makeSupplier('A'), makeSupplier('B')]));
+
+  it('дельта — проти найменшої суми рядка: A дорожчий, B без переплати', () => {
+    expect(c.blocks.A!.deltaNet).toBe(10);
+    expect(c.blocks.A!.deltaGross).toBe(12);
+    expect(c.blocks.B!.deltaNet).toBe(0);
+  });
+
+  it('«найдешевший» — лише B', () => {
+    expect(c.blocks.A!.cheapest).toBe(false);
+    expect(c.blocks.B!.cheapest).toBe(true);
+  });
+
+  it('кілька блоків без переплати — позначка в того, що покриває більше рядків', () => {
+    const two = makeDoc({
+      lines: [makeLine('L1', 1), makeLine('L2', 1)],
+      blocks: [makeBlock('A', 0), makeBlock('B', 1)],
+      offers: [uah('L1', 'A', 10), uah('L1', 'B', 10), uah('L2', 'B', 5)],
+    });
+    const r = computeRequest(two, makeCtx([makeSupplier('A'), makeSupplier('B')]));
+    expect([r.blocks.A!.cheapest, r.blocks.B!.cheapest]).toEqual([false, true]);
   });
 });
 

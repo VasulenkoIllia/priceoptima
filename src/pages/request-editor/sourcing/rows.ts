@@ -10,7 +10,7 @@ import type {
   RequestComputed,
   RequestDocument,
   RequestLine,
-  RequestTotalsSummary,
+  RequestComputedTotals,
   SupplierBlock,
   UUID,
   Warning,
@@ -47,9 +47,10 @@ export interface TotalsRow {
   kind: 'totals';
   id: typeof TOTALS_ROW_ID;
   blocks: Record<UUID, BlockTotals>;
-  totals: RequestTotalsSummary;
+  totals: RequestComputedTotals;
   /** Переплата поточного вибору vs оптимальний мікс (сценарій «Поточний вибір»). */
-  overpayGross: number;
+  /** Переплата без ПДВ поточного вибору проти міксу. */
+  overpayNet: number;
   /** Рядків з ручним затвердженням / активних рядків. */
   approvedCount: number;
   activeCount: number;
@@ -161,7 +162,7 @@ export function buildTotalsRow(doc: Pick<RequestDocument, 'lines'>, computed: Re
     id: TOTALS_ROW_ID,
     blocks: computed.blocks,
     totals: computed.totals,
-    overpayGross: current?.diffVsMixGross ?? 0,
+    overpayNet: current?.diffVsMixNet ?? 0,
     approvedCount: approved,
     activeCount: computed.totals.linesCount,
   };

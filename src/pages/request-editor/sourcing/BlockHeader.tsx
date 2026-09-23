@@ -76,13 +76,17 @@ function profitHelp(p: SupplierProfit): ReactNode {
 }
 
 /**
- * Підпис дельти (п.5 правок клієнта): «Дорожче за найдешевші +1 016,05» або «найдешевший».
- * Дельта — переплата проти найдешевших цін по тих самих рядках; null — блок ще нічого не покриває.
+ * Підпис дельти (п.5 правок клієнта): «Дорожче за найдешевші +1 016,05» або «найдешевший» (лише в одного блоку).
+ * Дельта — переплата без ПДВ проти найменших сум по тих самих рядках; null — нічого показувати.
  */
-export function deltaLabel(t: Pick<BlockTotals, 'deltaGross' | 'filledCount'>, short = false): { text: string; cheapest: boolean } | null {
+export function deltaLabel(
+  t: Pick<BlockTotals, 'deltaNet' | 'filledCount' | 'cheapest'>,
+  short = false,
+): { text: string; cheapest: boolean } | null {
   if (!t.filledCount) return null;
-  if (t.deltaGross <= 0) return { text: 'найдешевший', cheapest: true };
-  return { text: `${short ? 'дорожче' : 'Дорожче за найдешевші'} +${formatMoney(t.deltaGross)}`, cheapest: false };
+  if (t.cheapest) return { text: 'найдешевший', cheapest: true };
+  if (t.deltaNet <= 0) return null;
+  return { text: `${short ? 'дорожче' : 'Дорожче за найдешевші'} +${formatMoney(t.deltaNet)}`, cheapest: false };
 }
 
 function DeltaText({ totals, short }: { totals: BlockTotals; short?: boolean }) {
@@ -96,28 +100,30 @@ function totalsHelp(t: BlockTotals): ReactNode {
   return (
     <div style={{ fontSize: 12 }}>
       <div>
-        <b>Всього з ПДВ</b> — усі заповнені пропозиції блоку: {formatMoney(t.totalGross)}
+        <b>Всього без ПДВ</b> — усі заповнені пропозиції блоку: {formatMoney(t.totalNet)}
       </div>
       <div>
-        <b>По обраних</b> — рядки, де обрано цього постачальника ({t.selectedCount}): {formatMoney(t.selectedGross)}
+        <b>По обраних без ПДВ</b> — рядки, де обрано цього постачальника ({t.selectedCount}): {formatMoney(t.selectedNet)}
       </div>
       {t.filledCount ? (
-        t.deltaGross > 0 ? (
+        t.deltaNet > 0 ? (
           <div>
-            <b>Дорожче за найдешевші</b> — на скільки дорожче взяти в цього постачальника всі його рядки, ніж у найдешевших по тих
-            самих рядках: {signedMoney(t.deltaGross)}
+            <b>Дорожче за найдешевші</b> — на скільки дорожче (без ПДВ) взяти в цього постачальника всі його рядки, ніж у
+            найдешевших по тих самих рядках (за сумою, з урахуванням кратності): {signedMoney(t.deltaNet)}
             {t.deltaPct != null ? ` (${formatPct(t.deltaPct)})` : ''}
           </div>
-        ) : (
+        ) : t.cheapest ? (
           <div>
-            <b>Найдешевший</b> — у всіх своїх рядках цей постачальник має мінімальну ціну
+            <b>Найдешевший</b> — у всіх своїх рядках цей постачальник має найменшу суму (з урахуванням кратності)
           </div>
+        ) : (
+          <div>У всіх своїх рядках цей постачальник має найменшу суму, але «найдешевшим» позначено блок, що покриває більше рядків</div>
         )
       ) : null}
       <div>
         <b>Покриття</b> — заповнено {t.filledCount} з {t.totalLines} рядків
       </div>
-      {t.minOrderAmount != null ? <div>Мінімальне замовлення: {formatMoney(t.minOrderAmount)} грн</div> : null}
+      {t.minOrderAmount != null ? <div>Мінімальне замовлення з ПДВ: {formatMoney(t.minOrderAmount)} грн (по обраних з ПДВ {formatMoney(t.selectedGross)})</div> : null}
     </div>
   );
 }
@@ -307,13 +313,13 @@ export function BlockGroupHeader(p: IHeaderGroupParams & BlockHeaderParams) {
           <div className="po-bh-row po-bh-totals po-num">
             {collapsed ? (
               <>
-                <span>Σ {formatMoney(totals.totalGross)}</span>
+                <span title="Всього без ПДВ">Σ {formatMoney(totals.totalNet)}</span>
                 <DeltaText totals={totals} short />
               </>
             ) : (
               <>
-                <span>Всього з ПДВ {formatMoney(totals.totalGross)}</span>
-                <span>· По обраних {formatMoney(totals.selectedGross)}</span>
+                <span>Всього без ПДВ {formatMoney(totals.totalNet)}</span>
+                <span>· По обраних {formatMoney(totals.selectedNet)}</span>
                 <DeltaText totals={totals} />
               </>
             )}

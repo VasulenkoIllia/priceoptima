@@ -1,7 +1,7 @@
 // Вихід рушія ціноутворення (computeRequest).
 import type { MarkupMethod } from '../enums';
 import type { UUID } from './common';
-import type { PricingSettings, RequestTotalsSummary } from './requests';
+import type { PricingSettings, RequestComputedTotals } from './requests';
 import type { SupplierRef } from './suppliers';
 
 export type WarningSeverity = 'error' | 'warning' | 'info';
@@ -100,6 +100,8 @@ export interface LineComparison {
   selectionState: SelectionState;
   /** Ефективна сума − сума рекомендованої (≥ 0). */
   overpayGross: number;
+  /** Те саме без ПДВ (підбір показує все без ПДВ). */
+  overpayNet: number;
   warnings: Warning[];
 }
 
@@ -115,13 +117,19 @@ export interface BlockTotals {
   totalGrossIncluded: number;
   /** Σ sumGross разом із виключеними (довідково). */
   totalGrossWithExcluded: number;
+  /** «Всього без ПДВ» — те саме, що totalGross, без ПДВ (підбір показує суми без ПДВ). */
+  totalNet: number;
   /** «Всього по обраних». */
   selectedCount: number;
   selectedNet: number;
   selectedGross: number;
-  /** «Дельта» — переплата vs мінімальні ціни по тих самих рядках. */
+  /** «Дельта» — переплата vs найменші суми по тих самих рядках. */
   deltaGross: number;
   deltaPct: number | null;
+  /** Дельта без ПДВ. */
+  deltaNet: number;
+  /** «Найдешевший» — лише в одного блоку заявки (markCheapestBlock). */
+  cheapest: boolean;
   minOrderAmount: number | null;
   belowMinOrder: boolean;
   warnings: Warning[];
@@ -141,6 +149,8 @@ export interface PurchaseScenario {
   /** На покритих рядках (null для самого міксу). */
   diffVsMixGross: number | null;
   diffVsMixPct: number | null;
+  /** Різниця з міксом без ПДВ. */
+  diffVsMixNet: number | null;
   belowMinOrderBlockIds: UUID[];
 }
 
@@ -228,7 +238,7 @@ export interface RequestComputed {
   markup: { rows: Record<UUID, MarkupRowComputed>; totals: MarkupTotals };
   /** blockId → заробіток по постачальнику. */
   supplierProfit: Record<UUID, SupplierProfit>;
-  totals: RequestTotalsSummary;
+  totals: RequestComputedTotals;
   /** Плаский список усіх попереджень. */
   warnings: Warning[];
 }

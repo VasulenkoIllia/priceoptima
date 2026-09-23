@@ -63,17 +63,21 @@ export function computeScenarios(
 
     let diffVsMixGross: number | null = null;
     let diffVsMixPct: number | null = null;
+    let diffVsMixNet: number | null = null;
     if (vsMix) {
       const diffs: number[] = [];
+      const diffsNet: number[] = [];
       const bases: number[] = [];
       for (const [lineId, oc] of picks) {
         const m = vsMix.get(lineId);
         if (!m) continue;
         diffs.push((oc.sumGrossUah ?? 0) - (m.sumGrossUah ?? 0));
+        diffsNet.push((oc.sumNetUah ?? 0) - (m.sumNetUah ?? 0));
         bases.push(m.sumGrossUah ?? 0);
       }
       diffVsMixGross = round2(diffs.reduce((a, b) => a + b, 0));
       diffVsMixPct = pct(diffVsMixGross, sumMoney(bases));
+      diffVsMixNet = round2(diffsNet.reduce((a, b) => a + b, 0));
     }
 
     const missingLineIds = active.filter((l) => !picks.has(l.id)).map((l) => l.id);
@@ -89,6 +93,7 @@ export function computeScenarios(
       blockIds,
       diffVsMixGross,
       diffVsMixPct,
+      diffVsMixNet,
       belowMinOrderBlockIds,
     };
   };

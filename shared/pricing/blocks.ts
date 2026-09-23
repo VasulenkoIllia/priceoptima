@@ -12,6 +12,35 @@ import type {
 import { isActiveLine } from './lines';
 import { round2, sumMoney } from './money';
 
+/** Найменша сума серед кандидатів рядка (без ПДВ і з ПДВ — з однієї пропозиції). */
+function minSums(
+  lineId: UUID,
+  offers: Record<UUID, OfferComputed>,
+  offerIndex: RequestComputed['offerIndex'],
+): { net: number; gross: number } | null {
+  let best: OfferComputed | null = null;
+  for (const id of Object.values(offerIndex[lineId] ?? {})) {
+    const oc = offers[id];
+    if (!oc?.isCandidate) continue;
+    if (!best || (oc.sumNetUah ?? 0) < (best.sumNetUah ?? 0)) best = oc;
+  }
+  return best ? { net: best.sumNetUah ?? 0, gross: best.sumGrossUah ?? 0 } : null;
+}
+
+/**
+ * «Найдешевший» — лише один блок: без переплати на своїх рядках; якщо таких кілька — той, що покриває більше рядків
+ * (нічия — вищий у списку).
+ */
+export function markCheapestBlock(totals: Record<UUID, BlockTotals>, blocks: readonly SupplierBlock[]): void {
+  let best: BlockTotals | null = null;
+  for (const block of [...blocks].sort((a, b) => a.position - b.position)) {
+    const t = totals[block.id];
+    if (!t?.filledCount || t.deltaNet > 0) continue;
+    if (!best || t.filledCount > best.filledCount) best = t;
+  }
+  if (best) best.cheapest = true;
+}
+
 /** Ф10–Ф11: підсумки блоку, покриття, дельта; мін. сума замовлення. Виключені пропозиції не враховуються (РЕД-13). */
 export function computeBlockTotals(
   block: SupplierBlock,
@@ -26,6 +55,8 @@ export function computeBlockTotals(
   let selectedCount = 0;
   const all: number[] = [];
   const included: number[] = [];
+  const includedNet: number[] = [];
+  const deltasNet: number[] = [];
   const selNet: number[] = [];
   const selGross: number[] = [];
   const deltas: number[] = [];
@@ -40,6 +71,7 @@ export function computeBlockTotals(
     const cmp = comparisons[line.id];
     filledCount++;
     included.push(oc.sumGrossUah ?? 0);
+    includedNet.push(oc.sumNetUah ?? 0);
 
     if (cmp?.effectiveOfferId === oc.offerId) {
       selectedCount++;
@@ -47,11 +79,12 @@ export function computeBlockTotals(
       selGross.push(oc.sumGrossUah ?? 0);
     }
 
-    // Ф11: дельта — vs мінімальна пропозиція по тих самих рядках
-    const rec = cmp?.recommendedOfferId ? offers[cmp.recommendedOfferId] : undefined;
-    if (rec) {
-      deltas.push((oc.sumGrossUah ?? 0) - (rec.sumGrossUah ?? 0));
-      recSums.push(rec.sumGrossUah ?? 0);
+    // Ф11: дельта — vs найменша сума по тих самих рядках (сума, а не ціна за од.: кратність у різних постачальників різна)
+    const min = minSums(line.id, offers, offerIndex);
+    if (min) {
+      deltas.push((oc.sumGrossUah ?? 0) - min.gross);
+      deltasNet.push((oc.sumNetUah ?? 0) - min.net);
+      recSums.push(min.gross);
     }
   }
 
@@ -81,11 +114,14 @@ export function computeBlockTotals(
     totalGross,
     totalGrossIncluded: totalGross,
     totalGrossWithExcluded: sumMoney(all),
+    totalNet: sumMoney(includedNet),
     selectedCount,
     selectedNet: sumMoney(selNet),
     selectedGross,
     deltaGross,
     deltaPct: recTotal ? round2((deltaGross / recTotal) * 100) : null,
+    deltaNet: round2(deltasNet.reduce((a, b) => a + b, 0)),
+    cheapest: false,
     minOrderAmount,
     belowMinOrder,
     warnings,

@@ -54,6 +54,7 @@ export function compareLine(
   let eff: LineOfferEntry | null = rec;
   let state: SelectionState = rec ? 'recommended' : 'none';
   let overpayGross = 0;
+  let overpayNet = 0;
   if (selBlockId != null) {
     const sel = entries.find((e) => e.offer.blockId === selBlockId);
     if (sel && sel.base.isFilled && !sel.offer.excluded) {
@@ -62,6 +63,7 @@ export function compareLine(
       state = optimal ? 'manual_optimal' : 'manual_non_optimal';
       if (rec && rec !== sel) {
         overpayGross = Math.max(0, round2((sel.base.sumGrossUah ?? 0) - (rec.base.sumGrossUah ?? 0)));
+        overpayNet = Math.max(0, round2((sel.base.sumNetUah ?? 0) - (rec.base.sumNetUah ?? 0)));
       }
       if (!optimal) {
         warnings.push({
@@ -70,7 +72,7 @@ export function compareLine(
           lineId: line.id,
           blockId: sel.offer.blockId,
           offerId: sel.offer.id,
-          params: { overpayGross },
+          params: { overpayGross, overpayNet },
         });
       }
     } else {
@@ -117,6 +119,7 @@ export function compareLine(
       effectiveOfferId: eff?.offer.id ?? null,
       selectionState: state,
       overpayGross,
+      overpayNet,
       warnings,
     },
     flags,

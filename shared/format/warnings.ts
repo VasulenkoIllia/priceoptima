@@ -26,11 +26,14 @@ const MESSAGES: Record<WarningCode, (p: Params) => string> = {
   INPUT_ABOVE_RRP: () => 'Вхідна ціна вища за РРЦ',
   UNIT_MISMATCH: (p) => `Одиниця постачальника «${str(p, 'offerUnit')}» ≠ одиниця клієнта «${str(p, 'clientUnit')}»`,
   SELECTED_EXCLUDED: () => 'Затверджена пропозиція виключена або порожня — діє рекомендація',
-  SELECTION_NOT_OPTIMAL: (p) => `Обрано не мінімальну ціну: переплата ${formatMoney(num(p, 'overpayGross'))} грн`,
+  SELECTION_NOT_OPTIMAL: (p) =>
+    num(p, 'overpayNet') != null
+      ? `Обрано не мінімальну ціну: переплата ${formatMoney(num(p, 'overpayNet'))} грн без ПДВ`
+      : `Обрано не мінімальну ціну: переплата ${formatMoney(num(p, 'overpayGross'))} грн з ПДВ`,
   NO_OFFERS: () => 'Немає жодної пропозиції',
   QTY_ZERO: () => 'Не вказано кількість',
   BELOW_MIN_ORDER: (p) =>
-    `Сума обраних ${formatMoney(num(p, 'selectedGross'))} < мін. замовлення ${formatMoney(num(p, 'minOrderAmount'))} — нерентабельно`,
+    `Сума обраних з ПДВ ${formatMoney(num(p, 'selectedGross'))} < мін. замовлення з ПДВ ${formatMoney(num(p, 'minOrderAmount'))} — нерентабельно`,
   NO_RRP: () => 'Немає РРЦ для обраного способу націнки',
   BELOW_COST: () => 'Ціна продажу нижча за вхідну',
   ABOVE_RRP: () => 'Ціна продажу вища за РРЦ',

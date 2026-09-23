@@ -199,6 +199,7 @@ describe('F26–F29 рядки і підсумки націнки', () => {
       linesCount: 3,
       suppliersCount: 1,
       totalPurchaseGross: 20640,
+      totalPurchaseNet: 17200,
       totalSaleNet: 17510,
       totalSaleGross: 21012,
       profitNet: 310,

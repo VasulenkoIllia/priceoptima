@@ -123,7 +123,7 @@ describe('тексти попереджень', () => {
   it('кратність, мін. замовлення', () => {
     expect(formatWarning({ code: 'QTY_ROUNDED', params: { from: 118, to: 120, multiplicity: 4 } })).toBe('Округлено з 118, кратно 4');
     expect(formatWarning({ code: 'BELOW_MIN_ORDER', params: { selectedGross: 464.51, minOrderAmount: 1000 } })).toBe(
-      `Сума обраних 464,51 < мін. замовлення 1${NB}000,00 — нерентабельно`,
+      `Сума обраних з ПДВ 464,51 < мін. замовлення з ПДВ 1${NB}000,00 — нерентабельно`,
     );
     expect(formatWarning({ code: 'NO_CLIENT' })).toBe('Не обрано клієнта');
   });

@@ -14,9 +14,13 @@ describe('шапка блоку — джерело курсу (ТЗ РЕД-4)', 
 
 describe('шапка блоку — підпис дельти (п.5 правок)', () => {
   it('дорожче за найдешевші / найдешевший / нічого не покрито', () => {
-    expect(deltaLabel({ deltaGross: 1016.05, filledCount: 12 })).toEqual({ text: 'Дорожче за найдешевші +1\u00a0016,05', cheapest: false });
-    expect(deltaLabel({ deltaGross: 1016.05, filledCount: 12 }, true)?.text).toBe('дорожче +1\u00a0016,05');
-    expect(deltaLabel({ deltaGross: 0, filledCount: 5 })).toEqual({ text: 'найдешевший', cheapest: true });
-    expect(deltaLabel({ deltaGross: 0, filledCount: 0 })).toBeNull();
+    expect(deltaLabel({ deltaNet: 1016.05, filledCount: 12, cheapest: false })).toEqual({ text: 'Дорожче за найдешевші +1\u00a0016,05', cheapest: false });
+    expect(deltaLabel({ deltaNet: 1016.05, filledCount: 12, cheapest: false }, true)?.text).toBe('дорожче +1\u00a0016,05');
+    expect(deltaLabel({ deltaNet: 0, filledCount: 5, cheapest: true })).toEqual({ text: 'найдешевший', cheapest: true });
+    expect(deltaLabel({ deltaNet: 0, filledCount: 0, cheapest: false })).toBeNull();
+  });
+
+  it('«найдешевший» лише в одного блоку: інший без переплати — без підпису', () => {
+    expect(deltaLabel({ deltaNet: 0, filledCount: 3, cheapest: false })).toBeNull();
   });
 });

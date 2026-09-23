@@ -119,8 +119,8 @@ export function ChosenCell(p: P) {
   const row = p.data;
   if (row?.kind === 'totals') {
     return (
-      <span className="po-num" title="Закупівля з ПДВ за ефективним вибором (затверджені + рекомендовані)">
-        {formatMoney(row.totals.totalPurchaseGross)}
+      <span className="po-num" title="Закупівля без ПДВ за ефективним вибором (затверджені + рекомендовані)">
+        {formatMoney(row.totals.totalPurchaseNet)}
       </span>
     );
   }
@@ -194,8 +194,8 @@ export function OfferNameCell(p: P<BlockCellParams>) {
   if (row?.kind === 'totals') {
     const t = row.blocks[p.blockId];
     return t ? (
-      <span className="po-muted" title="Сума з ПДВ по рядках, де обрано цього постачальника">
-        Обрано: <span className="po-num">{formatMoney(t.selectedGross)}</span> ({t.selectedCount})
+      <span className="po-muted" title="Сума без ПДВ по рядках, де обрано цього постачальника">
+        Обрано без ПДВ: <span className="po-num">{formatMoney(t.selectedNet)}</span> ({t.selectedCount})
       </span>
     ) : null;
   }
@@ -275,11 +275,11 @@ function PriceChangeMark({ offer, oc }: { offer: Offer; oc: OfferComputed | null
 export function PriceCell(p: P<BlockCellParams>) {
   const row = p.data;
   if (row?.kind === 'totals') {
-    // у згорнутому блоці — «Всього з ПДВ» блоку
+    // у згорнутому блоці — «Всього без ПДВ» блоку
     const t = row.blocks[p.blockId];
     return p.allWarnings && t ? (
-      <span className="po-num" title="Всього з ПДВ по блоку">
-        {formatMoney(t.totalGross)}
+      <span className="po-num" title="Всього без ПДВ по блоку">
+        {formatMoney(t.totalNet)}
       </span>
     ) : null;
   }
@@ -355,8 +355,8 @@ export function CompareCell(p: P<{ blockId: UUID }>) {
   if (row?.kind === 'totals') {
     const t = row.blocks[p.blockId];
     return t ? (
-      <div className="po-cmp-cell" title="Всього з ПДВ по блоку · заповнено рядків">
-        <span className="po-num">{formatMoney(t.totalGross)}</span>
+      <div className="po-cmp-cell" title="Всього без ПДВ по блоку · заповнено рядків">
+        <span className="po-num">{formatMoney(t.totalNet)}</span>
         <span className="po-cmp-sub po-num">
           {t.filledCount}/{t.totalLines}
         </span>
@@ -392,11 +392,11 @@ export function CompareChosenCell(p: P) {
   const row = p.data;
   if (row?.kind === 'totals') {
     return (
-      <div className="po-cmp-cell" title="Закупівля з ПДВ за ефективним вибором · переплата відносно мінімальних цін">
-        <span className="po-num">{formatMoney(row.totals.totalPurchaseGross)}</span>
+      <div className="po-cmp-cell" title="Закупівля без ПДВ за ефективним вибором · переплата без ПДВ відносно мінімальних цін">
+        <span className="po-num">{formatMoney(row.totals.totalPurchaseNet)}</span>
         <span className="po-cmp-sub">
           затверджено {row.approvedCount} з {row.activeCount}
-          {row.overpayGross > 0 ? <span className="po-cmp-overpay po-num"> · переплата {formatMoney(row.overpayGross)}</span> : null}
+          {row.overpayNet > 0 ? <span className="po-cmp-overpay po-num"> · переплата {formatMoney(row.overpayNet)}</span> : null}
         </span>
       </div>
     );
@@ -406,7 +406,7 @@ export function CompareChosenCell(p: P) {
   if (!ch) return <span className="po-muted">—</span>;
   const supplier = p.context.supplierOfBlock(ch.blockId);
   const notApproved = isNotApproved(row.cmp);
-  const overpay = row.cmp?.overpayGross ?? 0;
+  const overpay = row.cmp?.overpayNet ?? 0;
   return (
     <div className="po-cmp-cell">
       <span className="po-cell-flex">
@@ -421,7 +421,7 @@ export function CompareChosenCell(p: P) {
         <WarningBadge warnings={lineWarnings(row)} size={12} />
       </span>
       <span className="po-cmp-sub po-num">
-        {formatMoney(ch.oc.unitNetUah)} · Σ {formatMoney(ch.oc.sumGrossUah)}
+        {formatMoney(ch.oc.unitNetUah)} · Σ {formatMoney(ch.oc.sumNetUah)}
         {overpay > 0 ? <span className="po-cmp-overpay"> · +{formatMoney(overpay)}</span> : <span className="po-cmp-min"> · мінімум</span>}
       </span>
     </div>

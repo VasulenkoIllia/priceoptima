@@ -14,14 +14,15 @@ describe('buildScenarioView — панель «Сценарії закупівл
   const view = buildScenarioView({ lines: doc.lines, blocks: doc.blocks, suppliers: ctx.suppliers }, computeRequest(doc, ctx));
 
   it('оптимальний мікс і поточний вибір (переплата vs мікс)', () => {
-    expect(view.mix).toEqual({ totalGross: 264, suppliersUsed: 1, covered: 2, missing: 1, total: 3 });
-    expect(view.current).toEqual({ approved: 1, total: 3, totalGross: 276, overpayGross: 12, overpayPct: 4.5455, profitNet: 0 });
+    // усе без ПДВ
+    expect(view.mix).toEqual({ totalNet: 220, suppliersUsed: 1, covered: 2, missing: 1, total: 3 });
+    expect(view.current).toEqual({ approved: 1, total: 3, totalNet: 230, overpayNet: 10, overpayPct: 4.5455, profitNet: 0 });
   });
 
   it('«все у постачальника»: сума, покриття, бракує, різниця з міксом, мін. замовлення, скільки рядків затвердить кнопка', () => {
-    expect(view.singles.map((s) => [s.blockId, s.totalGross, s.covered, s.missing, s.diffVsMixGross, s.belowMinOrder, s.approvable])).toEqual([
-      ['b1', 300, 2, 1, 36, true, 1],
-      ['b2', 264, 2, 1, 0, false, 2],
+    expect(view.singles.map((s) => [s.blockId, s.totalNet, s.covered, s.missing, s.diffVsMixNet, s.belowMinOrder, s.approvable])).toEqual([
+      ['b1', 250, 2, 1, 30, true, 1],
+      ['b2', 220, 2, 1, 0, false, 2],
     ]);
   });
 

@@ -37,6 +37,7 @@ describe('computeRequest — інтеграція', () => {
       linesCount: 2,
       suppliersCount: 2,
       totalPurchaseGross: 3536.51,
+      totalPurchaseNet: 2947.09,
       totalSaleNet: 3686.25,
       totalSaleGross: 4423.5,
       profitNet: 739.16,

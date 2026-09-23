@@ -111,10 +111,10 @@ const HEADER: Record<BlockField, { name: string; tooltip?: string; width: number
   name: { name: 'Найменування', tooltip: 'Назва з каталогу; правий клік — дії з пропозицією', width: 200 },
   unit: { name: 'Од.', width: 54 },
   qty: { name: 'К-сть', tooltip: 'Кількість у постачальника (кратність — автоокруглення вгору)', width: 82 },
-  net: { name: 'Без ПДВ', tooltip: 'Ціна без ПДВ, грн за од. — з прайсу постачальника', width: 100 },
-  gross: { name: 'З ПДВ', tooltip: 'Ціна з ПДВ, грн за од.', width: 96 },
-  sum: { name: 'Сума з ПДВ', width: 108 },
-  rrp: { name: 'РРЦ', tooltip: 'Рекомендована роздрібна ціна з ПДВ, грн', width: 92 },
+  net: { name: 'Без ПДВ', tooltip: 'Ціна без ПДВ, грн за од. — з прайсу постачальника (разом з націнкою постачальника)', width: 100 },
+  gross: { name: 'З ПДВ', tooltip: 'Ціна з ПДВ, грн за од. — для довідки', width: 96 },
+  sum: { name: 'Сума без ПДВ', tooltip: 'Ціна без ПДВ × кількість у постачальника, грн', width: 112 },
+  rrp: { name: 'РРЦ з ПДВ', tooltip: 'Рекомендована роздрібна ціна з ПДВ, грн за од.', width: 96 },
   stock: { name: 'Наявн.', tooltip: 'Наявність у постачальника', width: 74 },
   note: { name: 'Примітка', width: 130 },
   exclude: { name: '✕', tooltip: EXCLUDE_HINT, width: 40 },
@@ -195,9 +195,9 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         ...base,
         type: 'rightAligned',
         cellClass: cls('po-num'),
-        valueGetter: (p) => (p.data?.kind === 'totals' ? (p.data.blocks[blockId]?.totalGross ?? null) : (ocOf(p)?.sumGrossUah ?? null)),
+        valueGetter: (p) => (p.data?.kind === 'totals' ? (p.data.blocks[blockId]?.totalNet ?? null) : (ocOf(p)?.sumNetUah ?? null)),
         valueFormatter: (p) => money(p.value as number | null),
-        tooltipValueGetter: (p) => (p.data?.kind === 'totals' ? 'Всього з ПДВ по блоку' : null),
+        tooltipValueGetter: (p) => (p.data?.kind === 'totals' ? 'Всього без ПДВ по блоку' : null),
       };
     case 'rrp':
       return { ...base, type: 'rightAligned', cellClass: cls('po-num'), valueGetter: (p) => ocOf(p)?.rrpGrossUah ?? null, valueFormatter: (p) => money(p.value as number | null) };
@@ -275,7 +275,7 @@ export function buildColumnDefs({ mode, blockIds, collapsed }: BuildColumnsInput
       {
         colId: COL.chosen,
         headerName: 'Обрано',
-        headerTooltip: 'Затверджена (або рекомендована) пропозиція рядка: постачальник, ціна без ПДВ, сума з ПДВ, переплата відносно мінімуму',
+        headerTooltip: 'Затверджена (або рекомендована) пропозиція рядка: постачальник, ціна без ПДВ, сума без ПДВ, переплата відносно мінімуму (без ПДВ)',
         width: 250,
         pinned: 'right',
         cellRenderer: CompareChosenCell,

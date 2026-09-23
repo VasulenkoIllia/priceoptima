@@ -17,12 +17,12 @@ const COUNTERS: { filter: RowFilter; label: string; hint: string }[] = [
   { filter: 'unapproved', label: 'Не затверджено', hint: 'У націнку й КП піде мінімальна ціна з позначкою «не затверджено»' },
 ];
 
-function Diff({ gross, pct }: { gross: number | null; pct: number | null }) {
-  if (gross == null) return <span className="po-muted">—</span>;
-  if (gross <= 0) return <span className="po-sc-good">як у міксі</span>;
+function Diff({ net, pct }: { net: number | null; pct: number | null }) {
+  if (net == null) return <span className="po-muted">—</span>;
+  if (net <= 0) return <span className="po-sc-good">як у міксі</span>;
   return (
     <span className="po-sc-bad po-num">
-      +{formatMoney(gross)} грн{pct != null ? ` (+${formatPct(pct, Math.abs(pct) < 1 ? 2 : 1)})` : ''}
+      +{formatMoney(net)} грн{pct != null ? ` (+${formatPct(pct, Math.abs(pct) < 1 ? 2 : 1)})` : ''}
     </span>
   );
 }
@@ -85,7 +85,9 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
         <>
           <div className="po-sc-meta">Порівняйте варіанти й натисніть «Застосувати» — вибір у таблиці зміниться (скасувати — Ctrl+Z).</div>
           <Card title="Оптимальний мікс" tone="mix">
-            <div className="po-sc-sum po-num">{formatMoneyUah(view.mix.totalGross)}</div>
+            <div className="po-sc-sum po-num" title="Сума закупівлі без ПДВ">
+              {formatMoneyUah(view.mix.totalNet)} <span className="po-sc-vat">без ПДВ</span>
+            </div>
             <div className="po-sc-meta">мінімальна ціна в кожному рядку · постачальників: {view.mix.suppliersUsed}</div>
             {view.mix.missing ? (
               <div className="po-sc-bad">
@@ -108,12 +110,14 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
           </Card>
 
           <Card title="Поточний вибір" tone="current">
-            <div className="po-sc-sum po-num">{formatMoneyUah(view.current.totalGross)}</div>
+            <div className="po-sc-sum po-num" title="Сума закупівлі без ПДВ">
+              {formatMoneyUah(view.current.totalNet)} <span className="po-sc-vat">без ПДВ</span>
+            </div>
             <div className="po-sc-meta">
               затверджено {view.current.approved} з {view.current.total}
             </div>
             <div>
-              переплата vs мікс: <Diff gross={view.current.overpayGross} pct={view.current.overpayPct} />
+              переплата vs мікс: <Diff net={view.current.overpayNet} pct={view.current.overpayPct} />
             </div>
             <div title="Прибуток без ПДВ за цінами продажу з вкладки «Націнка»">
               заробіток: <span className="po-num po-sc-good">{formatMoneyUah(view.current.profitNet)}</span>
@@ -129,7 +133,9 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
                 title={<SupplierLogo name={name} logoUrl={s.supplier?.logoUrl} color={s.supplier?.color} size={18} showName />}
                 extra={s.total > 0 && s.covered === s.total ? <Tag color="green">лише 1 постачальник</Tag> : null}
               >
-                <div className="po-sc-sum po-num">{formatMoneyUah(s.totalGross)}</div>
+                <div className="po-sc-sum po-num" title="Сума закупівлі без ПДВ">
+                  {formatMoneyUah(s.totalNet)} <span className="po-sc-vat">без ПДВ</span>
+                </div>
                 <div className="po-sc-cover">
                   <Progress percent={s.total ? Math.round((s.covered / s.total) * 100) : 0} size="small" showInfo={false} />
                   <span className="po-num" title="Покриття: рядків з ціною в цього постачальника">
@@ -138,7 +144,7 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
                 </div>
                 {s.missing ? <div className="po-sc-bad">бракує: {s.missing}</div> : null}
                 <div>
-                  різниця з міксом: <Diff gross={s.diffVsMixGross} pct={s.diffVsMixPct} />
+                  різниця з міксом: <Diff net={s.diffVsMixNet} pct={s.diffVsMixPct} />
                 </div>
                 <div title="Прибуток без ПДВ, якби всі рядки з ціною в цього постачальника брали в нього; ціни продажу за способом націнки рядків">
                   заробіток: <span className="po-num po-sc-good">{formatMoneyUah(s.profitNet)}</span>
