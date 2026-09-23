@@ -428,7 +428,10 @@ model Product {
   @@unique([supplierId, skuKey])
   /// Каталог одного постачальника за назвою: сторінка береться прямо з індексу, без сортування всіх позицій.
   @@index([supplierId, isArchived, nameWork, id])
-  @@index([brand])
+  /// сортування всієї номенклатури за артикулом, назвою й ціною входу (CATALOG_SORT_ANYTIME)
+  @@index([sku, id])
+  @@index([nameWork, id])
+  @@index([purchasePrice])
   @@index([missingSince])
   /// Точний артикул по всьому каталогу (без фільтра за постачальником).
   @@index([skuKey])

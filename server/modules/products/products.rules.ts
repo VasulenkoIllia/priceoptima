@@ -67,13 +67,15 @@ export function productOrderBy(
 ): Prisma.ProductOrderByWithRelationInput[] {
   const byName: Prisma.ProductOrderByWithRelationInput = { nameWork: 'asc' };
   const tail: Prisma.ProductOrderByWithRelationInput = { id: 'asc' };
+  // id у тому самому напрямку: тоді «від Я до А» читає індекс (артикул|назва, id) у зворотному порядку
+  const sameDirTail: Prisma.ProductOrderByWithRelationInput = { id: dir };
   switch (field) {
     case 'supplier':
       return [{ supplier: { name: dir } }, byName, tail];
     case 'sku':
-      return [{ sku: dir }, tail];
+      return [{ sku: dir }, sameDirTail];
     case 'nameWork':
-      return [{ nameWork: dir }, tail];
+      return [{ nameWork: dir }, sameDirTail];
     case 'unitCode':
     case 'multiplicity':
     case 'availability':

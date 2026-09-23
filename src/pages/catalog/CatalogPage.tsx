@@ -4,6 +4,7 @@ import { Alert, App, Button, Checkbox, Dropdown, Input, Select, Space, Tag } fro
 import type { ColDef, GridApi, ICellRendererParams, IDatasource } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { catalogSortAllowed } from '@shared/catalog/limits';
 import { AVAILABILITY_LABELS, type AvailabilityStatus } from '@shared/enums';
 import { formatDate, formatMoney, formatQty } from '@shared/format';
 import type { ProductDetail, ProductPageQuery, ProductSortField, SupplierListItem, UUID } from '@shared/types';
@@ -253,6 +254,25 @@ export default function CatalogPage() {
     [supplierById, vatRatePct],
   );
 
+  // сортувати весь каталог можна за артикулом, назвою й ціною входу; за рештою колонок — коли вибрано постачальника чи є пошук
+  const narrowed = supplierId !== 'all' || q !== '';
+  const sortableColumns = useMemo<ColDef<ProductDetail>[]>(
+    () =>
+      columns.map((c) => {
+        const field = SORT_FIELDS[c.colId ?? c.field ?? ''];
+        if (c.sortable === false || !field || catalogSortAllowed(field, narrowed)) return c;
+        const hint = 'Сортування за цією колонкою — коли вибрано постачальника або введено пошук';
+        return { ...c, sortable: false, headerTooltip: c.headerTooltip ? `${c.headerTooltip}. ${hint}` : hint };
+      }),
+    [columns, narrowed],
+  );
+  // пошук чи постачальника прибрали — сортування за «вузькою» колонкою скидаємо (сервер його вже не застосує)
+  useEffect(() => {
+    const api = gridApi.current;
+    const sorted = api?.getColumnState().find((c) => c.sort);
+    if (api && sorted && !catalogSortAllowed(SORT_FIELDS[sorted.colId], narrowed)) api.applyColumnState({ defaultState: { sort: null } });
+  }, [narrowed]);
+
   const supplierOptions = [
     { value: 'all', label: 'Усі постачальники' },
     ...(suppliers.data ?? []).map((s) => ({
@@ -375,7 +395,7 @@ export default function CatalogPage() {
           datasource={datasource}
           cacheBlockSize={PAGE_SIZE}
           maxBlocksInCache={20}
-          columnDefs={columns}
+          columnDefs={sortableColumns}
           defaultColDef={{ sortable: true, resizable: true, suppressMovable: true }}
           getRowId={(p) => p.data.id}
           rowClass="po-cat-row"

@@ -2,6 +2,7 @@
 // Важкий відбір робить база (індекси Product_skuKey_prefix_idx і Product_searchText_idx),
 // остаточний порядок і ваги — products.search.
 import { Prisma, type Product, type User } from '@prisma/client';
+import { catalogSortAllowed } from '@shared/catalog/limits';
 import { planName1cImport } from '@shared/catalog/name1c';
 import { toIsoDate } from '@shared/format';
 import { normalizeSku } from '@shared/parse';
@@ -216,7 +217,8 @@ async function plainPage(query: ProductListQueryInput, ctx: CatalogContext): Pro
  * Вивантаження в Excel: спершу кількість (понад max — не вивантажуємо), потім id у порядку екрана одним сортуванням,
  * далі рядки порціями за id — замість десятків сторінок зі зсувом, кожна з яких сортувала б увесь фільтр заново.
  */
-export async function productIdsForExport(query: ProductListQueryInput, max: number): Promise<{ total: number; ids: UUID[] }> {
+export async function productIdsForExport(input: ProductListQueryInput, max: number): Promise<{ total: number; ids: UUID[] }> {
+  const query = catalogSortAllowed(input.sortField, !!input.supplierId || !!input.q) ? input : { ...input, sortField: undefined };
   const ctx = await catalogContext();
   const total = isPlainListing(query)
     ? [...(await supplierCounts(!!query.archived, true)).values()].reduce((a, b) => a + b, 0)
@@ -244,7 +246,9 @@ export async function productDetailsByIds(ids: readonly UUID[]): Promise<Product
  * Сторінка номенклатури для гортання великого каталогу. Загальну кількість рахуємо лише для першої сторінки
  * (далі вона в клієнта вже є) — інакше кожна порція по 100 рядків перераховувала б увесь фільтр.
  */
-export async function listProductsPage(query: ProductListQueryInput): Promise<ProductPage> {
+export async function listProductsPage(input: ProductListQueryInput): Promise<ProductPage> {
+  // сортування за довільною колонкою — лише у звуженій вибірці (постачальник або пошук)
+  const query = catalogSortAllowed(input.sortField, !!input.supplierId || !!input.q) ? input : { ...input, sortField: undefined };
   const ctx = await catalogContext();
   if (isPlainListing(query)) return plainPage(query, ctx);
   const [total, rows] = await Promise.all([
