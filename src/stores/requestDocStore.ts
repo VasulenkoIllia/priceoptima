@@ -1,6 +1,6 @@
 // Стор документа заявки (§7): Zustand + immer. Живий розрахунок — computeRequest(doc, ctx) з мемоізацією за посиланням на doc.
 // Редагування лише з блокуванням цієї вкладки і в статусі «В роботі»; автозбереження дельтою через debounce.
-import { produce, type Draft } from 'immer';
+import { isDraft, original, produce, type Draft } from 'immer';
 import { useStore } from 'zustand';
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import type { RequestStatus } from '@shared/enums';
@@ -253,15 +253,21 @@ const INITIAL_DATA: RequestDocData = {
 };
 
 // ── похідні ─────────────────────────────────────────────────────────
-const computedCache = new WeakMap<RequestDocument, { ctx: PricingContext; value: RequestComputed }>();
+/**
+ * Останній розрахунок (кілька — на випадок кількох сторів у тестах). Лише останні документи: кеш за кожним документом
+ * тримав би розрахунок і для всієї історії «Назад» (~3 МБ на крок заявки 300×6); після «Назад» розрахунок перераховується.
+ */
+const COMPUTED_KEEP = 4;
+const computedCache: { doc: RequestDocument; ctx: PricingContext; value: RequestComputed }[] = [];
 
 /** Живий розрахунок документа (мемоізація за посиланням на doc і ctx). */
 export function selectComputed(s: Pick<RequestDocData, 'doc' | 'ctx'>): RequestComputed | null {
   if (!s.doc || !s.ctx) return null;
-  const hit = computedCache.get(s.doc);
-  if (hit && hit.ctx === s.ctx) return hit.value;
+  const hit = computedCache.find((c) => c.doc === s.doc && c.ctx === s.ctx);
+  if (hit) return hit.value;
   const value = computeRequest(s.doc, s.ctx);
-  computedCache.set(s.doc, { ctx: s.ctx, value });
+  computedCache.unshift({ doc: s.doc, ctx: s.ctx, value });
+  if (computedCache.length > COMPUTED_KEEP) computedCache.length = COMPUTED_KEEP;
   return value;
 }
 
@@ -275,6 +281,28 @@ function readOnlyOf(doc: RequestDocument | null, hasLock: boolean): Pick<Request
 function ctxFor(doc: RequestDocument, prev: PricingContext | null): PricingContext {
   if (prev && prev.settings === doc.refs.pricing && prev.suppliers === doc.refs.suppliers) return prev;
   return { now: new Date(), settings: doc.refs.pricing, suppliers: doc.refs.suppliers };
+}
+
+/** Незмінна основа чернетки (позиції ті самі, доступ без проксі); не чернетка — сам масив. */
+function baseOf<T extends object>(x: T): T {
+  return isDraft(x) ? (original(x as Draft<T>) as T) : x;
+}
+
+/** id → позиція в масиві. */
+function indexById(list: readonly { id: UUID }[]): Map<UUID, number> {
+  return new Map(list.map((x, i) => [x.id, i]));
+}
+
+/** ключ → позиції елементів з цим ключем. */
+function groupIndexes<T>(list: readonly T[], key: (x: T) => UUID): Map<UUID, number[]> {
+  const out = new Map<UUID, number[]>();
+  list.forEach((x, i) => {
+    const k = key(x);
+    const at = out.get(k);
+    if (at) at.push(i);
+    else out.set(k, [i]);
+  });
+  return out;
 }
 
 function renumber<T extends { position: number }>(list: T[]): void {
@@ -737,19 +765,28 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       });
     }
 
-    function applyLinePatchDraft(d: Draft<RequestDocument>, id: UUID, patch: LinePatch): void {
-      const line = d.lines.find((l) => l.id === id);
-      if (!line) return;
-      const oldQty = line.qty;
-      if (patch.clientName !== undefined) line.clientName = patch.clientName;
-      if (patch.clientUnit !== undefined) line.clientUnit = patch.clientUnit;
-      if (patch.clientNote !== undefined) line.clientNote = patch.clientNote;
-      if (patch.kpName !== undefined) line.kpName = patch.kpName;
-      if (patch.qty !== undefined && Number.isFinite(patch.qty) && patch.qty >= 0) line.qty = patch.qty;
-      if (line.qty !== oldQty) {
+    /**
+     * Зміни рядків одним кроком. Рядки й пропозиції шукаємо за індексом з незмінної основи чернетки:
+     * пошук у циклі робив масову зміну 300 рядків квадратичною (~200 мс).
+     */
+    function applyLinePatchesDraft(d: Draft<RequestDocument>, patches: readonly LinePatchEntry[]): void {
+      const lineIndex = indexById(baseOf(d.lines));
+      let offersOfLine: Map<UUID, number[]> | null = null;
+      for (const { id, patch } of patches) {
+        const at = lineIndex.get(id);
+        if (at == null) continue;
+        const line = d.lines[at]!;
+        const oldQty = line.qty;
+        if (patch.clientName !== undefined) line.clientName = patch.clientName;
+        if (patch.clientUnit !== undefined) line.clientUnit = patch.clientUnit;
+        if (patch.clientNote !== undefined) line.clientNote = patch.clientNote;
+        if (patch.kpName !== undefined) line.kpName = patch.kpName;
+        if (patch.qty !== undefined && Number.isFinite(patch.qty) && patch.qty >= 0) line.qty = patch.qty;
+        if (line.qty === oldQty) continue;
         // к-сть пропозицій, що йшла за рядком (або була автоокруглена), перераховується; ручна — лишається
-        for (const o of d.offers) {
-          if (o.lineId !== id) continue;
+        offersOfLine ??= groupIndexes(baseOf(d.offers), (o) => o.lineId);
+        for (const i of offersOfLine.get(id) ?? []) {
+          const o = d.offers[i]!;
           if (o.qty === null || o.qty === initialOfferQty(oldQty, offerMultiplicity(o), autoRound())) {
             o.qty = initialOfferQty(line.qty, offerMultiplicity(o), autoRound());
           }
@@ -791,8 +828,10 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       const removed = d.offers.filter(pred);
       if (!removed.length) return;
       d.offers = d.offers.filter((o) => !pred(o));
+      const lineIndex = indexById(baseOf(d.lines));
       for (const o of removed) {
-        const line = d.lines.find((l) => l.id === o.lineId);
+        const at = lineIndex.get(o.lineId);
+        const line = at == null ? undefined : d.lines[at];
         if (line && line.selection.blockId === o.blockId) line.selection = { blockId: null };
       }
     }
@@ -850,14 +889,12 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       },
 
       updateLine(id, patch) {
-        edit((d) => applyLinePatchDraft(d, id, patch));
+        edit((d) => applyLinePatchesDraft(d, [{ id, patch }]));
       },
 
       updateLines(patches) {
         if (!patches.length) return;
-        edit((d) => {
-          for (const p of patches) applyLinePatchDraft(d, p.id, p.patch);
-        });
+        edit((d) => applyLinePatchesDraft(d, patches));
       },
 
       removeLines(ids) {
@@ -1166,8 +1203,10 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       setApprovals(entries) {
         if (!entries.length) return;
         edit((d) => {
+          const lineIndex = indexById(baseOf(d.lines));
           for (const e of entries) {
-            const line = d.lines.find((l) => l.id === e.lineId);
+            const at = lineIndex.get(e.lineId);
+            const line = at == null ? undefined : d.lines[at];
             if (!line) continue;
             const approvedQty = e.approved ? (e.qty ?? line.approval.approvedQty ?? line.qty) : null;
             if (line.approval.approved !== e.approved || line.approval.approvedQty !== approvedQty) {
