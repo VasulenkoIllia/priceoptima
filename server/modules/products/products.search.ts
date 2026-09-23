@@ -34,7 +34,8 @@ export function queryTokens(q: string): string[] {
     if (/\p{L}\/\p{L}/u.test(t)) out.push(...t.split('/'));
     else out.push(t);
   }
-  return out.filter((t) => t.length >= 2);
+  // «%» і «_» — шаблони LIKE: Prisma (contains) їх не екранує, тож прибираємо, щоб список і лічильник збігалися
+  return out.map((t) => t.replace(/[%_\\]/gu, '')).filter((t) => t.length >= 2);
 }
 
 export interface SearchPlan {
@@ -49,7 +50,8 @@ export interface SearchPlan {
 
 export function searchPlan(q: string): SearchPlan {
   const raw = (q ?? '').trim();
-  const skuKey = normalizeSku(raw);
+  // «%» і «_» у пошуку — не шаблони: Prisma (contains) їх не екранує, тож прибираємо й з ключа артикула
+  const skuKey = normalizeSku(raw).replace(/[%_\\]/gu, '');
   const tokens = queryTokens(raw);
   return {
     skuKey,
