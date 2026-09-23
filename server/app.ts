@@ -8,6 +8,7 @@ import { pingDb } from './db';
 import { logger } from './logger';
 import { apiJson } from './http/bodyLimits';
 import { errorHandler } from './http/errorHandler';
+import { securityHeaders } from './http/securityHeaders';
 import { spaRouter } from './http/spa';
 import { apiRouter } from './routes';
 
@@ -26,11 +27,7 @@ export function createApp(): Express {
     }),
   );
   app.use(compression());
-  app.use((_req, res, next) => {
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-    next();
-  });
+  app.use(securityHeaders({ hsts: config.cookieSecure }));
 
   // перевірка стану контейнера: застосунок піднявся і база відповідає
   app.get('/health', (_req, res) => {
