@@ -80,6 +80,9 @@ describe('джерело прайсу', () => {
       scheduleHour: 6,
       hasPurchasePrice: true,
       note: 'Оновлення щоранку',
+      lastError: null,
+      lastErrorAt: null,
+      failCount: 0,
     });
     expect(JSON.stringify(source)).not.toContain('token');
     expect(JSON.stringify(source)).not.toContain('секретний');
@@ -94,6 +97,9 @@ describe('джерело прайсу', () => {
       scheduleHour: null,
       hasPurchasePrice: true,
       note: null,
+      lastError: null,
+      lastErrorAt: null,
+      failCount: 0,
     });
   });
 
