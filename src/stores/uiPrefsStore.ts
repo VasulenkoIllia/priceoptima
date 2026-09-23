@@ -34,7 +34,8 @@ export const useUiPrefs = create<UiPrefsState>()(
       density: 'normal',
       editorMode: 'sourcing',
       collapsedBlocks: {},
-      scenariosPanelOpen: true,
+      // «Сценарії закупівлі» відкривають кнопкою, коли треба (спершу — сама таблиця)
+      scenariosPanelOpen: false,
       headerNotesOpen: false,
       siderCollapsed: false,
 
@@ -60,8 +61,10 @@ export const useUiPrefs = create<UiPrefsState>()(
     }),
     {
       name: 'po-ui-prefs',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
+      // v2: «Сценарії» закриті за замовчуванням — один раз закриваємо й у тих, у кого вони були відкриті за старим замовчуванням
+      migrate: (persisted, version) => (version < 2 ? { ...(persisted as object), scenariosPanelOpen: false } : persisted) as UiPrefsState,
       partialize: (s) => ({
         editorMode: s.editorMode,
         collapsedBlocks: s.collapsedBlocks,
