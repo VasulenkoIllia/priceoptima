@@ -8,6 +8,7 @@ import { FEED_CONNECTOR_INFO, FEED_CONNECTORS, isFeedConnector, type FeedConnect
 import type { PriceFeedAuth, PriceSourceKind, SupplierPriceSourceInput, SupplierPriceSourceSettings, UUID } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
 import { viaLink } from './supplierView';
+import { LoadError } from '@/components';
 
 /** Підключення, які сервер уміє читати за посиланням (у кожного постачальника своя вигрузка). */
 const CONNECTOR_OPTIONS = FEED_CONNECTORS.map((c) => ({ value: c, label: FEED_CONNECTOR_INFO[c].label }));
@@ -133,7 +134,7 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
       width={600}
     >
       {settings.isError ? (
-        <Alert type="error" showIcon message="Не вдалося завантажити налаштування" description={errorMessage(settings.error)} />
+        <LoadError inline title="Не вдалося завантажити налаштування" error={settings.error} onRetry={settings.refetch} />
       ) : !current ? (
         <Spin style={{ display: 'block', margin: '32px auto' }} />
       ) : (

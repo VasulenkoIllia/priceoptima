@@ -9,7 +9,7 @@ import { KP_NAME_SOURCE_LABELS, KP_NAME_SOURCES, KP_VAT_MODE_LABELS, type KpName
 import { formatDateTime, formatKpNumber, formatMoney } from '@shared/format';
 import { DEFAULT_KP_TERMS, defaultKpVatMode, kpBlockReason, latestBaseKp, resolveKpTerms, type KpChecks } from '@shared/pricing';
 import type { KpDocumentDto, KpSettings, UUID } from '@shared/types';
-import { KpTermsEditor } from '@/components';
+import { KpTermsEditor, LoadError } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { getRequestDocStore, useRequestDoc } from '@/stores/requestDocStore';
 import { KpDocumentView } from './KpDocumentView';
@@ -319,6 +319,7 @@ export default function KpTab() {
             </div>
             {kps.data?.map((k) => <VersionItem key={k.id} kp={k} active={k.id === selected?.id} onSelect={() => setSelectedId(k.id)} />)}
             {kps.data && !kps.data.length ? <div className="po-muted">КП ще не формували</div> : null}
+            {kps.isError ? <LoadError inline title="Не вдалося завантажити версії КП" error={kps.error} onRetry={kps.refetch} /> : null}
           </div>
         </section>
       </aside>

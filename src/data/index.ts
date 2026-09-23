@@ -8,5 +8,5 @@ export const ds: DataSource = new HttpDataSource();
 import.meta.hot?.accept(() => window.location.reload());
 
 export type { DataSource, LockAcquireResult, CallOptions } from './DataSource';
-export { DataSourceError, errorMessage, isDataSourceError } from './errors';
+export { DataSourceError, errorMessage, isDataSourceError, isTransientError } from './errors';
 export { qk } from './queryKeys';

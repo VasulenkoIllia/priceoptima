@@ -1,13 +1,13 @@
 // Бічна панель постачальника: картка й умови (редагуються у формі), джерело прайсу, журнал оновлень.
 import { EditOutlined, ExperimentOutlined, GlobalOutlined, MailOutlined, PhoneOutlined, SettingOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Alert, App, Button, Descriptions, Drawer, Modal, Result, Spin, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
+import { App, Button, Descriptions, Drawer, Modal, Spin, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
 import { useState, type ReactNode } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDateTime, formatMoneyUah, toIsoDate } from '@shared/format';
 import { webUrl } from '@shared/parse';
 import type { PriceUpdateDto, SupplierDetail, SupplierListItem } from '@shared/types';
-import { SupplierLogo } from '@/components';
+import { LoadError, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { useIsAdmin } from '@/app/session';
@@ -114,7 +114,7 @@ function PriceUpdateModal({ id, onClose }: { id: number | null; onClose: () => v
       {entry.data ? (
         <PriceUpdateReportView update={entry.data} />
       ) : entry.isError ? (
-        <Alert type="error" showIcon message="Не вдалося завантажити звіт" description={errorMessage(entry.error)} />
+        <LoadError inline title="Не вдалося завантажити звіт" error={entry.error} onRetry={entry.refetch} />
       ) : (
         <Spin style={{ display: 'block', margin: '32px auto' }} />
       )}
@@ -286,7 +286,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
 
       <div className="po-sup-section">Журнал оновлень прайсу</div>
       {log.isError ? (
-        <Alert type="error" showIcon message="Не вдалося завантажити журнал" description={errorMessage(log.error)} />
+        <LoadError inline title="Не вдалося завантажити журнал" error={log.error} onRetry={log.refetch} />
       ) : (
         <Table<PriceUpdateDto>
           className="po-sup-log"
@@ -339,7 +339,7 @@ export function SupplierDrawer({ open, supplier, onClose }: SupplierDrawerProps)
       {detail.data ? (
         <SupplierCard key={detail.data.id} detail={detail.data} onSource={() => setSourceOpen(true)} />
       ) : detail.isError ? (
-        <Result status="error" title="Не вдалося завантажити постачальника" subTitle={errorMessage(detail.error)} />
+        <LoadError title="Не вдалося завантажити постачальника" error={detail.error} onRetry={detail.refetch} />
       ) : (
         <Spin style={{ display: 'block', margin: '48px auto' }} />
       )}

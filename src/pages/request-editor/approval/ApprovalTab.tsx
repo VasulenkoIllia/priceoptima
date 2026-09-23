@@ -2,14 +2,14 @@
 // Погоджена сума — у заявці й реєстрі; «Сформувати фінальне КП» — лише погоджені позиції. Зберігається автоматично.
 import { CheckOutlined, CloseOutlined, FileDoneOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, App, Button, Checkbox, InputNumber, Result, Select, Space, Spin, Table, Tag, type TableColumnsType } from 'antd';
+import { Alert, App, Button, Checkbox, InputNumber, Select, Space, Spin, Table, Tag, type TableColumnsType } from 'antd';
 import { useNavigate } from 'react-router';
 import { KP_VAT_MODE_LABELS } from '@shared/enums';
 import { formatDate, formatMoney, formatMoneyUah, formatPct, formatQty } from '@shared/format';
 import { parseLocaleNumber } from '@shared/parse';
 import { approvalBaseKp, approvedKpRows, approvedTotalsFromKp, checkMultiplicity, offerMultiplicity, round2 } from '@shared/pricing';
 import type { KpRow, RequestLine, UUID } from '@shared/types';
-import { EmptyState } from '@/components';
+import { EmptyState, LoadError } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { buildSupplierOrders, downloadSupplierOrders } from './supplierOrders';
@@ -104,7 +104,7 @@ export default function ApprovalTab() {
       </div>
     );
   }
-  if (kps.isError) return <Result status="warning" title="Не вдалося завантажити КП" subTitle={errorMessage(kps.error)} />;
+  if (kps.isError) return <LoadError status="warning" title="Не вдалося завантажити КП" error={kps.error} onRetry={kps.refetch} />;
 
   // клієнт погоджує обрану версію КП (за замовчуванням — останню звичайну)
   const base = approvalBaseKp(kps.data, approvalKpId);

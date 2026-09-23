@@ -380,7 +380,7 @@ export default function CatalogPage() {
           description={loadError}
           action={
             <Button size="small" onClick={() => gridApi.current?.refreshInfiniteCache()}>
-              Спробувати ще
+              Спробувати ще раз
             </Button>
           }
           style={{ marginBottom: 8 }}

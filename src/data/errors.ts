@@ -4,13 +4,21 @@ import type { ApiErrorCode } from '@shared/types';
 export class DataSourceError extends Error {
   readonly code: ApiErrorCode;
   readonly details?: unknown;
+  /** Короткий збій (немає зʼєднання, сервер перезапускається: 502/503/504) — запит можна повторити. */
+  readonly transient: boolean;
 
-  constructor(code: ApiErrorCode, message: string, details?: unknown) {
+  constructor(code: ApiErrorCode, message: string, details?: unknown, transient = false) {
     super(message);
     this.name = 'DataSourceError';
     this.code = code;
     this.details = details;
+    this.transient = transient;
   }
+}
+
+/** Помилку варто повторити: короткий збій мережі чи сервера (не відповідь API на кшталт NOT_FOUND). */
+export function isTransientError(e: unknown): boolean {
+  return e instanceof DataSourceError ? e.transient : true;
 }
 
 export function isDataSourceError(e: unknown, code?: ApiErrorCode): e is DataSourceError {

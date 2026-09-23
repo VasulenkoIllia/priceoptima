@@ -1,12 +1,12 @@
 // Картка клієнта: контрагенти, контакти, заявки клієнта.
 import { EditOutlined, MailOutlined, PhoneOutlined, UserOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Drawer, Result, Spin, Table, Tag, Typography, type TableColumnsType } from 'antd';
+import { Button, Drawer, Spin, Table, Tag, Typography, type TableColumnsType } from 'antd';
 import { useOpenTab } from '@/app/AppTabs';
 import { formatDate, formatMoney } from '@shared/format';
 import type { ClientDetail, RequestListItem, UUID } from '@shared/types';
-import { StatusTag } from '@/components';
-import { ds, errorMessage, qk } from '@/data';
+import { LoadError, StatusTag } from '@/components';
+import { ds, qk } from '@/data';
 
 const REQUEST_COLUMNS: TableColumnsType<RequestListItem> = [
   { title: '№', dataIndex: 'numberLabel', width: 84, render: (v: string) => <Typography.Link className="po-num">{v}</Typography.Link> },
@@ -94,7 +94,7 @@ function ClientCard({ client }: { client: ClientDetail }) {
         Заявки клієнта <span className="po-cli-section-hint">клік — відкрити заявку</span>
       </div>
       {requests.isError ? (
-        <Alert type="error" showIcon message="Не вдалося завантажити заявки" description={errorMessage(requests.error)} />
+        <LoadError inline title="Не вдалося завантажити заявки" error={requests.error} onRetry={requests.refetch} />
       ) : (
         <Table<RequestListItem>
           className="po-cli-requests"
@@ -141,7 +141,7 @@ export function ClientDrawer({ open, clientId, fallbackTitle, onClose, onEdit }:
       {data ? (
         <ClientCard key={data.id} client={data} />
       ) : detail.isError ? (
-        <Result status="error" title="Не вдалося завантажити клієнта" subTitle={errorMessage(detail.error)} />
+        <LoadError title="Не вдалося завантажити клієнта" error={detail.error} onRetry={detail.refetch} />
       ) : (
         <Spin style={{ display: 'block', margin: '48px auto' }} />
       )}

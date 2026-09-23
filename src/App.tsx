@@ -6,7 +6,7 @@ import 'dayjs/locale/uk';
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router/dom';
 import { router } from '@/app/router';
-import { isDataSourceError, qk } from '@/data';
+import { isDataSourceError, isTransientError, qk } from '@/data';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { antdTheme, applyThemeCssVars } from '@/theme';
 
@@ -21,8 +21,8 @@ const queryClient: QueryClient = new QueryClient({
   }),
   defaultOptions: {
     queries: {
-      // помилки API (NOT_FOUND, UNAUTHORIZED…) не повторюємо; повернувшись у вкладку — перечитуємо (дані змінюють інші користувачі)
-      retry: (count, error) => !isDataSourceError(error) && count < 1,
+      // короткі збої мережі чи сервера повторюємо двічі; відповіді API (NOT_FOUND, UNAUTHORIZED…) — ні
+      retry: (count, error) => isTransientError(error) && count < 2,
     },
   },
 });

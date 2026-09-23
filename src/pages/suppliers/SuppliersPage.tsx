@@ -1,11 +1,11 @@
 import { FileExcelOutlined, PlusOutlined, RightOutlined, SyncOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Card, Result, Space, Spin, Tag, Tooltip } from 'antd';
+import { App, Button, Card, Space, Spin, Tag, Tooltip } from 'antd';
 import { useState } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatDateTime, formatMoneyUah, formatQty, toIsoDate } from '@shared/format';
 import type { EffectiveRates, SupplierListItem } from '@shared/types';
-import { EmptyState, PageHeader, SupplierLogo } from '@/components';
+import { EmptyState, LoadError, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { downloadPriceTemplate, PriceImportDialog } from './priceImport';
@@ -171,7 +171,7 @@ export default function SuppliersPage() {
       {suppliers.isPending ? (
         <Spin style={{ display: 'block', margin: '48px auto' }} />
       ) : suppliers.isError ? (
-        <Result status="error" title="Не вдалося завантажити постачальників" subTitle={errorMessage(suppliers.error)} />
+        <LoadError title="Не вдалося завантажити постачальників" error={suppliers.error} onRetry={suppliers.refetch} />
       ) : suppliers.data.length === 0 ? (
         <EmptyState
           title="Постачальників ще немає"

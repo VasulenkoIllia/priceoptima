@@ -13,13 +13,14 @@ import {
   UnorderedListOutlined,
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Empty, Result, Spin, Timeline, Typography } from 'antd';
+import { Alert, Empty, Spin, Timeline, Typography } from 'antd';
 import { useEffect, type ReactNode } from 'react';
 import { formatDateTime } from '@shared/format';
 import type { RequestEventDto } from '@shared/types';
-import { ds, errorMessage, qk } from '@/data';
+import { ds, qk } from '@/data';
 import { useRequestDoc } from '@/stores/requestDocStore';
 import { BRAND_COLOR, SEMANTIC_COLORS } from '@/theme';
+import { LoadError } from '@/components';
 
 const KIND: Record<RequestEventDto['kind'], { icon: ReactNode; color: string; label: string }> = {
   created: { icon: <PlusCircleOutlined />, color: BRAND_COLOR, label: 'Створення' },
@@ -51,7 +52,7 @@ export default function HistoryTab() {
     if (requestId && savedAt) void queryClient.invalidateQueries({ queryKey: qk.history(requestId) });
   }, [queryClient, requestId, savedAt]);
 
-  if (history.isError) return <Result status="warning" title="Не вдалося завантажити історію" subTitle={errorMessage(history.error)} />;
+  if (history.isError) return <LoadError status="warning" title="Не вдалося завантажити історію" error={history.error} onRetry={history.refetch} />;
   const events = history.data?.events ?? [];
 
   return (

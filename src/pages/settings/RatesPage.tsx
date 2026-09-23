@@ -1,12 +1,12 @@
 import { EditOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Result, Spin, Table, Tag, type TableColumnsType } from 'antd';
+import { Alert, App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Spin, Table, Tag, type TableColumnsType } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
 import { FOREIGN_CURRENCIES, RATE_POLICY_LABELS, type ForeignCurrency, type RateSource } from '@shared/enums';
 import { formatDate, formatRate, toIsoDate } from '@shared/format';
 import type { CurrencyRateDto, EffectiveRates, ISODate, SupplierListItem } from '@shared/types';
-import { EmptyState, ManualRateFields, PageHeader, SupplierLogo } from '@/components';
+import { EmptyState, LoadError, ManualRateFields, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { BRAND_COLOR } from '@/theme';
@@ -306,7 +306,7 @@ export default function RatesPage() {
 
   let body;
   if (rates.isPending) body = <Spin style={{ display: 'block', margin: '48px auto' }} />;
-  else if (rates.isError) body = <Result status="error" title="Не вдалося завантажити курси" subTitle={errorMessage(rates.error)} />;
+  else if (rates.isError) body = <LoadError title="Не вдалося завантажити курси" error={rates.error} onRetry={rates.refetch} />;
   else if (!days.length) body = <EmptyState title="Курсів ще немає" />;
   else
     body = (
@@ -343,7 +343,7 @@ export default function RatesPage() {
         </Card>
         <Card title="Курси постачальників" size="small">
           {suppliers.isError ? (
-            <Result status="error" title="Не вдалося завантажити постачальників" subTitle={errorMessage(suppliers.error)} />
+            <LoadError title="Не вдалося завантажити постачальників" error={suppliers.error} onRetry={suppliers.refetch} />
           ) : (
             <Table<SupplierListItem>
               className="po-rates-table"

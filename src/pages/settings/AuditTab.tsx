@@ -1,10 +1,11 @@
 // Журнал дій (лише адміністратор): хто, коли, що зробив — входи, користувачі, налаштування, довідники, каталог.
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { Button, Result, Select, Table, type TableColumnsType } from 'antd';
+import { Button, Select, Table, type TableColumnsType } from 'antd';
 import { useState } from 'react';
 import { formatDateTime } from '@shared/format';
 import type { AuditEventDto, UUID } from '@shared/types';
-import { ds, errorMessage, qk } from '@/data';
+import { ds, qk } from '@/data';
+import { LoadError } from '@/components';
 
 const ENTITY_OPTIONS = [
   { value: 'user', label: 'Користувачі й входи' },
@@ -35,7 +36,7 @@ export function AuditTab() {
   });
   const rows = audit.data?.pages.flatMap((p) => p.items) ?? [];
 
-  if (audit.isError) return <Result status="error" title="Не вдалося завантажити журнал" subTitle={errorMessage(audit.error)} />;
+  if (audit.isError) return <LoadError title="Не вдалося завантажити журнал" error={audit.error} onRetry={audit.refetch} />;
   return (
     <div style={{ maxWidth: 1100 }}>
       <div className="po-set-toolbar">

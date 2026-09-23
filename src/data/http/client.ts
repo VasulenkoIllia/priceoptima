@@ -11,6 +11,9 @@ export const SESSION_ID = newId();
 /** Із запасом до ліміту браузера на тіло keepalive-запитів (64 КБ; кирилиця в UTF-8 — 2 байти на символ). */
 const KEEPALIVE_MAX_CHARS = 30_000;
 
+/** Сервер перезапускається або проксі не дочекався — такий запит варто повторити. */
+const TRANSIENT_STATUSES = new Set([502, 503, 504]);
+
 /** Код за статусом, якщо сервер не повернув свій. */
 function codeOfStatus(status: number): ApiErrorCode {
   if (status === 401) return 'UNAUTHORIZED';
@@ -52,12 +55,17 @@ export async function apiFile(path: string, query?: Record<string, QueryValue>):
   try {
     res = await fetch(url(path, query), { credentials: 'include', headers: { 'X-Session-Id': SESSION_ID } });
   } catch (e) {
-    throw new DataSourceError('INTERNAL', 'Сервер недоступний — перевірте зʼєднання', e);
+    throw new DataSourceError('INTERNAL', 'Сервер недоступний — перевірте зʼєднання', e, true);
   }
   if (res.ok) return await res.blob();
   const data: unknown = safeJson(await res.text());
   const err = (data as ApiErrorBody | null)?.error;
-  throw new DataSourceError(err?.code ?? codeOfStatus(res.status), err?.message ?? `Помилка сервера (${res.status})`, err?.details);
+  throw new DataSourceError(
+    err?.code ?? codeOfStatus(res.status),
+    err?.message ?? `Помилка сервера (${res.status})`,
+    err?.details,
+    !err && TRANSIENT_STATUSES.has(res.status),
+  );
 }
 
 /** Запит до API; помилка — DataSourceError з кодом і повідомленням сервера. */
@@ -79,14 +87,19 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       body: form ?? json,
     });
   } catch (e) {
-    throw new DataSourceError('INTERNAL', 'Сервер недоступний — перевірте зʼєднання', e);
+    throw new DataSourceError('INTERNAL', 'Сервер недоступний — перевірте зʼєднання', e, true);
   }
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   const data: unknown = text ? safeJson(text) : null;
   if (!res.ok) {
     const err = (data as ApiErrorBody | null)?.error;
-    throw new DataSourceError(err?.code ?? codeOfStatus(res.status), err?.message ?? `Помилка сервера (${res.status})`, err?.details);
+    throw new DataSourceError(
+      err?.code ?? codeOfStatus(res.status),
+      err?.message ?? `Помилка сервера (${res.status})`,
+      err?.details,
+      !err && TRANSIENT_STATUSES.has(res.status),
+    );
   }
   return data as T;
 }

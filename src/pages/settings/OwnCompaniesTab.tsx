@@ -1,11 +1,11 @@
 // Наші юрособи: реквізити для заявок і КП.
 import { EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Card, Descriptions, Result, Spin, Tag } from 'antd';
+import { Alert, Button, Card, Descriptions, Spin, Tag } from 'antd';
 import { useState, type ReactNode } from 'react';
 import type { OwnCompanyDto } from '@shared/types';
-import { EmptyState } from '@/components';
-import { ds, errorMessage, qk } from '@/data';
+import { EmptyState, LoadError } from '@/components';
+import { ds, qk } from '@/data';
 import { OwnCompanyDialog } from './OwnCompanyDialog';
 
 const mono = (v: string | null): ReactNode => (v ? <span className="po-num">{v}</span> : '—');
@@ -66,7 +66,7 @@ export function OwnCompaniesTab() {
 
   let body: ReactNode;
   if (companies.isPending) body = <Spin style={{ display: 'block', margin: '48px auto' }} />;
-  else if (companies.isError) body = <Result status="error" title="Не вдалося завантажити юрособи" subTitle={errorMessage(companies.error)} />;
+  else if (companies.isError) body = <LoadError title="Не вдалося завантажити юрособи" error={companies.error} onRetry={companies.refetch} />;
   else if (!companies.data.length)
     body = (
       <EmptyState

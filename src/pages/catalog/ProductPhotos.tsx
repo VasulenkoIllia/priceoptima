@@ -1,9 +1,10 @@
 // Фото товару: посилання з прайсу постачальника і файли, завантажені нами. Головне фото йде в списки й КП.
 import { DeleteOutlined, StarFilled, StarOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Alert, Button, Image, Popconfirm, Spin, Tooltip, Upload } from 'antd';
+import { App, Button, Image, Popconfirm, Spin, Tooltip, Upload } from 'antd';
 import type { ProductImageDto, UUID } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
+import { LoadError } from '@/components';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp';
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -65,7 +66,7 @@ export function ProductPhotos({ productId }: { productId: UUID }) {
       {images.isPending ? (
         <Spin style={{ display: 'block', margin: '16px auto' }} />
       ) : images.isError ? (
-        <Alert type="error" showIcon message="Не вдалося завантажити фото" description={errorMessage(images.error)} />
+        <LoadError inline title="Не вдалося завантажити фото" error={images.error} onRetry={images.refetch} />
       ) : list.length === 0 ? (
         <span className="po-muted">Фото немає — додайте файл або воно зʼявиться з прайсу постачальника</span>
       ) : (

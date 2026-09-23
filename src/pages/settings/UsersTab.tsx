@@ -1,7 +1,7 @@
 // Користувачі (лише адміністратор): запрошення разовим посиланням, роль, блокування, посилання для зміни пароля, дані.
 import { EllipsisOutlined, UserAddOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Dropdown, Form, Input, Modal, Radio, Result, Table, Tag, type MenuProps, type TableColumnsType } from 'antd';
+import { App, Button, Dropdown, Form, Input, Modal, Radio, Table, Tag, type MenuProps, type TableColumnsType } from 'antd';
 import { useState } from 'react';
 import { USER_ROLES, USER_ROLE_LABELS, type UserRole } from '@shared/enums';
 import { formatDateTime } from '@shared/format';
@@ -10,6 +10,7 @@ import { useSession } from '@/app/session';
 import { ds, errorMessage, qk } from '@/data';
 import { AccessLinkModal } from './AccessLinkModal';
 import { UserDialog } from './UserDialog';
+import { LoadError } from '@/components';
 
 const LINKS_KEY = ['access-links'] as const;
 
@@ -212,7 +213,7 @@ export function UsersTab() {
     },
   ];
 
-  if (users.isError) return <Result status="error" title="Не вдалося завантажити користувачів" subTitle={errorMessage(users.error)} />;
+  if (users.isError) return <LoadError title="Не вдалося завантажити користувачів" error={users.error} onRetry={users.refetch} />;
   const activeCount = users.data?.filter((u) => u.isActive).length ?? 0;
   return (
     <div style={{ maxWidth: 1200 }}>

@@ -1,13 +1,13 @@
 // Картка товару: усі поля, історія цін; ціну змінюють вручну лише в товарів, доданих вручну.
 import { CheckOutlined, EditOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, App, Button, Descriptions, Drawer, Result, Space, Spin, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
+import { Alert, App, Button, Descriptions, Drawer, Space, Spin, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
 import { useState, type ReactNode } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatDateTime, formatMoneyUah, formatQty, formatRequestNumber } from '@shared/format';
 import { webUrl } from '@shared/parse';
 import type { PriceHistoryEntry, ProductDetail, SupplierListItem } from '@shared/types';
-import { SupplierLogo } from '@/components';
+import { LoadError, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { ManualPriceDialog } from './ManualPriceDialog';
 import { ProductEditDialog } from './ProductEditDialog';
@@ -171,7 +171,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
       {history.isPending ? (
         <Spin style={{ display: 'block', margin: '24px auto' }} />
       ) : history.isError ? (
-        <Alert type="error" showIcon message="Не вдалося завантажити історію цін" description={errorMessage(history.error)} />
+        <LoadError inline title="Не вдалося завантажити історію цін" error={history.error} onRetry={history.refetch} />
       ) : (
         <>
           <PriceHistoryChart history={history.data} currency={product.currency} vatRatePct={vatRatePct} />
@@ -214,7 +214,7 @@ export function ProductDrawer({ open, product, supplier, onClose }: ProductDrawe
       {detail.data ? (
         <ProductCard key={detail.data.id} product={detail.data} supplier={supplier} />
       ) : detail.isError ? (
-        <Result status="error" title="Не вдалося завантажити товар" subTitle={errorMessage(detail.error)} />
+        <LoadError title="Не вдалося завантажити товар" error={detail.error} onRetry={detail.refetch} />
       ) : (
         <Spin style={{ display: 'block', margin: '48px auto' }} />
       )}

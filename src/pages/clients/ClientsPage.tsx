@@ -1,13 +1,13 @@
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Input, Result } from 'antd';
+import { Button, Input } from 'antd';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useMemo, useState } from 'react';
 import { formatDate } from '@shared/format';
 import type { ClientDetail, ClientListItem, UUID } from '@shared/types';
-import { PageHeader } from '@/components';
-import { ds, errorMessage, qk } from '@/data';
+import { LoadError, PageHeader } from '@/components';
+import { ds, qk } from '@/data';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { ClientDrawer } from './ClientDrawer';
@@ -76,7 +76,7 @@ export default function ClientsPage() {
         </span>
       </div>
       {clients.isError ? (
-        <Result status="error" title="Не вдалося завантажити клієнтів" subTitle={errorMessage(clients.error)} />
+        <LoadError title="Не вдалося завантажити клієнтів" error={clients.error} onRetry={clients.refetch} />
       ) : (
         <div className="po-grid-wrap">
           <AgGridReact<ClientListItem>

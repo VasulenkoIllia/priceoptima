@@ -1,6 +1,6 @@
 // Параметри системи: ціни і націнка, КП (разом із типовими умовами), нумерація.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, Card, Form, InputNumber, Result, Select, Spin } from 'antd';
+import { App, Button, Card, Form, InputNumber, Select, Spin } from 'antd';
 import {
   DISCOUNT_FORMULAS,
   DISCOUNT_FORMULA_LABELS,
@@ -17,7 +17,7 @@ import {
 } from '@shared/enums';
 import { markupValueMax } from '@shared/pricing';
 import type { AppSettings, AppSettingsPatch, KpTerm } from '@shared/types';
-import { KpTermsEditor } from '@/components';
+import { KpTermsEditor, LoadError } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 
 type FormValues = Pick<
@@ -189,6 +189,6 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
 export function ParamsTab() {
   const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
   if (settings.isPending) return <Spin style={{ display: 'block', margin: '48px auto' }} />;
-  if (settings.isError) return <Result status="error" title="Не вдалося завантажити налаштування" subTitle={errorMessage(settings.error)} />;
+  if (settings.isError) return <LoadError title="Не вдалося завантажити налаштування" error={settings.error} onRetry={settings.refetch} />;
   return <ParamsForm settings={settings.data} />;
 }
