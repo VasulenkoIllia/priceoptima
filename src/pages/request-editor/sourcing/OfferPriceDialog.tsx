@@ -3,7 +3,8 @@
 import { App, Checkbox, Form, InputNumber, Modal, Typography } from 'antd';
 import { useState } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
-import { formatMoney } from '@shared/format';
+import { formatMoney, formatPct } from '@shared/format';
+import { netToGross } from '@shared/pricing';
 import type { Offer } from '@shared/types';
 import { errorMessage } from '@/data';
 import { useRequestDoc } from '@/stores/requestDocStore';
@@ -18,14 +19,36 @@ export interface OfferPriceDialogProps {
   onClose: () => void;
 }
 
+/** Зміна ціни понад стільки відсотків — перепитуємо (помилка на порядок: 1200 замість 120). */
+const BIG_CHANGE_PCT = 30;
+
 export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<Values>();
   const [saving, setSaving] = useState(false);
   const setOfferPurchasePrice = useRequestDoc((s) => s.setOfferPurchasePrice);
+  const vatRatePct = useRequestDoc((s) => s.doc?.header.vatRatePct ?? 20);
+  const price = Form.useWatch('purchasePrice', form);
 
   if (!offer) return null;
   const currency = CURRENCY_LABELS[offer.currency];
+
+  const confirmBigChange = (v: Values) => {
+    const before = offer.purchasePriceCur;
+    const after = v.purchasePrice;
+    const pct = before && after != null ? ((after - before) / before) * 100 : null;
+    if (pct == null || Math.abs(pct) <= BIG_CHANGE_PCT) {
+      void submit(v);
+      return;
+    }
+    modal.confirm({
+      title: `Ціна змінюється на ${pct > 0 ? '+' : '−'}${formatPct(Math.abs(pct), 0)}`,
+      content: `Було ${formatMoney(before)} ${currency}, стане ${formatMoney(after)} ${currency} без ПДВ. Перевірте, чи немає зайвого нуля чи коми.`,
+      okText: 'Так, змінити',
+      cancelText: 'Виправити',
+      onOk: () => submit(v),
+    });
+  };
 
   const submit = async (v: Values) => {
     setSaving(true);
@@ -68,9 +91,14 @@ export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
         // значення підставляємо при кожному відкритті (форма живе лише поки відкрите вікно)
         key={offer.id}
         initialValues={{ purchasePrice: offer.purchasePriceCur, updateCatalog: false }}
-        onFinish={(v) => void submit(v)}
+        onFinish={confirmBigChange}
       >
-        <Form.Item name="purchasePrice" label={`Ціна входу без ПДВ, ${currency}`} rules={[{ required: true, message: 'Вкажіть ціну' }]}>
+        <Form.Item
+          name="purchasePrice"
+          label={`Ціна входу без ПДВ, ${currency}`}
+          rules={[{ required: true, message: 'Вкажіть ціну' }]}
+          extra={price != null && price > 0 ? `з ПДВ: ${formatMoney(netToGross(price, vatRatePct, 2))} ${currency}` : undefined}
+        >
           <InputNumber min={0} step={0.01} decimalSeparator="," style={{ width: 200 }} autoFocus />
         </Form.Item>
         <Form.Item name="updateCatalog" valuePropName="checked" extra="У каталозі ціну веде прайс: наступне завантаження прайсу замінить її на прайсову.">
