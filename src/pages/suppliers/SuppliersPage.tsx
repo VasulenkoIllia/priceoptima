@@ -9,6 +9,7 @@ import { EmptyState, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel } from '@/lib/rateLabels';
 import { downloadPriceTemplate, PriceImportDialog } from './priceImport';
+import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierDrawer } from './SupplierDrawer';
 import { SupplierFormDialog } from './SupplierFormDialog';
 import { pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, pricesFromFile, ratePolicyLabel, viaLink } from './supplierView';
@@ -107,7 +108,7 @@ function SupplierCard({ s, rates, refreshing, onRefresh, onImport, onOpen }: Sup
 
 /** Постачальники: картки з умовами і станом прайсу; прайси оновлюються автоматично. */
 export default function SuppliersPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<SupplierListItem | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -120,12 +121,17 @@ export default function SuppliersPage() {
   const refresh = useMutation({
     mutationFn: (s: SupplierListItem) => ds.refreshSupplierPrices(s.id),
     onSuccess: (r, s) => {
-      const remarks = (r.report?.bigPriceChanges.total ?? 0) + (r.detailsDiffer ?? 0) + (r.skipped ?? 0);
-      message.success({
-        content: `Прайс ${s.name} оновлено: товарів ${r.productsTotal}, нових ${r.added}, змінилось цін ${r.changed} (▲ ${r.priceUp}, ▼ ${r.priceDown})${
-          remarks ? ' — є зауваги, звіт у журналі («Детальніше»)' : ''
-        }`,
-        duration: remarks ? 8 : 5,
+      // звіт оновлення відкривається сам — що змінилось і які є зауваги
+      modal.info({
+        title: `Прайс ${s.name} оновлено`,
+        width: 880,
+        icon: null,
+        okText: 'Закрити',
+        content: (
+          <div className="po-pi-confirm">
+            <PriceUpdateReportView update={r} />
+          </div>
+        ),
       });
       for (const queryKey of [qk.suppliers, qk.supplier(s.id), qk.productsAll, qk.productAll, qk.priceHistoryAll, qk.priceUpdatesAll]) {
         void queryClient.invalidateQueries({ queryKey });
