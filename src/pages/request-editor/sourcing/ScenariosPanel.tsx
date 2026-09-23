@@ -48,7 +48,6 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
   const doc = useRequestDoc((s) => s.doc);
   const readOnly = useRequestDoc((s) => s.readOnly);
   const selectAllInBlock = useRequestDoc((s) => s.selectAllInBlock);
-  const applyMix = useRequestDoc((s) => s.applyMix);
   const computed = useRequestComputed();
   const toggle = useUiPrefs((s) => s.toggleScenariosPanel);
   const filter = useSourcingUi((s) => s.filter);
@@ -62,12 +61,6 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
     const n = selectAllInBlock(blockId);
     if (n) message.success(`Застосовано «все в ${name}»: змінено рядків ${n}. Скасувати — Ctrl+Z`);
     else message.info(`Сценарій «все в ${name}» уже застосовано`);
-  };
-
-  const onApplyMix = () => {
-    const n = applyMix();
-    if (n) message.success(`Застосовано оптимальний мікс: змінено рядків ${n}. Скасувати — Ctrl+Z`);
-    else message.info('Оптимальний мікс уже застосовано');
   };
 
   return (
@@ -96,17 +89,7 @@ export function ScenariosPanel({ counts }: ScenariosPanelProps) {
             ) : (
               <div className="po-sc-good">підібрано всі рядки ({view.mix.total})</div>
             )}
-            <Button
-              size="small"
-              block
-              icon={<CheckOutlined />}
-              className="po-sc-approve"
-              disabled={readOnly}
-              title="Затвердити мінімальну ціну в кожному рядку (ручний вибір теж зміниться)"
-              onClick={onApplyMix}
-            >
-              Застосувати
-            </Button>
+            {/* затвердити мінімальні ціни — одна кнопка «Прийняти всі рекомендації» над таблицею */}
           </Card>
 
           <Card title="Поточний вибір" tone="current">

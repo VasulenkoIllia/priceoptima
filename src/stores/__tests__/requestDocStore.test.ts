@@ -220,22 +220,6 @@ describe('requestDocStore', () => {
     expect(product(offer.productId!).purchasePrice).toBe(100);
   });
 
-  it('applyMix: оптимальний мікс — мінімальна ціна в кожному рядку, і поверх ручного вибору', async () => {
-    const store = await openStore(setup());
-    const { line, cmp } = lineWithCandidates(store);
-    const other = Object.keys(store.getState().getComputed()!.offerIndex[line.id]).find((b) => b !== cmp.recommendedBlockId)!;
-    store.getState().selectOffer(line.id, other);
-
-    expect(store.getState().applyMix()).toBeGreaterThan(0);
-    const s = store.getState();
-    const comp = s.getComputed()!;
-    for (const l of s.doc!.lines) {
-      const lc = comp.lines[l.id];
-      if (lc?.isActive && lc.recommendedBlockId) expect(l.selection.blockId).toBe(lc.recommendedBlockId);
-    }
-    expect(store.getState().applyMix()).toBe(0);
-  });
-
   it('setApprovals і resetLineMarkups — одним кроком', async () => {
     const store = await openStore(setup());
     const [l1, l2] = store.getState().doc!.lines;

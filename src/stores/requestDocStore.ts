@@ -197,8 +197,6 @@ export interface RequestDocActions {
   acceptAllRecommendations(): number;
   /** Затвердити всі рядки, де цей блок має кандидата. */
   selectAllInBlock(blockId: UUID): number;
-  /** Сценарій «Оптимальний мікс»: мінімальна ціна в кожному рядку — і поверх ручного вибору. */
-  applyMix(): number;
   /** Ціна змінилась у каталозі — оновити знімок з прайсу постачальника (вхідні ціни вручну не змінюються). */
   refreshOfferPrice(offerId: UUID): boolean;
   /**
@@ -1061,21 +1059,6 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
             const offerId = comp.offerIndex[line.id]?.[blockId];
             if (!offerId || !comp.offers[offerId]?.isCandidate || line.selection.blockId === blockId) continue;
             line.selection = { blockId };
-            n++;
-          }
-        });
-        return n;
-      },
-
-      applyMix() {
-        const comp = selectComputed(get());
-        if (!comp) return 0;
-        let n = 0;
-        edit((d) => {
-          for (const line of d.lines) {
-            const c = comp.lines[line.id];
-            if (!c?.isActive || !c.recommendedBlockId || line.selection.blockId === c.recommendedBlockId) continue;
-            line.selection = { blockId: c.recommendedBlockId };
             n++;
           }
         });
