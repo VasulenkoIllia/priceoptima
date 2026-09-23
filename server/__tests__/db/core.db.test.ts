@@ -14,8 +14,8 @@ import { createOwnCompany } from '../../modules/own-companies/ownCompanies.servi
 import { ownCompanyInputSchema } from '../../modules/own-companies/ownCompanies.schemas';
 import { importBodySchema } from '../../modules/price-updates/priceUpdates.schemas';
 import { importPriceRows } from '../../modules/price-updates/priceUpdates.service';
-import { productPatchSchema } from '../../modules/products/products.schemas';
-import { getPriceHistory, getProduct, updateProduct } from '../../modules/products/products.service';
+import { productPatchSchema, productPriceUpdateSchema } from '../../modules/products/products.schemas';
+import { getPriceHistory, getProduct, updateProduct, updateProductPrice } from '../../modules/products/products.service';
 import { kpCreateSchema, createRequestSchema, documentPatchSchema } from '../../modules/requests/requests.schemas';
 import { createKp, listKps } from '../../modules/requests/kp.service';
 import { acquireLock, activeLock, forceLock, releaseLock } from '../../modules/requests/locks.service';
@@ -129,6 +129,22 @@ describe('картка товару: чужі правки не перезапи
   });
 });
 
+describe('ручна ціна й імпорт прайсу', () => {
+  it('ручна зміна вхідної ціни піднімає версію товару (імпорт, що йде паралельно, її не перетре)', async () => {
+    const a1 = await prisma.product.findFirstOrThrow({ where: { supplierId, sku: 'A-1' } });
+    await updateProductPrice(
+      a1.id,
+      parse(productPriceUpdateSchema, { currency: 'UAH', purchasePrice: 130, purchaseOnly: true, source: 'manual' }),
+      koval,
+    );
+    const after = await prisma.product.findUniqueOrThrow({ where: { id: a1.id } });
+    expect(after.version).toBe(a1.version + 1);
+    expect(Number(after.purchasePrice)).toBe(130);
+    // РРЦ при зміні лише вхідної ціни лишається з каталогу
+    expect(Number(after.rrp)).toBe(Number(a1.rrp));
+  });
+});
+
 describe('заявка: збереження, блокування, КП, статуси', () => {
   const sessionA = randomUUID();
   const sessionB = randomUUID();
@@ -167,7 +183,7 @@ describe('заявка: збереження, блокування, КП, ста
 
     const reread = await getRequestDocument(requestId, koval, sessionA);
     expect(reread.offers).toHaveLength(1);
-    expect(reread.offers[0]!.purchasePriceCur).toBe(120);
+    expect(reread.offers[0]!.purchasePriceCur).toBe(130);
   });
 
   it('КП: номер «2114 / номер заявки», версії йдуть підряд, знімок зберігається', async () => {

@@ -547,8 +547,9 @@ export async function updateProductPrice(
   const result = await prisma.$transaction(async (tx) => {
     const product = await tx.product.update({
       where: { id },
-      // джерело ціни лишаємо як було: товар із прайсу оновиться при наступному завантаженні (ІМП-6)
-      data: { ...after, priceUpdatedAt: now, updatedById: actor.id },
+      // джерело ціни лишаємо як було: товар із прайсу оновиться при наступному завантаженні (ІМП-6);
+      // версія росте, щоб імпорт прайсу, що йде саме зараз, не перетер щойно введену ціну (editedSincePlan)
+      data: { ...after, priceUpdatedAt: now, updatedById: actor.id, version: { increment: 1 } },
     });
     if (!changed) return { product, entry: null };
     const entry = await tx.priceHistory.create({
