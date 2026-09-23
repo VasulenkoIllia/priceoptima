@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { FOREIGN_CURRENCIES, RATE_POLICY_LABELS, type ForeignCurrency, type RateSource } from '@shared/enums';
 import { formatDate, formatRate, toIsoDate } from '@shared/format';
 import type { CurrencyRateDto, EffectiveRates, ISODate, SupplierListItem } from '@shared/types';
-import { EmptyState, PageHeader, SupplierLogo } from '@/components';
+import { EmptyState, ManualRateFields, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel } from '@/lib/rateLabels';
 import { BRAND_COLOR } from '@/theme';
@@ -229,12 +229,7 @@ function SupplierRateDialog({ supplier, onClose }: { supplier: SupplierListItem 
         initialValues={{ manualRateUsd: supplier.manualRateUsd, manualRateEur: supplier.manualRateEur }}
         onFinish={(v) => save.mutate({ manualRateUsd: v.manualRateUsd ?? null, manualRateEur: v.manualRateEur ?? null })}
       >
-        <Form.Item name="manualRateUsd" label="Курс USD, грн" extra="Порожньо — курс не задано">
-          <InputNumber min={0.0001} max={10_000} step={0.01} decimalSeparator="," style={{ width: 180 }} />
-        </Form.Item>
-        <Form.Item name="manualRateEur" label="Курс EUR, грн" extra="Порожньо — курс не задано">
-          <InputNumber min={0.0001} max={10_000} step={0.01} decimalSeparator="," style={{ width: 180 }} />
-        </Form.Item>
+        <ManualRateFields inputStyle={{ width: 180 }} />
       </Form>
     </Modal>
   );

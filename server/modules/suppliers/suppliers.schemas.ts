@@ -2,12 +2,12 @@
 import { z } from 'zod';
 import { FEED_CONNECTORS } from '@shared/catalog/connectors';
 import { CURRENCY_CODES, PRICE_COLUMN_ROLES, RATE_POLICIES } from '@shared/enums';
-import { imageSrcField, numberField, optionalIsoDateString, optionalNumberField, optionalText, searchUrlTemplateField, trimmed, webUrlField } from '../../lib/fields';
+import { imageSrcField, numberField, optionalIsoDateString, optionalNumberField, optionalRateField, optionalText, searchUrlTemplateField, trimmed, webUrlField } from '../../lib/fields';
 
 const FEED_AUTH = ['none', 'bearer', 'basic', 'query'] as const;
 const FEED_KINDS = ['auto', 'manual', 'hybrid'] as const;
 
-const optionalRate = optionalNumberField(0, 10_000, 'Курс');
+const optionalRate = optionalRateField('Ручний курс');
 
 export const legalEntityInputSchema = z.object({
   id: z.uuid('Невірний ідентифікатор юрособи').optional(),

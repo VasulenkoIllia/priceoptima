@@ -98,6 +98,12 @@ describe('постачальник', () => {
     expect(parse(supplierInputSchema, { name: 'С', logoUrl: 'data:image/png;base64,iVBORw0KGgo=' }).logoUrl).toMatch(/^data:image\/png/u);
   });
 
+  it('ручний курс постачальника — більший за нуль, порожньо — не задано (5.6)', () => {
+    expect(parse(supplierInputSchema, { name: 'С', manualRateUsd: 41.2 }).manualRateUsd).toBe(41.2);
+    expect(parse(supplierInputSchema, { name: 'С', manualRateUsd: null }).manualRateUsd).toBeNull();
+    expect(messageOf(() => parse(supplierInputSchema, { name: 'С', manualRateUsd: 0 }))).toContain('має бути більшим за нуль');
+  });
+
   it('політика курсу «НБУ ± %» приймається', () => {
     expect(parse(supplierInputSchema, { name: 'С', ratePolicy: 'nbu_adjusted', rateAdjustPct: 1.5 }).rateAdjustPct).toBe(1.5);
   });

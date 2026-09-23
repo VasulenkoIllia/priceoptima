@@ -44,6 +44,15 @@ export const optionalNumberField = (min: number, max: number, label: string) =>
     .nullish()
     .transform((v) => v ?? null);
 
+/** Курс валюти: більший за нуль (нуль — це «курсу немає», а не курс). */
+export const optionalRateField = (label: string) =>
+  z
+    .number({ message: `${label}: вкажіть число` })
+    .gt(0, `${label}: має бути більшим за нуль`)
+    .max(10_000, `${label}: не більше 10000`)
+    .nullish()
+    .transform((v) => v ?? null);
+
 /** Адреса сайту: «sandi.ua» зберігається як «https://sandi.ua»; інші схеми (javascript: тощо) — помилка. */
 export const webUrlField = (max: number, label: string) =>
   optionalText(max).superRefine((v, ctx) => {

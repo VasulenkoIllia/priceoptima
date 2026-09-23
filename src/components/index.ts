@@ -4,6 +4,8 @@ export { KpTermsEditor } from './KpTermsEditor';
 export type { KpTermsEditorProps } from './KpTermsEditor';
 export { LockBanner } from './LockBanner';
 export { LogoField } from './LogoField';
+export { ManualRateFields } from './ManualRateFields';
+export type { ManualRateFieldsProps } from './ManualRateFields';
 export type { LogoFieldProps } from './LogoField';
 export type { LockBannerProps } from './LockBanner';
 export { MoneyCell } from './MoneyCell';

@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { CURRENCY_CODES, CURRENCY_LABELS, RATE_POLICIES, RATE_POLICY_LABELS, type CurrencyCode, type RatePolicy } from '@shared/enums';
 import { toIsoDate } from '@shared/format';
 import type { SupplierDetail, SupplierInput, UUID } from '@shared/types';
-import { LogoField } from '@/components';
+import { LogoField, ManualRateFields } from '@/components';
 import { ds, errorMessage, isDataSourceError, qk } from '@/data';
 import { newId } from '@/lib/ids';
 
@@ -321,20 +321,10 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
         </div>
         {ratePolicy === 'manual' || ratePolicy === 'price_list' ? (
           <div className="po-sup-grid-form po-sup-grid-3">
-            <Form.Item
-              name="manualRateUsd"
-              label={ratePolicy === 'manual' ? 'Курс USD, грн' : 'Ручний курс USD, грн'}
-              extra={ratePolicy === 'price_list' ? 'Якщо в прайсі курсу немає' : undefined}
-            >
-              <InputNumber min={0} max={10_000} step={0.01} decimalSeparator="," style={{ width: '100%' }} placeholder="не задано" />
-            </Form.Item>
-            <Form.Item
-              name="manualRateEur"
-              label={ratePolicy === 'manual' ? 'Курс EUR, грн' : 'Ручний курс EUR, грн'}
-              extra={ratePolicy === 'price_list' ? 'Якщо в прайсі курсу немає' : undefined}
-            >
-              <InputNumber min={0} max={10_000} step={0.01} decimalSeparator="," style={{ width: '100%' }} placeholder="не задано" />
-            </Form.Item>
+            <ManualRateFields
+              label={(c) => (ratePolicy === 'manual' ? `Курс ${c}, грн` : `Ручний курс ${c}, грн`)}
+              extra={ratePolicy === 'price_list' ? 'Якщо в прайсі курсу немає' : 'Порожньо — курс не задано'}
+            />
           </div>
         ) : null}
         <Form.Item name="notes" label="Примітки">
