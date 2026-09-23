@@ -150,7 +150,7 @@ model AppSettings {
   kpDefaultVatMode            String   @default("without_vat")
   kpNameSource                String   @default("work")
   kpShowImages                Boolean  @default(false)
-  kpValidityDays              Int      @default(14)
+  kpValidityDays              Int      @default(3)
   /// Типові умови КП [{label, value}]; null — вбудовані типові (Умови поставки, Термін, Оплата, Гарантія).
   kpTerms                     Json?
   fopPriceBasis               String   @default("gross")
