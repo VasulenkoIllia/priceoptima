@@ -18,6 +18,7 @@ import {
   kpCreateSchema,
   requestIdSchema,
   requestListQuerySchema,
+  requestPageQuerySchema,
   statusChangeSchema,
 } from './requests.schemas';
 import {
@@ -27,6 +28,7 @@ import {
   getRequestDocument,
   getRequestHistory,
   listRequests,
+  listRequestsPage,
   recordLockForce,
   saveRequestDocument,
 } from './requests.service';
@@ -76,6 +78,13 @@ requestsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     res.json(await listRequests(parseQuery(requestListQuerySchema, req), currentUser(req), optionalSessionOf(req)));
+  }),
+);
+
+requestsRouter.get(
+  '/page',
+  asyncHandler(async (req, res) => {
+    res.json(await listRequestsPage(parseQuery(requestPageQuerySchema, req), currentUser(req), optionalSessionOf(req)));
   }),
 );
 

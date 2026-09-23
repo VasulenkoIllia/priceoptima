@@ -40,8 +40,14 @@ export const requestListQuerySchema = z.object({
   dateFrom: optional(isoDate),
   dateTo: optional(isoDate),
   mine: z.preprocess((v) => v === 'true' || v === '1' || v === true, z.boolean()).optional(),
-  sort: optional(z.enum(['number', '-number', 'requestDate', '-requestDate', 'totalSaleGross', '-totalSaleGross'])),
+  sort: optional(z.enum(['number', '-number', 'requestDate', '-requestDate', 'totalSaleGross', '-totalSaleGross', 'approvedSaleGross', '-approvedSaleGross'])),
   limit: z.coerce.number().int().min(1).max(2000).optional(),
+});
+
+/** Реєстр порціями (гортання). */
+export const requestPageQuerySchema = requestListQuerySchema.extend({
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(500).default(100),
 });
 
 export const createRequestSchema = z.object({
@@ -213,6 +219,7 @@ export const requestIdSchema = z.object({ id: uuid('заявка') });
 export const attachmentIdSchema = z.object({ id: uuid('заявка'), fileId: uuid('файл') });
 
 export type RequestListQueryInput = z.infer<typeof requestListQuerySchema>;
+export type RequestPageQueryInput = z.infer<typeof requestPageQuerySchema>;
 export type CreateRequestInput = z.infer<typeof createRequestSchema>;
 export type DocumentPatchInput = z.infer<typeof documentPatchSchema>;
 export type KpCreateInput = z.infer<typeof kpCreateSchema>;

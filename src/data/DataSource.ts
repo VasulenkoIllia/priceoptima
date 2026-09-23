@@ -48,6 +48,8 @@ import type {
   RequestHistoryResponse,
   RequestListItem,
   RequestListQuery,
+  RequestPage,
+  RequestPageQuery,
   SaveDocumentResponse,
   SkuLookupBody,
   SkuLookupResult,
@@ -181,6 +183,8 @@ export interface DataSource {
 
   // ── Заявки ──────────────────────────────────────────────────────
   listRequests(query?: RequestListQuery): Promise<RequestListItem[]>;
+  /** Реєстр порціями: загальна кількість — лише для першої порції. */
+  listRequestsPage(query: RequestPageQuery): Promise<RequestPage>;
   createRequest(body: CreateRequestBody): Promise<CreateRequestResult>;
   getRequestDocument(id: UUID): Promise<RequestDocument>;
   /** Потрібне блокування цієї вкладки (LOCK_LOST) і збіг версії (VERSION_CONFLICT). */

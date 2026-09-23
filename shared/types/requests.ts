@@ -66,6 +66,18 @@ export interface RequestListQuery extends ListQuery {
   mine?: boolean;
 }
 
+/** Порція реєстру: заявок з роками стає тисячі — читаємо шматками. */
+export interface RequestPageQuery extends RequestListQuery {
+  offset: number;
+  limit: number;
+}
+
+export interface RequestPage {
+  items: RequestListItem[];
+  /** Скільки всього під фільтрами; null — не рахували (не перша порція). */
+  total: number | null;
+}
+
 export interface CreateRequestBody {
   clientId?: UUID | null;
   counterpartyId?: UUID | null;

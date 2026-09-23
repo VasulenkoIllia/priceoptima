@@ -9,12 +9,12 @@ import {
   PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Button, DatePicker, Dropdown, Input, Result, Segmented, Select, Tag, Tooltip, type MenuProps } from 'antd';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { useQuery } from '@tanstack/react-query';
+import { Button, Checkbox, DatePicker, Dropdown, Input, Result, Segmented, Select, Tag, Tooltip, type MenuProps } from 'antd';
+import type { ColDef, GridApi, ICellRendererParams, IDatasource } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOpenTab } from '@/app/AppTabs';
 import { REQUEST_STATUSES } from '@shared/enums';
 import { formatDate, formatKpNumber, formatMoney, formatTime } from '@shared/format';
@@ -30,6 +30,17 @@ import { CreateRequestDialog } from './CreateRequestDialog';
 import { hasFilters, useRegistryFilters, type StatusFilter } from './registryFilters';
 
 type Cell = ICellRendererParams<RequestListItem>;
+
+/** Скільки заявок підвантажуємо за раз під час гортання. */
+const PAGE_SIZE = 100;
+
+/** Колонка → поле сортування на сервері (за іншими колонками реєстр не сортується). */
+const SORT_FIELDS: Record<string, string> = {
+  number: 'number',
+  requestDate: 'requestDate',
+  totalSaleGross: 'totalSaleGross',
+  approvedSaleGross: 'approvedSaleGross',
+};
 
 function KpCell({ data }: Cell) {
   if (!data || !requestStageIndicators(data).hasKp) return null;
@@ -135,7 +146,7 @@ export default function RegistryPage() {
   const navigate = useOpenTab();
   const density = useUiPrefs((s) => s.density);
   const filters = useRegistryFilters();
-  const { search, status, clientId, managerId, dateFrom, dateTo, setFilters, resetFilters } = filters;
+  const { search, status, clientId, managerId, dateFrom, dateTo, mine, setFilters, resetFilters } = filters;
   const [createOpen, setCreateOpen] = useState(false);
   const [copySource, setCopySource] = useState<CopySource | null>(null);
   // меню правого кліку: рядок і позиція курсора (позиція лишається й після закриття — без стрибка під час анімації)
@@ -153,21 +164,67 @@ export default function RegistryPage() {
   );
   const period: [Dayjs, Dayjs] | null = dateFrom && dateTo ? [dayjs(dateFrom), dayjs(dateTo)] : null;
 
-  const query: RequestListQuery = {
-    ...(debouncedSearch ? { search: debouncedSearch } : {}),
-    ...(status !== 'all' ? { status: [status] } : {}),
-    ...(clientId ? { clientId } : {}),
-    ...(managerId ? { managerId } : {}),
-    ...(dateFrom ? { dateFrom } : {}),
-    ...(dateTo ? { dateTo } : {}),
-  };
-  const list = useQuery({
-    queryKey: qk.requests(query),
-    queryFn: () => ds.listRequests(query),
-    placeholderData: keepPreviousData,
-    // прострочені блокування (закрита без попередження вкладка) зникають і без подій
-    refetchInterval: 15_000,
-  });
+  const query = useMemo<RequestListQuery>(
+    () => ({
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      ...(status !== 'all' ? { status: [status] } : {}),
+      ...(clientId ? { clientId } : {}),
+      ...(mine ? { mine: true } : managerId ? { managerId } : {}),
+      ...(dateFrom ? { dateFrom } : {}),
+      ...(dateTo ? { dateTo } : {}),
+    }),
+    [debouncedSearch, status, clientId, managerId, mine, dateFrom, dateTo],
+  );
+
+  // заявки читаємо порціями з сервера (сортування й фільтри — у базі), загальна кількість — з першої порції
+  const gridApi = useRef<GridApi<RequestListItem> | null>(null);
+  const totalRef = useRef<number | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const datasource = useMemo<IDatasource>(
+    () => ({
+      getRows: (params) => {
+        const sortModel = params.sortModel[0];
+        const field = sortModel ? SORT_FIELDS[sortModel.colId] : undefined;
+        ds.listRequestsPage({
+          ...query,
+          sort: field ? `${sortModel!.sort === 'desc' ? '-' : ''}${field}` : undefined,
+          offset: params.startRow,
+          limit: params.endRow - params.startRow,
+        }).then(
+          (page) => {
+            if (page.total != null) totalRef.current = page.total;
+            setTotal(totalRef.current);
+            setLoadError(null);
+            params.successCallback(page.items, totalRef.current ?? undefined);
+            if (totalRef.current === 0) gridApi.current?.showNoRowsOverlay();
+            else gridApi.current?.hideOverlay();
+          },
+          (e: unknown) => {
+            setLoadError(errorMessage(e));
+            params.failCallback();
+          },
+        );
+      },
+    }),
+    [query],
+  );
+
+  // заявку змінили (КП, статус, збереження) — інвалідується весь ['requests'], разом із цією позначкою
+  const version = useQuery({ queryKey: qk.requestsVersion, queryFn: () => Date.now(), staleTime: Infinity });
+  const seenVersion = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (version.data == null) return;
+    if (seenVersion.current != null && seenVersion.current !== version.data) gridApi.current?.refreshInfiniteCache();
+    seenVersion.current = version.data;
+  }, [version.data]);
+  // прострочені блокування (закрита без попередження вкладка) зникають і без подій
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') gridApi.current?.refreshInfiniteCache();
+    }, 15_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const runRowAction = useCallback(
     (row: RequestListItem, key: string) => {
@@ -184,6 +241,7 @@ export default function RegistryPage() {
         field: 'number',
         width: 96,
         pinned: 'left',
+        sortable: true,
         sort: 'desc',
         cellRenderer: ({ data }: Cell) =>
           data ? (
@@ -199,7 +257,7 @@ export default function RegistryPage() {
             </a>
           ) : null,
       },
-      { headerName: 'Дата', field: 'requestDate', width: 100, valueFormatter: (p) => formatDate(p.value) },
+      { headerName: 'Дата', field: 'requestDate', width: 100, sortable: true, valueFormatter: (p) => formatDate(p.value) },
       {
         headerName: 'Клієнт',
         colId: 'client',
@@ -214,6 +272,7 @@ export default function RegistryPage() {
         headerName: 'Сума з ПДВ',
         field: 'totalSaleGross',
         width: 122,
+        sortable: true,
         type: 'rightAligned',
         cellClass: 'po-num',
         // цін продажу ще немає — «—», щоб не плутати з нульовою сумою (РЕЄ-3)
@@ -224,6 +283,7 @@ export default function RegistryPage() {
         headerName: 'Погоджена сума',
         field: 'approvedSaleGross',
         width: 130,
+        sortable: true,
         type: 'rightAligned',
         cellClass: 'po-num',
         valueFormatter: (p) => (p.value ? formatMoney(p.value) : '—'),
@@ -266,10 +326,10 @@ export default function RegistryPage() {
         <Input
           allowClear
           prefix={<SearchOutlined className="po-muted" />}
-          placeholder="Пошук: номер, клієнт, ЄДРПОУ"
+          placeholder="Пошук: номер заявки чи КП, клієнт, ЄДРПОУ, позиція, артикул"
           value={search}
           onChange={(e) => setFilters({ search: e.target.value })}
-          style={{ width: 260 }}
+          style={{ width: 340 }}
         />
         <Segmented options={STATUS_OPTIONS} value={status} onChange={(v) => setFilters({ status: v as StatusFilter })} />
         <Select
@@ -291,10 +351,14 @@ export default function RegistryPage() {
           optionFilterProp="label"
           loading={users.isPending}
           options={managerOptions}
-          value={managerId ?? undefined}
+          value={mine ? undefined : (managerId ?? undefined)}
+          disabled={mine}
           onChange={(v: UUID | undefined) => setFilters({ managerId: v ?? null })}
           style={{ width: 160 }}
         />
+        <Checkbox checked={mine} onChange={(e) => setFilters({ mine: e.target.checked })}>
+          Мої
+        </Checkbox>
         <DatePicker.RangePicker
           value={period}
           onChange={(range) =>
@@ -311,43 +375,52 @@ export default function RegistryPage() {
           </Button>
         ) : null}
         <span className="po-muted" style={{ marginLeft: 'auto' }}>
-          {list.data ? `Заявок: ${list.data.length}` : ''}
+          {total != null ? `Заявок: ${total}` : ''}
         </span>
       </div>
-      {list.isError ? (
-        <Result status="error" title="Не вдалося завантажити заявки" subTitle={errorMessage(list.error)} />
-      ) : (
-        <div className="po-grid-wrap">
-          <AgGridReact<RequestListItem>
-            theme={gridTheme(density)}
-            localeText={GRID_LOCALE}
-            containerStyle={{ height: '100%' }}
-            rowData={list.data ?? []}
-            columnDefs={columns}
-            defaultColDef={{ sortable: true, resizable: true, suppressMovable: true }}
-            getRowId={(p) => p.data.id}
-            loading={list.isPending}
-            overlayNoRowsTemplate="<span>Заявок не знайдено</span>"
-            onRowDoubleClicked={(e) => {
-              // подвійний клік по «⋯» не відкриває заявку
-              if ((e.event?.target as Element | null | undefined)?.closest('.po-reg-actions')) return;
-              if (e.data) open(e.data.id);
-            }}
-            onCellKeyDown={(e) => {
-              const ev = e.event as KeyboardEvent | undefined;
-              if (ev?.key === 'Enter' && e.data) open(e.data.id);
-            }}
-            preventDefaultOnContextMenu
-            onCellContextMenu={(e) => {
-              const ev = e.event as MouseEvent | null | undefined;
-              if (!e.data || !ev) return;
-              setCtxMenu({ row: e.data, x: ev.clientX, y: ev.clientY });
-              setCtxOpen(true);
-            }}
-            tooltipShowDelay={400}
-          />
-        </div>
-      )}
+      {loadError ? (
+        <Result
+          status="error"
+          title="Не вдалося завантажити заявки"
+          subTitle={loadError}
+          extra={<Button onClick={() => gridApi.current?.refreshInfiniteCache()}>Спробувати ще раз</Button>}
+        />
+      ) : null}
+      <div className="po-grid-wrap" style={loadError ? { display: 'none' } : undefined}>
+        <AgGridReact<RequestListItem>
+          theme={gridTheme(density)}
+          localeText={GRID_LOCALE}
+          containerStyle={{ height: '100%' }}
+          rowModelType="infinite"
+          datasource={datasource}
+          cacheBlockSize={PAGE_SIZE}
+          maxBlocksInCache={20}
+          columnDefs={columns}
+          defaultColDef={{ sortable: false, resizable: true, suppressMovable: true }}
+          getRowId={(p) => p.data.id}
+          onGridReady={(e) => {
+            gridApi.current = e.api;
+          }}
+          overlayNoRowsTemplate="<span>Заявок не знайдено</span>"
+          onRowDoubleClicked={(e) => {
+            // подвійний клік по «⋯» не відкриває заявку
+            if ((e.event?.target as Element | null | undefined)?.closest('.po-reg-actions')) return;
+            if (e.data) open(e.data.id);
+          }}
+          onCellKeyDown={(e) => {
+            const ev = e.event as KeyboardEvent | undefined;
+            if (ev?.key === 'Enter' && e.data) open(e.data.id);
+          }}
+          preventDefaultOnContextMenu
+          onCellContextMenu={(e) => {
+            const ev = e.event as MouseEvent | null | undefined;
+            if (!e.data || !ev) return;
+            setCtxMenu({ row: e.data, x: ev.clientX, y: ev.clientY });
+            setCtxOpen(true);
+          }}
+          tooltipShowDelay={400}
+        />
+      </div>
       <Dropdown
         open={ctxOpen}
         onOpenChange={(o) => {

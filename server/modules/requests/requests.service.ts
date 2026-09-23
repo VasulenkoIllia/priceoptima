@@ -31,6 +31,7 @@ import type {
   RequestDocument,
   RequestHistoryResponse,
   RequestListItem,
+  RequestPage,
   RequestTotalsSummary,
   SaveDocumentResponse,
   StatusChangeBody,
@@ -58,7 +59,7 @@ import {
   totalsData,
   type RequestWithParts,
 } from './requests.mapper';
-import type { CreateRequestInput, RequestListQueryInput } from './requests.schemas';
+import type { CreateRequestInput, RequestListQueryInput, RequestPageQueryInput } from './requests.schemas';
 
 type Tx = Prisma.TransactionClient;
 const TX = { timeout: 30_000, maxWait: 10_000 };
@@ -173,27 +174,49 @@ function toDraft(e: RequestEvent, user: UserRef | null): RequestEventDraft {
 // ── реєстр ────────────────────────────────────────────────────────
 const DEFAULT_LIST_LIMIT = 1000;
 
-export async function listRequests(query: RequestListQueryInput, actor: User, sessionId: string | null, now = new Date()): Promise<RequestListItem[]> {
-  const tokens = (query.search ?? '').toLocaleLowerCase('uk').split(/\s+/u).filter(Boolean);
-  const where: Prisma.RequestWhereInput = {
+/** «2114 / 005001» чи «2114/5001» — номер КП: друга частина — номер заявки. */
+const KP_NUMBER = /^\s*\d{1,7}\s*\/\s*(\d{1,7})\s*$/u;
+
+/**
+ * Умова реєстру. Пошук: номер КП → номер заявки; інакше кожне слово має бути в шапці (номер, клієнт, контрагент,
+ * ЄДРПОУ, тема, відповідальний) — або всі слова в назві однієї позиції клієнта, або запит у артикулі підібраного товару.
+ */
+export function requestListWhere(query: RequestListQueryInput, actor: Pick<User, 'id'>): Prisma.RequestWhereInput {
+  const search = (query.search ?? '').trim();
+  const kp = KP_NUMBER.exec(search);
+  const tokens = kp ? [] : search.toLocaleLowerCase('uk').split(/\s+/u).filter(Boolean);
+  const bySearch: Prisma.RequestWhereInput = kp
+    ? { number: Number(kp[1]) }
+    : tokens.length
+      ? {
+          OR: [
+            { AND: tokens.map((t) => ({ searchText: { contains: t } })) },
+            { lines: { some: { AND: tokens.map((t) => ({ clientName: { contains: t, mode: 'insensitive' as const } })) } } },
+            { offers: { some: { sku: { contains: search, mode: 'insensitive' as const } } } },
+          ],
+        }
+      : {};
+  return {
     ...(query.status?.length ? { status: { in: query.status } } : {}),
     ...(query.clientId ? { clientId: query.clientId } : {}),
     ...(query.mine ? { managerId: actor.id } : query.managerId ? { managerId: query.managerId } : {}),
     ...(query.dateFrom || query.dateTo
       ? { requestDate: { ...(query.dateFrom ? { gte: new Date(`${query.dateFrom}T00:00:00Z`) } : {}), ...(query.dateTo ? { lte: new Date(`${query.dateTo}T00:00:00Z`) } : {}) } }
       : {}),
-    ...(tokens.length ? { AND: tokens.map((t) => ({ searchText: { contains: t } })) } : {}),
+    ...bySearch,
   };
-  const sort = query.sort ?? '-number';
-  const dir = sort.startsWith('-') ? 'desc' : 'asc';
-  const field = sort.replace(/^-/u, '') as 'number' | 'requestDate' | 'totalSaleGross';
-  const rows = await prisma.request.findMany({
-    where,
-    orderBy: [{ [field]: dir }, { number: 'desc' }],
-    take: query.limit ?? DEFAULT_LIST_LIMIT,
-    include: { lock: true },
-  });
+}
 
+function listOrderBy(sort: RequestListQueryInput['sort']): Prisma.RequestOrderByWithRelationInput[] {
+  const s = sort ?? '-number';
+  const dir = s.startsWith('-') ? 'desc' : 'asc';
+  const field = s.replace(/^-/u, '') as 'number' | 'requestDate' | 'totalSaleGross' | 'approvedSaleGross';
+  return field === 'number' ? [{ number: dir }] : [{ [field]: { sort: dir, nulls: 'last' } }, { number: 'desc' }];
+}
+
+type ListRow = Prisma.RequestGetPayload<{ include: { lock: true } }>;
+
+async function toListItems(rows: ListRow[], actor: User, sessionId: string | null, now: Date): Promise<RequestListItem[]> {
   const clientIds = [...new Set(rows.map((r) => r.clientId).filter((x): x is string => !!x))];
   const [clients, counterparties, users] = await Promise.all([
     prisma.client.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } }),
@@ -228,6 +251,27 @@ export async function listRequests(query: RequestListQueryInput, actor: User, se
       updatedAt: r.updatedAt.toISOString(),
     };
   });
+}
+
+/** Заявки одного клієнта й інші короткі списки (до 1000 останніх). */
+export async function listRequests(query: RequestListQueryInput, actor: User, sessionId: string | null, now = new Date()): Promise<RequestListItem[]> {
+  const rows = await prisma.request.findMany({
+    where: requestListWhere(query, actor),
+    orderBy: listOrderBy(query.sort),
+    take: query.limit ?? DEFAULT_LIST_LIMIT,
+    include: { lock: true },
+  });
+  return toListItems(rows, actor, sessionId, now);
+}
+
+/** Реєстр порціями: сортування й фільтри — у базі, загальна кількість — лише для першої порції. */
+export async function listRequestsPage(query: RequestPageQueryInput, actor: User, sessionId: string | null, now = new Date()): Promise<RequestPage> {
+  const where = requestListWhere(query, actor);
+  const [total, rows] = await Promise.all([
+    query.offset === 0 ? prisma.request.count({ where }) : Promise.resolve(null),
+    prisma.request.findMany({ where, orderBy: listOrderBy(query.sort), skip: query.offset, take: query.limit, include: { lock: true } }),
+  ]);
+  return { items: await toListItems(rows, actor, sessionId, now), total };
 }
 
 /** Наступний номер заявки з лічильника налаштувань (атомарно, номери не повторюються). */

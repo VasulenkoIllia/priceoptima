@@ -12,6 +12,8 @@ export interface RegistryFilters {
   managerId: UUID | null;
   dateFrom: ISODate | null;
   dateTo: ISODate | null;
+  /** Лише мої заявки (я відповідальний). */
+  mine: boolean;
 }
 
 const EMPTY_FILTERS: RegistryFilters = {
@@ -21,6 +23,7 @@ const EMPTY_FILTERS: RegistryFilters = {
   managerId: null,
   dateFrom: null,
   dateTo: null,
+  mine: false,
 };
 
 interface RegistryFiltersState extends RegistryFilters {
@@ -36,5 +39,5 @@ export const useRegistryFilters = create<RegistryFiltersState>()((set) => ({
 
 /** Чи задано хоч один фільтр (тоді показуємо «Скинути»). */
 export function hasFilters(f: RegistryFilters): boolean {
-  return f.search.trim() !== '' || f.status !== 'all' || !!f.clientId || !!f.managerId || !!f.dateFrom || !!f.dateTo;
+  return f.search.trim() !== '' || f.status !== 'all' || !!f.clientId || !!f.managerId || !!f.dateFrom || !!f.dateTo || f.mine;
 }

@@ -57,6 +57,8 @@ import type {
   RequestHistoryResponse,
   RequestListItem,
   RequestListQuery,
+  RequestPage,
+  RequestPageQuery,
   SaveDocumentResponse,
   StatusChangeBody,
   StatusChangeResult,
@@ -361,6 +363,23 @@ export class HttpDataSource implements DataSource {
         dateTo: query.dateTo,
         mine: query.mine || undefined,
         sort: query.sort,
+      },
+    });
+  }
+
+  listRequestsPage(query: RequestPageQuery): Promise<RequestPage> {
+    return api<RequestPage>('/requests/page', {
+      query: {
+        search: query.search,
+        status: query.status?.length ? query.status.join(',') : undefined,
+        clientId: query.clientId,
+        managerId: query.managerId,
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
+        mine: query.mine || undefined,
+        sort: query.sort,
+        offset: query.offset,
+        limit: query.limit,
       },
     });
   }

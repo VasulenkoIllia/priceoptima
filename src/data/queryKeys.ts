@@ -27,6 +27,8 @@ export const qk = {
   priceHistoryAll: ['price-history'] as const,
   requests: (query: RequestListQuery) => ['requests', query] as const,
   requestsAll: ['requests'] as const,
+  /** Позначка «реєстр змінився» — інвалідується разом з усім ['requests']; реєстр перечитує підвантажені порції. */
+  requestsVersion: ['requests', 'version'] as const,
   kps: (requestId: UUID) => ['kps', requestId] as const,
   attachments: (requestId: UUID) => ['attachments', requestId] as const,
   history: (requestId: UUID) => ['history', requestId] as const,
