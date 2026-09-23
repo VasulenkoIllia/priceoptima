@@ -104,8 +104,11 @@ export default function CatalogPage() {
     [q, supplierId, availability, staleOnly, manualOnly, missingOnly],
   );
 
-  // нові фільтри — нове джерело рядків: таблиця скидає підвантажене й читає з першої сторінки
+  // нові фільтри — нове джерело рядків: таблиця скидає підвантажене й читає з першої сторінки;
+  // запізніла відповідь за попередніми фільтрами не переписує лічильник і помилку нового пошуку
+  const generation = useRef(0);
   const datasource = useMemo<IDatasource>(() => {
+    const gen = ++generation.current;
     return {
       getRows: (params) => {
         const sort = params.sortModel[0];
@@ -118,6 +121,7 @@ export default function CatalogPage() {
           sortDir: sortField ? (sort.sort ?? 'asc') : undefined,
         }).then(
           (page) => {
+            if (gen !== generation.current) return;
             // загальну кількість сервер рахує лише для першої сторінки
             if (page.total != null) totalRef.current = page.total;
             setTotal(totalRef.current);
@@ -127,6 +131,7 @@ export default function CatalogPage() {
             else gridApi.current?.hideOverlay();
           },
           (e: unknown) => {
+            if (gen !== generation.current) return;
             setLoadError(errorMessage(e));
             params.failCallback();
           },

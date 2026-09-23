@@ -181,8 +181,11 @@ export default function RegistryPage() {
   const totalRef = useRef<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const datasource = useMemo<IDatasource>(
-    () => ({
+  // запізніла відповідь за попереднім пошуком чи фільтром не переписує лічильник нового
+  const generation = useRef(0);
+  const datasource = useMemo<IDatasource>(() => {
+    const gen = ++generation.current;
+    return {
       getRows: (params) => {
         const sortModel = params.sortModel[0];
         const field = sortModel ? SORT_FIELDS[sortModel.colId] : undefined;
@@ -193,6 +196,7 @@ export default function RegistryPage() {
           limit: params.endRow - params.startRow,
         }).then(
           (page) => {
+            if (gen !== generation.current) return;
             if (page.total != null) totalRef.current = page.total;
             setTotal(totalRef.current);
             setLoadError(null);
@@ -201,14 +205,14 @@ export default function RegistryPage() {
             else gridApi.current?.hideOverlay();
           },
           (e: unknown) => {
+            if (gen !== generation.current) return;
             setLoadError(errorMessage(e));
             params.failCallback();
           },
         );
       },
-    }),
-    [query],
-  );
+    };
+  }, [query]);
 
   // заявку змінили (КП, статус, збереження) — інвалідується весь ['requests'], разом із цією позначкою
   const version = useQuery({ queryKey: qk.requestsVersion, queryFn: () => Date.now(), staleTime: Infinity });
