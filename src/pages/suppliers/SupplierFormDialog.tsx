@@ -302,7 +302,7 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
           <Form.Item name="supplierMarkupPct" label="Націнка постачальника, %" extra="Додається до вхідної ціни в заявці">
             <InputNumber min={0} max={100} step={0.5} decimalSeparator="," style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="minOrderAmount" label="Мін. замовлення, грн">
+          <Form.Item name="minOrderAmount" label="Мін. замовлення з ПДВ, грн" extra="Порівнюється із сумою з ПДВ по обраних рядках">
             <InputNumber min={0} step={100} decimalSeparator="," style={{ width: '100%' }} placeholder="немає" />
           </Form.Item>
           <Form.Item name="priceStaleDays" label="Ціна застаріває через, днів" extra="Порожньо — як у налаштуваннях">

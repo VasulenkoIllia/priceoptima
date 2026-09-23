@@ -176,7 +176,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
     { key: 'rate', label: 'Курс для заявок', children: ratePolicyLabel(detail) },
     { key: 'rates', label: 'Курс з прайсу', children: <span className="po-num">{priceListRatesLabel(detail.priceListRates)}</span> },
     { key: 'markup', label: 'Націнка постачальника', children: <span className="po-num">{pctLabel(detail.supplierMarkupPct)}</span> },
-    { key: 'min', label: 'Мін. замовлення', children: <span className="po-num">{detail.minOrderAmount != null ? formatMoneyUah(detail.minOrderAmount) : '—'}</span> },
+    { key: 'min', label: 'Мін. замовлення з ПДВ', children: <span className="po-num">{detail.minOrderAmount != null ? formatMoneyUah(detail.minOrderAmount) : '—'}</span> },
     { key: 'stale', label: 'Ціна актуальна', children: detail.priceStaleDays != null ? `${detail.priceStaleDays} дн.` : 'як у налаштуваннях' },
     { key: 'notes', label: 'Примітки', children: detail.notes ? <span style={{ whiteSpace: 'pre-line' }}>{detail.notes}</span> : '—' },
   ];

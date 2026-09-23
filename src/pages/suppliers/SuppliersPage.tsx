@@ -40,7 +40,7 @@ function SupplierCard({ s, refreshing, onRefresh, onImport, onOpen }: SupplierCa
         <dd style={{ fontVariantNumeric: 'tabular-nums' }}>{priceListRatesLabel(s.priceListRates)}</dd>
         <dt>Націнка постачальника</dt>
         <dd className="po-num">{pctLabel(s.supplierMarkupPct)}</dd>
-        <dt>Мін. замовлення</dt>
+        <dt>Мін. замовлення з ПДВ</dt>
         <dd className="po-num">{s.minOrderAmount != null ? formatMoneyUah(s.minOrderAmount) : '—'}</dd>
       </dl>
       <div className="po-sup-status">
