@@ -512,6 +512,7 @@ export async function importName1c(input: Name1cImportInput, actor: User): Promi
           UPDATE "Product" AS p SET
             "name1c" = v.name1c,
             "searchText" = v.search_text,
+            "version" = p."version" + 1,
             "updatedById" = ${actor.id},
             "updatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
           FROM (VALUES ${Prisma.join(values)}) AS v(id, name1c, search_text)

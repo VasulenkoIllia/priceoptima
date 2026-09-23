@@ -55,6 +55,8 @@ export const FULL_ROLES: SourceRoles = { purchasePrice: true, rrp: 'set', stock:
 /** Товар каталогу в тому вигляді, який потрібен звірці (гроші — числа, дата — ISO). */
 export interface ExistingProduct {
   id: UUID;
+  /** Версія картки на момент звірки: якщо її змінили до запису, товар не перезаписуємо (ДОВ-6). */
+  version?: number;
   skuKey: string;
   sku: string;
   nameWork: string;
@@ -107,6 +109,8 @@ export interface ProductCreate extends ImportedFields {
 /** Повний новий стан товару, у якого щось змінилось. */
 export interface ProductUpdate extends ImportedFields {
   id: UUID;
+  /** Версія, від якої рахували зміни. */
+  version?: number;
   sku: string;
   skuKey: string;
   isArchived: boolean;
@@ -579,6 +583,7 @@ function matchRows(
 function stateOf(p: ExistingProduct): ProductUpdate {
   return {
     id: p.id,
+    version: p.version,
     sku: p.sku,
     skuKey: p.skuKey,
     nameWork: p.nameWork,

@@ -307,7 +307,7 @@ async function loadExisting(supplierId: UUID): Promise<ExistingProduct[]> {
   let after = '';
   for (;;) {
     const rows = await prisma.$queryRaw<ExistingRow[]>`
-      SELECT id, "skuKey", sku, "nameWork", "name1c", brand, "unitCode", currency::text AS currency,
+      SELECT id, version, "skuKey", sku, "nameWork", "name1c", brand, "unitCode", currency::text AS currency,
              "purchasePrice"::float8 AS "purchasePrice", rrp::float8 AS rrp, "stockQty"::float8 AS "stockQty",
              availability::text AS availability, multiplicity::float8 AS multiplicity, "minOrderQty"::float8 AS "minOrderQty",
              barcode, "categoryPath", "searchText", "priceOrigin"::text AS "priceOrigin",
@@ -333,6 +333,17 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
 async function writePlan(tx: Prisma.TransactionClient, ctx: RunContext, price: ParsedPrice, plan: ApplyPlan): Promise<number> {
   const supplierId = ctx.supplier.id;
   const now = new Date();
+  // картки, які змінили вручну вже після звірки, не перезаписуємо: блокуємо рядки й звіряємо версії;
+  // далі такі правки чекають кінця запису, а товар оновить наступний запуск
+  const edited = await editedSincePlan(tx, plan.updates);
+  if (edited.size) {
+    plan = {
+      ...plan,
+      updates: plan.updates.filter((u) => !edited.has(u.id)),
+      historyEntries: plan.historyEntries.filter((h) => !edited.has(h.productId)),
+    };
+    price = { ...price, warnings: [...price.warnings, `Товарів, які змінили вручну під час оновлення, не перезаписано: ${edited.size}. Їх оновить наступний запуск`] };
+  }
   const run = await tx.priceImportRun.create({
     data: {
       ...runFields(ctx, price, 'ok'),
@@ -425,6 +436,18 @@ async function writePlan(tx: Prisma.TransactionClient, ctx: RunContext, price: P
 /** Посилання на фото з прайсу так, як його бачать списки й КП (те саме правило, що в модулі фото). */
 const feedImageUrl = (url: string): string => imageUrlOf({ id: '', source: 'feed', url });
 
+/** Товари з плану, чия версія змінилась після звірки (рядки блокуються до кінця запису). */
+async function editedSincePlan(tx: Prisma.TransactionClient, updates: readonly ProductUpdate[]): Promise<Set<UUID>> {
+  const planned = new Map(updates.filter((u) => u.version != null).map((u) => [u.id, u.version!]));
+  const edited = new Set<UUID>();
+  for (const ids of chunks([...planned.keys()], ID_BATCH)) {
+    const rows = await tx.$queryRaw<{ id: UUID; version: number }[]>`
+      SELECT id, version FROM "Product" WHERE id IN (${Prisma.join(ids)}) FOR UPDATE`;
+    for (const r of rows) if (r.version !== planned.get(r.id)) edited.add(r.id);
+  }
+  return edited;
+}
+
 /**
  * Пакетне оновлення товарів одним запитом UPDATE … FROM (VALUES …).
  * Час пишемо як UTC без поясу — так само, як Prisma, незалежно від часового поясу сесії бази.
@@ -457,6 +480,7 @@ async function updateProducts(tx: Prisma.TransactionClient, batch: readonly Prod
       "searchText" = v.search_text,
       "isArchived" = v.is_archived,
       "autoArchivedAt" = CASE WHEN v.is_archived THEN p."autoArchivedAt" ELSE NULL END,
+      "version" = p."version" + 1,
       "updatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
     FROM (VALUES ${Prisma.join(values)}) AS v(
       id, sku, sku_key, name_work, brand, unit_code, currency, purchase_price, rrp, stock_qty, availability,
