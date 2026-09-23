@@ -272,8 +272,11 @@ describe('requestDocStore', () => {
     expect(server.lines.find((l) => l.id === line.id)!.clientName).toBe('Нова назва');
     expect(server.header.notes).toBe('Нотатка менеджера');
 
+    // підказка кнопок: що саме скасується / повернеться
+    expect(store.getState().describeUndo()).toEqual(['Шапка: змінено «Нотатки»']);
     store.getState().undo();
     expect(store.getState().doc!.header.notes).toBe(notes0);
+    expect(store.getState().describeRedo()).toEqual(['Шапка: змінено «Нотатки»']);
     store.getState().redo();
     expect(store.getState().doc!.header.notes).toBe('Нотатка менеджера');
     store.getState().undo();

@@ -217,6 +217,9 @@ export interface RequestDocActions {
 
   undo(): void;
   redo(): void;
+  /** Що саме скасує «Назад» / поверне «Вперед» (для підказки на кнопці); порожньо — нічого. */
+  describeUndo(): string[];
+  describeRedo(): string[];
   getComputed(): RequestComputed | null;
   findOffer(lineId: UUID, blockId: UUID): Offer | undefined;
 }
@@ -1203,6 +1206,18 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         past.push(s.doc);
         set({ doc: next, ctx: ctxFor(next, s.ctx), dirty: true, canUndo: true, canRedo: future.length > 0 });
         scheduleSave();
+      },
+
+      describeUndo() {
+        const doc = get().doc;
+        const prev = past.at(-1);
+        return doc && prev ? describeUnsavedChanges(prev, doc) : [];
+      },
+
+      describeRedo() {
+        const doc = get().doc;
+        const next = future.at(-1);
+        return doc && next ? describeUnsavedChanges(doc, next) : [];
       },
 
       getComputed() {

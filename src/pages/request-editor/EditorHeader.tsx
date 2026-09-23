@@ -16,6 +16,21 @@ import { CopyRequestDialog } from './CopyRequestDialog';
 import { LostChangesDialog } from './LostChangesDialog';
 import { StatusControl } from './StatusControl';
 
+/** Підказка «Назад / Вперед»: що саме зміниться (перші кілька змін). */
+function actionHint(title: string, items: readonly string[]): ReactNode {
+  if (!items.length) return title;
+  const shown = items.slice(0, 4);
+  return (
+    <div style={{ fontSize: 12 }}>
+      <b>{title}:</b>
+      {shown.map((t) => (
+        <div key={t}>{t}</div>
+      ))}
+      {items.length > shown.length ? <div>і ще {items.length - shown.length}</div> : null}
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="po-field">
@@ -80,6 +95,8 @@ export function EditorHeader() {
   const canRedo = useRequestDoc((s) => s.canRedo);
   const undo = useRequestDoc((s) => s.undo);
   const redo = useRequestDoc((s) => s.redo);
+  const describeUndo = useRequestDoc((s) => s.describeUndo);
+  const describeRedo = useRequestDoc((s) => s.describeRedo);
   const flush = useRequestDoc((s) => s.flush);
   const notesOpen = useUiPrefs((s) => s.headerNotesOpen);
   const setNotesOpen = useUiPrefs((s) => s.setHeaderNotesOpen);
@@ -235,12 +252,12 @@ export function EditorHeader() {
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
           {readOnly ? null : (
             <Space.Compact>
-              <Tooltip title="Скасувати останню дію (Ctrl+Z): вибір постачальника, «Не підходить», кількість, націнку тощо. Можна натискати кілька разів поспіль.">
+              <Tooltip title={() => actionHint('Скасувати (Ctrl+Z)', describeUndo())}>
                 <Button size="small" icon={<UndoOutlined />} disabled={!canUndo} onClick={undo}>
                   Назад
                 </Button>
               </Tooltip>
-              <Tooltip title="Повернути скасовану дію (Ctrl+Y)">
+              <Tooltip title={() => actionHint('Повернути (Ctrl+Y)', describeRedo())}>
                 <Button size="small" icon={<RedoOutlined />} disabled={!canRedo} onClick={redo}>
                   Вперед
                 </Button>
