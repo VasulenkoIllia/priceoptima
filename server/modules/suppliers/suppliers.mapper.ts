@@ -28,6 +28,9 @@ const MANUAL_SOURCE: SupplierPriceSource = {
   scheduleHour: null,
   hasPurchasePrice: true,
   note: null,
+  lastError: null,
+  lastErrorAt: null,
+  failCount: 0,
 };
 
 /** Хост вигрузки — без шляху, ключів і токенів; неправильне посилання показуємо як «немає». */
@@ -49,6 +52,9 @@ export function toPriceSource(feed: SupplierPriceFeed | null): SupplierPriceSour
     scheduleHour: feed.scheduleHour,
     hasPurchasePrice: feed.hasPurchasePrice,
     note: feed.note,
+    lastError: feed.lastError,
+    lastErrorAt: feed.lastErrorAt ? isoDateTime(feed.lastErrorAt) : null,
+    failCount: feed.failCount,
   };
 }
 
@@ -59,9 +65,6 @@ export function toPriceSourceSettings(feed: SupplierPriceFeed | null): SupplierP
     auth: feed?.auth ?? 'none',
     hasUrl: !!feed?.url,
     hasSecret: feed?.secret != null,
-    lastError: feed?.lastError ?? null,
-    lastErrorAt: feed?.lastErrorAt ? isoDateTime(feed.lastErrorAt) : null,
-    failCount: feed?.failCount ?? 0,
   };
 }
 

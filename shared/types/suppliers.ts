@@ -62,6 +62,10 @@ export interface SupplierPriceSource {
   /** У прайсі є закупівельні ціни (інакше — лише РРЦ). */
   hasPurchasePrice: boolean;
   note: string | null;
+  /** Остання помилка автоматичного оновлення (скидається після вдалого) — червона позначка на картці. */
+  lastError: string | null;
+  lastErrorAt: ISODateTime | null;
+  failCount: number;
 }
 
 /** Доступ до вигрузки: bearer — токен у заголовку; basic — «логін:пароль»; query — токен параметром посилання. */
@@ -72,10 +76,6 @@ export interface SupplierPriceSourceSettings extends SupplierPriceSource {
   auth: PriceFeedAuth;
   hasUrl: boolean;
   hasSecret: boolean;
-  /** Остання помилка автоматичного оновлення (скидається після вдалого). */
-  lastError: string | null;
-  lastErrorAt: ISODateTime | null;
-  failCount: number;
 }
 
 export interface SupplierPriceSourceInput {

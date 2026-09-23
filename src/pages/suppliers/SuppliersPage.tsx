@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Result, Space, Spin, Tag, Tooltip } from 'antd';
 import { useState } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
-import { formatDateTime, formatMoneyUah, formatQty } from '@shared/format';
-import { toIsoDate } from '@shared/format';
+import { formatDate, formatDateTime, formatMoneyUah, formatQty, toIsoDate } from '@shared/format';
 import type { EffectiveRates, SupplierListItem } from '@shared/types';
 import { EmptyState, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
@@ -70,6 +69,23 @@ function SupplierCard({ s, rates, refreshing, onRefresh, onImport, onOpen }: Sup
             </Tag>
           </Tooltip>
         )}
+        {s.priceSource.lastErrorAt && viaLink(s.priceSource.kind) ? (
+          <Tooltip
+            title={
+              <>
+                {s.priceSource.lastError ?? 'Вигрузка не відповіла або повернула помилку'}
+                {s.priceSource.failCount > 1 ? ` (невдалих спроб поспіль: ${s.priceSource.failCount})` : ''}.
+                <br />
+                Ціни лишаються з останнього вдалого оновлення. Що робити: натисніть «Оновити зараз»; не допоможе — перевірте посилання й
+                доступ у «Детальніше → Джерело прайсу» або завантажте прайс файлом.
+              </>
+            }
+          >
+            <Tag color="red" bordered={false}>
+              Оновлення не вдалося {formatDate(s.priceSource.lastErrorAt)}
+            </Tag>
+          </Tooltip>
+        ) : null}
         <span>{s.lastImportAt ? `Прайс оновлено ${formatDateTime(s.lastImportAt)}` : 'Прайс ще не завантажено'}</span>
       </div>
       <div className="po-sup-actions">
