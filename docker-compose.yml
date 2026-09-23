@@ -27,6 +27,16 @@ services:
       - random_page_cost=1.1
       - -c
       - max_wal_size=2GB
+      - -c
+      - wal_compression=on
+      # завислий запит чи забута транзакція не тримають з'єднання й блокування вічно (pg_dump і pg_restore знімають межу для себе)
+      - -c
+      - statement_timeout=${PG_STATEMENT_TIMEOUT:-120s}
+      - -c
+      - idle_in_transaction_session_timeout=${PG_IDLE_IN_TX_TIMEOUT:-60s}
+      # повільні запити — у лог бази (docker compose logs db)
+      - -c
+      - log_min_duration_statement=${PG_LOG_SLOW:-1000}
     # порт відкритий лише на самому сервері (для дампів і ручних запитів)
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
@@ -86,6 +96,8 @@ services:
         condition: service_healthy
     volumes:
       - ./data/uploads:/app/data/uploads
+    # межа пам'яті застосунку (купа Node — 3 ГБ, NODE_OPTIONS): при нестачі система не вбиватиме базу замість застосунку
+    mem_limit: ${APP_MEM_LIMIT:-4g}
     restart: unless-stopped
     networks:
       - proxy

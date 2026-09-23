@@ -239,7 +239,23 @@ async function storePriceFile(supplierId: UUID, file: UploadedPriceFile, user: U
 
 // ── звірка й запис ──────────────────────────────────────────────────
 
-async function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpdateRunDetail> {
+/**
+ * Один прайс за раз на весь сервер: великий імпорт займає пам'ять і з'єднання з базою, а кілька одночасних
+ * (ранкові вигрузки + файл від менеджера) могли б вичерпати і те, і те. Наступний просто чекає своєї черги.
+ */
+let importQueue: Promise<unknown> = Promise.resolve();
+
+function oneAtATime<T>(fn: () => Promise<T>): Promise<T> {
+  const run = importQueue.then(fn, fn);
+  importQueue = run.catch(() => undefined);
+  return run;
+}
+
+function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpdateRunDetail> {
+  return oneAtATime(() => applyPriceNow(ctx, price));
+}
+
+async function applyPriceNow(ctx: RunContext, price: ParsedPrice): Promise<PriceUpdateRunDetail> {
   const supplierId = ctx.supplier.id;
   const [existing, units] = await Promise.all([loadExisting(supplierId), listUnits()]);
   const result = planApply({
