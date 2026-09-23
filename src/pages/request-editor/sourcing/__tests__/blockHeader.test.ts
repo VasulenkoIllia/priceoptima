@@ -1,14 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import { deltaLabel, rateSourceLabel } from '../BlockHeader';
+import { blockRateLabel, relevantCurrencies, requestRatesLabel } from '@/lib/rateLabels';
+import { deltaLabel } from '../BlockHeader';
 
-describe('шапка блоку — джерело курсу (ТЗ РЕД-4)', () => {
-  it('прайс з датою, картка постачальника, загальний курс (ручний або НБУ), вручну', () => {
-    expect(rateSourceLabel({ rateSource: 'price_list', ratesDate: '2026-09-01' })).toBe('прайс 01.09.2026');
-    expect(rateSourceLabel({ rateSource: 'price_list', ratesDate: null })).toBe('картка');
-    expect(rateSourceLabel({ rateSource: 'manual', ratesDate: null })).toBe('картка');
-    expect(rateSourceLabel({ rateSource: 'manual', ratesDate: '2026-09-12' })).toBe('вручну 12.09.2026');
-    expect(rateSourceLabel({ rateSource: 'nbu', ratesDate: '2026-09-11' })).toBe('загальний 11.09.2026');
-    expect(rateSourceLabel({ rateSource: 'nbu_adjusted', ratesDate: '2026-09-11' })).toBe('НБУ ± %');
+describe('джерело курсу — однакові назви в блоці й на картці постачальника (4.7)', () => {
+  it('блок: з прайсу, ручний курс постачальника, загальний, змінено в заявці', () => {
+    expect(blockRateLabel({ rateSource: 'price_list', ratesDate: '2026-09-01' })).toBe('з прайсу від 01.09.2026');
+    expect(blockRateLabel({ rateSource: 'manual', ratesDate: null })).toBe('ручний курс постачальника');
+    expect(blockRateLabel({ rateSource: 'manual', ratesDate: '2026-09-12' })).toBe('змінено в заявці 12.09.2026');
+    expect(blockRateLabel({ rateSource: 'nbu', ratesDate: '2026-09-11' })).toBe('загальний на 11.09.2026');
+    expect(blockRateLabel({ rateSource: 'nbu_adjusted', ratesDate: '2026-09-11' })).toBe('НБУ ± %');
+  });
+
+  it('у шапці — лише валюта прайсу і валюти товарів блоку', () => {
+    expect(relevantCurrencies('USD')).toEqual(['USD']);
+    expect(relevantCurrencies('UAH')).toEqual([]);
+    expect(relevantCurrencies('UAH', ['EUR', 'UAH'])).toEqual(['EUR']);
+  });
+
+  it('«Курс для заявок» на картці постачальника — фактичний курс нового блоку', () => {
+    const base = {
+      id: 's1',
+      name: 'S',
+      defaultCurrency: 'USD' as const,
+      ratePolicy: 'price_list' as const,
+      priceListRates: { USD: 41.2, EUR: null, date: '2026-09-12' },
+      manualRateUsd: null,
+      manualRateEur: null,
+      rateAdjustPct: 0,
+    };
+    const eff = { date: '2026-09-13', USD: { rate: 41.5, rateDate: '2026-09-13', source: 'nbu' as const }, EUR: null, stale: false };
+    const s = base as unknown as Parameters<typeof requestRatesLabel>[0];
+    expect(requestRatesLabel(s, eff)).toBe('USD 41,20 (з прайсу від 12.09.2026)');
+    const nbu = { ...base, ratePolicy: 'nbu' } as unknown as Parameters<typeof requestRatesLabel>[0];
+    expect(requestRatesLabel(nbu, eff)).toBe('USD 41,50 (загальний на 13.09.2026)');
+    const uah = { ...base, defaultCurrency: 'UAH' } as unknown as Parameters<typeof requestRatesLabel>[0];
+    expect(requestRatesLabel(uah, eff)).toBe('не потрібен — прайс у гривнях');
   });
 });
 

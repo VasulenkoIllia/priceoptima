@@ -1,7 +1,7 @@
 // Підписи для карток постачальників.
 import { formatDate, formatPct, formatRate } from '@shared/format';
 import { FEED_CONNECTOR_INFO } from '@shared/catalog/connectors';
-import type { PriceListRates, PriceSourceKind, SupplierPriceSource } from '@shared/types';
+import type { PriceListRates, PriceSourceKind, SupplierListItem, SupplierPriceSource } from '@shared/types';
 
 const KIND_LABELS: Record<PriceSourceKind, string> = { auto: 'Автоматично', manual: 'Вручну', hybrid: 'Гібрид' };
 
@@ -23,6 +23,18 @@ export function priceSourceLabel(s: SupplierPriceSource): string {
   if (s.kind === 'manual') parts.push('файлом');
   if (s.kind === 'hybrid') parts.push('ціни файлом');
   return parts.join(' · ');
+}
+
+/**
+ * Спосіб курсу постачальника тими самими словами, що й у блоці заявки: «з прайсу; якщо немає — ручний курс постачальника
+ * USD 41,20», «ручний курс постачальника: USD 41,20», «загальний», «НБУ + 1,5 %».
+ */
+export function ratePolicyLabel(s: Pick<SupplierListItem, 'ratePolicy' | 'rateAdjustPct' | 'manualRateUsd' | 'manualRateEur'>): string {
+  if (s.ratePolicy === 'nbu_adjusted') return `НБУ ${s.rateAdjustPct >= 0 ? '+' : '−'} ${pctLabel(Math.abs(s.rateAdjustPct))}`;
+  if (s.ratePolicy === 'nbu') return 'загальний';
+  const parts = [s.manualRateUsd != null ? `USD ${formatRate(s.manualRateUsd)}` : null, s.manualRateEur != null ? `EUR ${formatRate(s.manualRateEur)}` : null].filter(Boolean);
+  if (s.ratePolicy === 'manual') return parts.length ? `ручний курс постачальника: ${parts.join(' · ')}` : 'ручний курс постачальника (не вказано), поки що загальний';
+  return parts.length ? `з прайсу; якщо немає — ручний курс постачальника ${parts.join(' · ')}` : 'з прайсу; якщо немає — загальний';
 }
 
 /** 'USD 45,00 · EUR 52,10 (від 12.09.2026)'; курсів немає — '—'. */

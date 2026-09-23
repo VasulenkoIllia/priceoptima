@@ -279,6 +279,13 @@
 .po-bh-link:hover:not(:disabled) {
   background: rgba(16, 80, 184, 0.08);
 }
+.po-bh-markup-zero {
+  opacity: 0;
+}
+.po-bh:hover .po-bh-markup-zero,
+.po-bh-markup-zero:focus-visible {
+  opacity: 1;
+}
 .po-bh-link:disabled {
   color: inherit;
   cursor: default;

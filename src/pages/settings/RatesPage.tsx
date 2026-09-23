@@ -5,9 +5,10 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
 import { FOREIGN_CURRENCIES, RATE_POLICY_LABELS, type ForeignCurrency, type RateSource } from '@shared/enums';
 import { formatDate, formatRate, toIsoDate } from '@shared/format';
-import type { CurrencyRateDto, ISODate, SupplierListItem } from '@shared/types';
+import type { CurrencyRateDto, EffectiveRates, ISODate, SupplierListItem } from '@shared/types';
 import { EmptyState, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
+import { GENERAL_RATE_HINT, requestRatesLabel } from '@/lib/rateLabels';
 import { BRAND_COLOR } from '@/theme';
 import { RateChart, type RatePoint } from './RateChart';
 import './rates.css';
@@ -239,12 +240,12 @@ function SupplierRateDialog({ supplier, onClose }: { supplier: SupplierListItem 
   );
 }
 
-function supplierColumns(onEdit: (s: SupplierListItem) => void): TableColumnsType<SupplierListItem> {
+function supplierColumns(onEdit: (s: SupplierListItem) => void, today: EffectiveRates | undefined): TableColumnsType<SupplierListItem> {
   const pair = (fromPrice: number | null, manual: number | null) =>
     fromPrice != null ? (
       <span className="po-num">{formatRate(fromPrice)}</span>
     ) : manual != null ? (
-      <Tag bordered={false}>вручну {formatRate(manual)}</Tag>
+      <Tag bordered={false} title="Ручний курс постачальника">ручний {formatRate(manual)}</Tag>
     ) : (
       <span className="po-muted">—</span>
     );
@@ -255,9 +256,14 @@ function supplierColumns(onEdit: (s: SupplierListItem) => void): TableColumnsTyp
       render: (_, s) => <SupplierLogo name={s.name} logoUrl={s.logoUrl} color={s.color} size={18} showName />,
     },
     { title: 'Прайс', key: 'currency', render: (_, s) => <span className="po-num">{s.defaultCurrency}</span> },
-    { title: 'USD', key: 'usd', align: 'right', render: (_, s) => pair(s.priceListRates.USD, s.manualRateUsd) },
-    { title: 'EUR', key: 'eur', align: 'right', render: (_, s) => pair(s.priceListRates.EUR, s.manualRateEur) },
+    { title: 'USD у прайсі', key: 'usd', align: 'right', render: (_, s) => pair(s.priceListRates.USD, s.manualRateUsd) },
+    { title: 'EUR у прайсі', key: 'eur', align: 'right', render: (_, s) => pair(s.priceListRates.EUR, s.manualRateEur) },
     { title: 'Дата прайсу', key: 'date', render: (_, s) => <span className="po-num">{formatDate(s.priceListRates.date)}</span> },
+    {
+      title: <span title={GENERAL_RATE_HINT}>Курс для заявок сьогодні</span>,
+      key: 'effective',
+      render: (_, s) => <span className="po-num">{requestRatesLabel(s, today)}</span>,
+    },
     {
       title: '',
       key: 'actions',
@@ -275,6 +281,8 @@ function supplierColumns(onEdit: (s: SupplierListItem) => void): TableColumnsTyp
 export default function RatesPage() {
   const rates = useQuery({ queryKey: qk.ratesList, queryFn: () => ds.listRates() });
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
+  const todayDate = toIsoDate(new Date());
+  const todayRates = useQuery({ queryKey: qk.rates(todayDate), queryFn: () => ds.getRates(todayDate) });
 
   const [manualOpen, setManualOpen] = useState(false);
   const [rateSupplier, setRateSupplier] = useState<SupplierListItem | null>(null);
@@ -342,7 +350,7 @@ export default function RatesPage() {
               size="small"
               rowKey="id"
               loading={suppliers.isPending}
-              columns={supplierColumns(setRateSupplier)}
+              columns={supplierColumns(setRateSupplier, todayRates.data)}
               dataSource={foreignSuppliers}
               pagination={false}
               locale={{ emptyText: 'Немає постачальників із прайсом у валюті — курс нікому не потрібен' }}

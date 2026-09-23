@@ -3,27 +3,18 @@ import { EditOutlined, ExperimentOutlined, GlobalOutlined, MailOutlined, PhoneOu
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Alert, App, Button, Descriptions, Drawer, Modal, Result, Spin, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
 import { useState, type ReactNode } from 'react';
-import { CURRENCY_LABELS, RATE_POLICY_LABELS } from '@shared/enums';
-import { formatDateTime, formatMoneyUah, formatRate } from '@shared/format';
+import { CURRENCY_LABELS } from '@shared/enums';
+import { formatDateTime, formatMoneyUah, toIsoDate } from '@shared/format';
 import { webUrl } from '@shared/parse';
 import type { PriceUpdateDto, SupplierDetail, SupplierListItem } from '@shared/types';
 import { SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
+import { GENERAL_RATE_HINT, requestRatesLabel } from '@/lib/rateLabels';
 import { useIsAdmin } from '@/app/session';
 import { PriceSourceDialog } from './PriceSourceDialog';
 import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierFormDialog } from './SupplierFormDialog';
-import { hostOf, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, viaLink } from './supplierView';
-
-/** «НБУ + 1,5 %», «Вручну: USD 41,20 · EUR 45,10». */
-function ratePolicyLabel(s: SupplierDetail): string {
-  if (s.ratePolicy === 'nbu_adjusted') return `НБУ ${s.rateAdjustPct >= 0 ? '+' : '−'} ${pctLabel(Math.abs(s.rateAdjustPct))}`;
-  const parts = [s.manualRateUsd != null ? `USD ${formatRate(s.manualRateUsd)}` : null, s.manualRateEur != null ? `EUR ${formatRate(s.manualRateEur)}` : null].filter(Boolean);
-  if (s.ratePolicy === 'manual') return parts.length ? `Вручну: ${parts.join(' · ')}` : 'Вручну (курс не вказано)';
-  // з прайсу; запасний — ручний курс постачальника, далі загальний курс
-  if (s.ratePolicy === 'price_list') return parts.length ? `З прайсу; якщо немає: ${parts.join(' · ')}` : 'З прайсу; якщо немає: загальний курс';
-  return RATE_POLICY_LABELS[s.ratePolicy];
-}
+import { hostOf, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, ratePolicyLabel, viaLink } from './supplierView';
 
 function ExtLink({ url: raw }: { url: string | null }) {
   const url = webUrl(raw);
@@ -141,6 +132,8 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
   const isAdmin = useIsAdmin();
   const { message, modal } = App.useApp();
   const log = useQuery({ queryKey: qk.priceUpdates(detail.id), queryFn: () => ds.listPriceUpdates(detail.id) });
+  const today = toIsoDate(new Date());
+  const rates = useQuery({ queryKey: qk.rates(today), queryFn: () => ds.getRates(today) });
   const source = detail.priceSource;
   const [openedUpdate, setOpenedUpdate] = useState<number | null>(null);
 
@@ -173,7 +166,18 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
       label: 'Валюта прайсу',
       children: `${CURRENCY_LABELS[detail.defaultCurrency]}, вхід ${detail.pricesIncludeVat ? 'з ПДВ' : 'без ПДВ'}, РРЦ ${detail.rrpIncludesVat ? 'з ПДВ' : 'без ПДВ'}`,
     },
-    { key: 'rate', label: 'Курс для заявок', children: ratePolicyLabel(detail) },
+    {
+      key: 'rate',
+      label: 'Курс для заявок',
+      children: (
+        <>
+          <span className="po-num">{requestRatesLabel(detail, rates.data)}</span>
+          <div className="po-muted" style={{ fontSize: 12 }} title={GENERAL_RATE_HINT}>
+            Спосіб: {ratePolicyLabel(detail)}
+          </div>
+        </>
+      ),
+    },
     { key: 'rates', label: 'Курс з прайсу', children: <span className="po-num">{priceListRatesLabel(detail.priceListRates)}</span> },
     { key: 'markup', label: 'Націнка постачальника', children: <span className="po-num">{pctLabel(detail.supplierMarkupPct)}</span> },
     { key: 'min', label: 'Мін. замовлення з ПДВ', children: <span className="po-num">{detail.minOrderAmount != null ? formatMoneyUah(detail.minOrderAmount) : '—'}</span> },

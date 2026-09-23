@@ -22,7 +22,7 @@ import { siteSearchUrl } from '@/components/ProductPicker';
 import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { SEMANTIC_COLORS } from '@/theme';
-import { rateSourceLabel } from './BlockHeader';
+import { blockRateLabel } from '@/lib/rateLabels';
 import { EXCLUDE_HINT } from './cells';
 import { OfferPriceDialog } from './OfferPriceDialog';
 import { useSourcingUi } from './sourcingUiStore';
@@ -143,7 +143,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
           <span className="po-muted">гривня</span>
         ) : (
           <span className="po-num">
-            {formatRate(oc?.rate)} <span className="po-muted">({rateSourceLabel(block)})</span>
+            {formatRate(oc?.rate)} <span className="po-muted">({blockRateLabel(block)})</span>
           </span>
         ),
     },

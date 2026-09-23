@@ -4,24 +4,28 @@ import { App, Button, Card, Result, Space, Spin, Tag, Tooltip } from 'antd';
 import { useState } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDateTime, formatMoneyUah, formatQty } from '@shared/format';
-import type { SupplierListItem } from '@shared/types';
+import { toIsoDate } from '@shared/format';
+import type { EffectiveRates, SupplierListItem } from '@shared/types';
 import { EmptyState, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
+import { GENERAL_RATE_HINT, requestRatesLabel } from '@/lib/rateLabels';
 import { downloadPriceTemplate, PriceImportDialog } from './priceImport';
 import { SupplierDrawer } from './SupplierDrawer';
 import { SupplierFormDialog } from './SupplierFormDialog';
-import { pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, pricesFromFile, viaLink } from './supplierView';
+import { pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, pricesFromFile, ratePolicyLabel, viaLink } from './supplierView';
 import './suppliers.css';
 
 interface SupplierCardProps {
   s: SupplierListItem;
+  /** Загальні курси на сьогодні — щоб показати, який курс отримає новий блок заявки. */
+  rates: EffectiveRates | undefined;
   refreshing: boolean;
   onRefresh: () => void;
   onImport: () => void;
   onOpen: () => void;
 }
 
-function SupplierCard({ s, refreshing, onRefresh, onImport, onOpen }: SupplierCardProps) {
+function SupplierCard({ s, rates, refreshing, onRefresh, onImport, onOpen }: SupplierCardProps) {
   return (
     <Card className="po-sup-card" styles={{ body: { padding: 16 } }}>
       <div className="po-sup-head">
@@ -36,8 +40,20 @@ function SupplierCard({ s, refreshing, onRefresh, onImport, onOpen }: SupplierCa
       <dl className="po-sup-facts">
         <dt>Валюта прайсу</dt>
         <dd>{CURRENCY_LABELS[s.defaultCurrency]}</dd>
-        <dt>Курс з прайсу</dt>
-        <dd style={{ fontVariantNumeric: 'tabular-nums' }}>{priceListRatesLabel(s.priceListRates)}</dd>
+        <dt>Курс для заявок</dt>
+        <dd style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <Tooltip
+            title={
+              <>
+                Спосіб: {ratePolicyLabel(s)}. Курс у прайсі: {priceListRatesLabel(s.priceListRates)}.
+                <br />
+                {GENERAL_RATE_HINT}.
+              </>
+            }
+          >
+            <span>{requestRatesLabel(s, rates)}</span>
+          </Tooltip>
+        </dd>
         <dt>Націнка постачальника</dt>
         <dd className="po-num">{pctLabel(s.supplierMarkupPct)}</dd>
         <dt>Мін. замовлення з ПДВ</dt>
@@ -82,6 +98,8 @@ export default function SuppliersPage() {
   const [importFor, setImportFor] = useState<SupplierListItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
+  const today = toIsoDate(new Date());
+  const rates = useQuery({ queryKey: qk.rates(today), queryFn: () => ds.getRates(today) });
 
   const refresh = useMutation({
     mutationFn: (s: SupplierListItem) => ds.refreshSupplierPrices(s.id),
@@ -144,6 +162,7 @@ export default function SuppliersPage() {
             <SupplierCard
               key={s.id}
               s={s}
+              rates={rates.data}
               refreshing={refresh.isPending && refresh.variables?.id === s.id}
               onRefresh={() => refresh.mutate(s)}
               onImport={() => setImportFor(s)}

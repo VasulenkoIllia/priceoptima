@@ -11,10 +11,11 @@ import {
 import { App, Button, Dropdown, InputNumber, Popover, Space, Tooltip } from 'antd';
 import type { IHeaderGroupParams, IHeaderParams } from 'ag-grid-community';
 import { useState, type ReactNode } from 'react';
-import { CURRENCY_LABELS, RATE_POLICY_LABELS } from '@shared/enums';
-import { formatDate, formatMoney, formatPct, formatRate, formatWarning } from '@shared/format';
+import { CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
+import { formatMoney, formatPct, formatRate, formatWarning } from '@shared/format';
 import type { BlockTotals, SupplierBlock, SupplierProfit, SupplierRef, UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
+import { blockRateLabel, GENERAL_RATE_HINT, relevantCurrencies } from '@/lib/rateLabels';
 import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { SEMANTIC_COLORS } from '@/theme';
@@ -39,22 +40,6 @@ function useBlockInfo(blockId: UUID): BlockInfo {
 
 function signedMoney(v: number): string {
   return `${v > 0 ? '+' : ''}${formatMoney(v)}`;
-}
-
-/** Джерело курсу блоку коротко (ТЗ РЕД-4): «прайс 01.09.2026», «картка», «загальний 11.09.2026» (ручний або НБУ), «вручну 12.09.2026». */
-export function rateSourceLabel(block: Pick<SupplierBlock, 'rateSource' | 'ratesDate'>): string {
-  const date = block.ratesDate ? formatDate(block.ratesDate) : null;
-  switch (block.rateSource) {
-    case 'price_list':
-      return date ? `прайс ${date}` : 'картка';
-    case 'manual':
-      return date ? `вручну ${date}` : 'картка';
-    case 'nbu':
-      // загальний курс на дату: ручний із «Курси валют», якщо задано, інакше НБУ
-      return date ? `загальний ${date}` : 'загальний';
-    case 'nbu_adjusted':
-      return 'НБУ ± %';
-  }
 }
 
 /** Пояснення заробітку блоку (тултип). */
@@ -130,6 +115,8 @@ function totalsHelp(t: BlockTotals): ReactNode {
 
 function RatesEditor({ block, disabled, compact }: { block: SupplierBlock; disabled: boolean; compact?: boolean }) {
   const setBlockRates = useRequestDoc((s) => s.setBlockRates);
+  // валюти товарів блоку (рядком — щоб селектор не давав новий масив на кожен рендер)
+  const usedCurrencies = useRequestDoc((s) => [...new Set(s.doc?.offers.filter((o) => o.blockId === block.id).map((o) => o.currency))].sort().join(','));
   const [open, setOpen] = useState(false);
   const [usd, setUsd] = useState<number | null>(block.rates.USD);
   const [eur, setEur] = useState<number | null>(block.rates.EUR);
@@ -144,8 +131,11 @@ function RatesEditor({ block, disabled, compact }: { block: SupplierBlock; disab
     setBlockRates(block.id, { USD: usd && usd > 0 ? usd : null, EUR: eur && eur > 0 ? eur : null });
     setOpen(false);
   };
-  const rates = `USD ${formatRate(block.rates.USD)} · EUR ${formatRate(block.rates.EUR)}`;
-  const label = compact ? rates : `${rates} · ${rateSourceLabel(block)}`;
+  // у шапці — лише курс валюти прайсу (і валют, що вже є серед товарів блоку); гривневому прайсу курс не потрібен
+  const shown = relevantCurrencies(block.defaultCurrency, usedCurrencies ? (usedCurrencies.split(',') as CurrencyCode[]) : []);
+  const rates = shown.map((c) => `${c} ${formatRate(block.rates[c])}`).join(' · ');
+  const source = blockRateLabel(block);
+  const label = !shown.length ? 'курс' : compact ? rates : `${rates} · ${source}`;
   return (
     <Popover
       open={open}
@@ -154,9 +144,8 @@ function RatesEditor({ block, disabled, compact }: { block: SupplierBlock; disab
       title="Курс блоку"
       content={
         <div className="po-bh-pop">
-          <div className="po-muted">
-            {RATE_POLICY_LABELS[block.rateSource]}
-            {block.ratesDate ? ` від ${formatDate(block.ratesDate)}` : ''} · валюта прайсу {CURRENCY_LABELS[block.defaultCurrency]}
+          <div className="po-muted" title={block.rateSource === 'nbu' ? GENERAL_RATE_HINT : undefined}>
+            Курс {source} · валюта прайсу {CURRENCY_LABELS[block.defaultCurrency]}
           </div>
           <label className="po-bh-pop-row">
             <span>USD</span>
@@ -181,7 +170,7 @@ function RatesEditor({ block, disabled, compact }: { block: SupplierBlock; disab
         type="button"
         className="po-bh-link po-num"
         disabled={disabled}
-        title={`${rates} · ${rateSourceLabel(block)}${disabled ? '' : ' — змінити курс блоку'}`}
+        title={`${shown.length ? `${rates} · ${source}` : 'Прайс у гривнях — курс не потрібен'}${disabled ? '' : ' — змінити курс блоку'}`}
       >
         {label}
       </button>
@@ -222,8 +211,15 @@ function MarkupEditor({ block, disabled }: { block: SupplierBlock; disabled: boo
         </div>
       }
     >
-      <button type="button" className="po-bh-link po-num" disabled={disabled} title="Націнка постачальника на вхідну ціну">
-        націнка {formatPct(block.supplierMarkupPct, block.supplierMarkupPct % 1 ? 1 : 0)}
+      {/* нульова націнка не займає місця: кнопка з'являється при наведенні на шапку */}
+      <button
+        type="button"
+        className={block.supplierMarkupPct ? 'po-bh-link po-num' : 'po-bh-link po-num po-bh-markup-zero'}
+        disabled={disabled}
+        hidden={disabled && !block.supplierMarkupPct}
+        title="Націнка постачальника на вхідну ціну"
+      >
+        {block.supplierMarkupPct ? `націнка ${formatPct(block.supplierMarkupPct, block.supplierMarkupPct % 1 ? 1 : 0)}` : '+ націнка'}
       </button>
     </Popover>
   );
