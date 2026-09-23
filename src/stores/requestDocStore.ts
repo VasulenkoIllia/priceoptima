@@ -1080,10 +1080,11 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
           Object.assign(o, offerWithManualPrice(o, purchasePriceCur, rate, new Date(), supplierMarkupPct));
         });
         if (!options?.updateCatalog || !offer.productId) return true;
+        // лише вхідна ціна: РРЦ і валюту в каталозі веде прайс, зі знімка заявки їх не переписуємо
         const { product } = await ds.updateProductPrice(offer.productId, {
           currency: offer.currency,
           purchasePrice: purchasePriceCur,
-          rrp: offer.rrpCur,
+          purchaseOnly: true,
           source: 'manual',
           note: `Змінено з заявки № ${formatRequestNumber(s.doc.header.number)}`,
         });

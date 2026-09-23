@@ -344,10 +344,15 @@ class FakeTab {
     return { results };
   }
 
-  async updateProductPrice(id: UUID, input: { currency: string; purchasePrice: number | null; rrp: number | null }): Promise<{ product: ProductDetail; historyEntry: null }> {
+  async updateProductPrice(
+    id: UUID,
+    input: { currency: string; purchasePrice: number | null; rrp?: number | null; purchaseOnly?: boolean },
+  ): Promise<{ product: ProductDetail; historyEntry: null }> {
     const p = this.srv.products.get(id);
     if (!p) throw new DataSourceError('NOT_FOUND', 'Товар не знайдено');
-    const next = { ...p, purchasePrice: input.purchasePrice, rrp: input.rrp, priceUpdatedAt: this.srv.now().toISOString() };
+    if (input.purchaseOnly && input.currency !== p.currency) throw new DataSourceError('INVALID_STATE', 'Валюта товару в каталозі змінилась');
+    const rrp = input.purchaseOnly ? p.rrp : (input.rrp ?? null);
+    const next = { ...p, purchasePrice: input.purchasePrice, rrp, priceUpdatedAt: this.srv.now().toISOString() };
     this.srv.addProducts(next);
     return { product: { ...next, version: 1, minOrderQty: null, notes: null, priceSource: 'manual', lastImportId: null, createdAt: next.priceUpdatedAt!, updatedAt: next.priceUpdatedAt! } as ProductDetail, historyEntry: null };
   }

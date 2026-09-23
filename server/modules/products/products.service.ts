@@ -18,7 +18,7 @@ import type {
   UUID,
 } from '@shared/types';
 import { prisma } from '../../db';
-import { duplicate, notFound } from '../../http/errors';
+import { ApiError, duplicate, notFound } from '../../http/errors';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit } from '../audit/audit.service';
 import { getEffectiveRates } from '../rates/rates.service';
@@ -403,15 +403,24 @@ export async function updateProductPrice(
   actor: User,
 ): Promise<ProductPriceUpdateResult> {
   const current = await productOrFail(id);
+  // із заявки ціна приходить у валюті знімка: якщо товар тим часом перейшов на іншу валюту, число записувати не можна
+  if (input.purchaseOnly && input.currency !== current.currency) {
+    throw new ApiError(
+      'INVALID_STATE',
+      `Валюта товару в каталозі змінилась (${current.currency}), ціну в каталог не записано. Оновіть пропозицію з прайсу`,
+    );
+  }
   // вхід, введений з ПДВ, зберігається без ПДВ (Ф1)
   const purchasePrice =
     input.priceIncludesVat && input.purchasePrice != null
       ? normalizeInputPrice(input.purchasePrice, true, (await getSettings()).vatRatePct)
       : input.purchasePrice;
 
-  const stockQty = input.stockQty !== undefined ? input.stockQty : decimalOrNull(current.stockQty);
-  const availability =
-    input.availability ?? (input.stockQty !== undefined ? availabilityOf(input.stockQty) : current.availability);
+  const keepStock = input.purchaseOnly || input.stockQty === undefined;
+  const stockQty = keepStock ? decimalOrNull(current.stockQty) : (input.stockQty ?? null);
+  const availability = input.purchaseOnly
+    ? current.availability
+    : (input.availability ?? (input.stockQty !== undefined ? availabilityOf(input.stockQty) : current.availability));
   const before = {
     currency: current.currency,
     purchasePrice: decimalOrNull(current.purchasePrice),
@@ -419,7 +428,9 @@ export async function updateProductPrice(
     stockQty: decimalOrNull(current.stockQty),
     availability: current.availability,
   };
-  const after = { currency: input.currency, purchasePrice, rrp: input.rrp, stockQty, availability };
+  const after = input.purchaseOnly
+    ? { currency: current.currency, purchasePrice, rrp: before.rrp, stockQty, availability }
+    : { currency: input.currency, purchasePrice, rrp: input.rrp ?? null, stockQty, availability };
   const changed = priceChanged(before, after);
   const now = new Date();
 
@@ -434,11 +445,7 @@ export async function updateProductPrice(
       data: {
         productId: id,
         effectiveAt: now,
-        currency: input.currency,
-        purchasePrice,
-        rrp: input.rrp,
-        stockQty,
-        availability,
+        ...after,
         origin: 'manual',
         userId: actor.id,
         note: input.note,

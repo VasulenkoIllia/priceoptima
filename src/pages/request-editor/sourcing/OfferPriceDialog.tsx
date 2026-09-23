@@ -29,12 +29,15 @@ export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
 
   const submit = async (v: Values) => {
     setSaving(true);
+    let changed = false;
     try {
-      await setOfferPurchasePrice(offer.id, v.purchasePrice ?? null, { updateCatalog: v.updateCatalog });
-      message.success(v.updateCatalog ? 'Ціну змінено в заявці й у каталозі' : 'Ціну змінено в цій заявці');
+      changed = await setOfferPurchasePrice(offer.id, v.purchasePrice ?? null, { updateCatalog: v.updateCatalog });
+      if (changed) message.success(v.updateCatalog ? 'Ціну змінено в заявці й у каталозі' : 'Ціну змінено в цій заявці');
       onClose();
     } catch (e) {
-      message.error(errorMessage(e));
+      // у заявці ціна вже змінена, не записалось лише в каталог
+      message.error(`Ціну змінено в заявці, але не в каталозі: ${errorMessage(e)}`);
+      onClose();
     } finally {
       setSaving(false);
     }

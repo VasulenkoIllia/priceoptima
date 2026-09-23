@@ -161,11 +161,15 @@ export type ProductPatch = Partial<
 
 /** Ручна зміна ціни — лише для товару, доданого вручну (решту оновлюють прайси постачальників). */
 export interface ProductPriceUpdateInput {
+  /** Валюта ціни; при purchaseOnly — лише перевірка, що валюта товару не змінилась. */
   currency: CurrencyCode;
   purchasePrice: number | null;
   /** true — purchasePrice введено з ПДВ, зберігається без ПДВ (Ф1). */
   priceIncludesVat?: boolean;
-  rrp: number | null;
+  /** true — змінюється лише вхідна ціна (із заявки, РЕД-10); РРЦ, валюта й наявність лишаються як у каталозі. */
+  purchaseOnly?: boolean;
+  /** Не потрібна при purchaseOnly. */
+  rrp?: number | null;
   stockQty?: number | null;
   availability?: AvailabilityStatus;
   source: 'manual';

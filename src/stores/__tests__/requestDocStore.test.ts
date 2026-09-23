@@ -199,12 +199,25 @@ describe('requestDocStore', () => {
     // у каталозі ціна поки стара
     expect(product(offer.productId!).purchasePrice).toBe(100);
 
+    // прайс тим часом змінив РРЦ: із заявки в каталог іде лише вхідна ціна, РРЦ лишається прайсова
+    srv.addProducts({ ...product(offer.productId!), rrp: 555 });
     await store.getState().setOfferPurchasePrice(offer.id, 80, { updateCatalog: true });
     saved = store.getState().doc!.offers.find((o) => o.id === offer.id)!;
     expect(saved.purchasePriceCur).toBe(80);
     expect(product(offer.productId!).purchasePrice).toBe(80);
+    expect(product(offer.productId!).rrp).toBe(555);
     // знімок каталогу теж оновлено — «ціна в каталозі змінилась» не показуємо
     expect(saved.catalog?.purchasePrice).toBe(80);
+  });
+
+  it('змінити ціну і в каталозі: валюта товару змінилась — у каталог не пишемо', async () => {
+    const store = await openStore(setup());
+    const offer = store.getState().doc!.offers.find((o) => o.lineId === 'L1' && o.blockId === 'b1')!;
+    srv.addProducts({ ...product(offer.productId!), currency: offer.currency === 'EUR' ? 'USD' : 'EUR' });
+    await expect(store.getState().setOfferPurchasePrice(offer.id, 70, { updateCatalog: true })).rejects.toThrow(/Валюта/);
+    // у заявці ціну змінено, у каталозі — ні
+    expect(store.getState().doc!.offers.find((o) => o.id === offer.id)!.purchasePriceCur).toBe(70);
+    expect(product(offer.productId!).purchasePrice).toBe(100);
   });
 
   it('applyMix: оптимальний мікс — мінімальна ціна в кожному рядку, і поверх ручного вибору', async () => {

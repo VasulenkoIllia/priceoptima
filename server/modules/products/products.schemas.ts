@@ -154,6 +154,8 @@ export const productPriceUpdateSchema = z.object({
   purchasePrice: money('Вхідна ціна'),
   /** true — вхід введено з ПДВ, зберігається без ПДВ. */
   priceIncludesVat: z.boolean().optional(),
+  /** true — лише вхідна ціна (із заявки): РРЦ, валюта й наявність не змінюються. */
+  purchaseOnly: z.boolean().optional(),
   rrp: money('РРЦ'),
   stockQty: qty('Залишок').optional(),
   availability: availability.optional(),
