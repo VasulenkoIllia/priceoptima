@@ -4,7 +4,7 @@
 import { DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Checkbox, InputNumber, Input, Modal, Select, Spin, Steps, Tooltip, Upload } from 'antd';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CURRENCY_CODES, CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
 import { formatQty } from '@shared/format';
 import type { PriceImportMapping, PriceUpdateDto, UUID } from '@shared/types';
@@ -24,7 +24,7 @@ import {
   type PriceColumnMap,
   type PriceColumnRole,
 } from './priceRows';
-import { applySavedMapping, toSavedMapping } from './mappingStore';
+import { applySavedMapping, savedMappingFits, toSavedMapping } from './mappingStore';
 import { useIsAdmin } from '@/app/session';
 import { readSpreadsheetFile, sheetFromText, SpreadsheetError, type SheetData } from '@/lib/spreadsheet';
 import { downloadPriceTemplate } from './template';
@@ -73,7 +73,7 @@ function TemplateButton() {
 }
 
 function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImportDialogProps, 'open'>) {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const queryClient = useQueryClient();
   const supplier = useQuery({ queryKey: qk.supplier(supplierId), queryFn: () => ds.getSupplier(supplierId) });
   const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
@@ -108,8 +108,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
 
   const colOptions = useMemo(() => columnOptions(rows, mapping.headerRow), [rows, mapping.headerRow]);
 
-  /** Аркуш → автовизначення колонок + збережене минулого разу зіставлення цього постачальника. */
-  const selectSheet = (list: SheetData[], name: string) => {
+  /** Аркуш → автовизначення колонок + збережене минулого разу зіставлення цього постачальника. Повертає обраний аркуш. */
+  const selectSheet = (list: SheetData[], name: string): SheetData => {
     const picked = list.find((s) => s.name === name) ?? list[0];
     const saved = savedMapping.data ?? null;
     const detected = detectColumns(picked.rows);
@@ -126,6 +126,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       skipRowsWithoutPrice: saved?.skipRowsWithoutPrice ?? true,
       markMissing: saved?.markMissing ?? false,
     });
+    return picked;
   };
 
   const takeSheets = (list: SheetData[], name: string) => {
@@ -137,8 +138,10 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     setError(null);
     setFileName(name);
     setSheets(withRows);
-    selectSheet(withRows, savedMapping.data?.sheetName ?? withRows[0].name);
-    setStep(1);
+    const picked = selectSheet(withRows, savedMapping.data?.sheetName ?? withRows[0].name);
+    // файл такий самий, як минулого разу (ті самі колонки) — одразу перегляд; аркуш і колонки — кнопкою
+    const sameSheet = !savedMapping.data?.sheetName || picked.name === savedMapping.data.sheetName || withRows.length === 1;
+    setStep(sameSheet && savedMappingFits(savedMapping.data ?? null, picked.rows) ? 3 : 1);
   };
 
   const readFile = async (file: File) => {
@@ -173,14 +176,19 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   const hasPriceColumns = mapping.purchasePrice != null || mapping.rrp != null;
 
   const importPrices = useMutation({
-    mutationFn: (dryRun: boolean) =>
-      ds.importSupplierPrices(supplierId, {
-        rows: built.rows,
-        fileName,
-        markMissing,
-        ...(dryRun ? { dryRun: true } : {}),
-      }),
+    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing }),
   });
+
+  // «Перегляд»: що зміниться в каталозі — рахує сервер без запису (нова спроба заміняє попередню)
+  const preview = useMutation({
+    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, dryRun: true }),
+  });
+  const runPreview = preview.mutate;
+  const resetPreview = preview.reset;
+  useEffect(() => {
+    if (step === 3 && built.rows.length) runPreview();
+    else resetPreview();
+  }, [step, built.rows, markMissing, runPreview, resetPreview]);
 
   const isAdmin = useIsAdmin();
   const switchToHybrid = useMutation({
@@ -214,7 +222,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   };
 
   const applyNow = async () => {
-    const res = await importPrices.mutateAsync(false);
+    const res = await importPrices.mutateAsync();
     await rememberColumns();
     for (const queryKey of [qk.suppliers, qk.supplier(supplierId), qk.productsAll, qk.productAll, qk.priceHistoryAll, qk.priceUpdatesAll]) {
       void queryClient.invalidateQueries({ queryKey });
@@ -227,40 +235,9 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     onClose();
   };
 
-  const confirmApply = async () => {
+  const apply = async () => {
     try {
-      const dry = await importPrices.mutateAsync(true);
-      modal.confirm({
-        title: `Завантажити прайс для ${supplierName}?`,
-        width: 880,
-        icon: null,
-        content: (
-          <div className="po-pi-confirm">
-            <div>
-              Файл <b>{fileName}</b> — рядків: {formatQty(built.rows.length)}. Нижче — що зміниться в каталозі; поки ви не підтвердите, нічого не записано.
-            </div>
-            {sourceKind === 'auto' && hasPriceColumns ? (
-              <Alert
-                type="warning"
-                showIcon
-                message="Ціни цього постачальника щоранку оновлюються за посиланням — ціни з файлу буде перезаписано під час наступного оновлення."
-              />
-            ) : null}
-            <PriceUpdateReportView update={dry} preview />
-          </div>
-        ),
-        okText: 'Завантажити',
-        cancelText: 'Скасувати',
-        // помилка лишає вікно підтвердження відкритим — можна спробувати ще раз
-        onOk: async () => {
-          try {
-            await applyNow();
-          } catch (e) {
-            message.error(errorMessage(e));
-            throw e;
-          }
-        },
-      });
+      await applyNow();
     } catch (e) {
       message.error(errorMessage(e));
     }
@@ -320,7 +297,15 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
 
   const footer = (
     <div className="po-pi-footer">
-      {step === 0 ? <TemplateButton /> : <Button onClick={() => setStep((s) => s - 1)}>Назад</Button>}
+      {step === 0 ? (
+        <TemplateButton />
+      ) : step === 3 ? (
+        <Button onClick={() => setStep(1)} title="Змінити аркуш, рядок заголовка й колонки">
+          Аркуш і колонки…
+        </Button>
+      ) : (
+        <Button onClick={() => setStep((s) => s - 1)}>Назад</Button>
+      )}
       <span className="po-pi-footer-spacer" />
       <Button onClick={onClose}>Скасувати</Button>
       {step < 3 ? (
@@ -335,10 +320,10 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
         <Button
           type="primary"
           loading={importPrices.isPending}
-          disabled={!built.rows.length}
-          onClick={() => void confirmApply()}
+          disabled={!built.rows.length || !preview.isSuccess}
+          onClick={() => void apply()}
         >
-          Застосувати
+          Завантажити
         </Button>
       )}
     </div>
@@ -513,11 +498,30 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
 
         {step === 3 ? (
           <>
+            <div className="po-muted">
+              Файл <b>{fileName}</b>
+              {sheets.length > 1 ? `, аркуш «${sheet?.name ?? ''}»` : ''}. Нижче — що зміниться в каталозі; поки ви не натиснете «Завантажити», нічого не
+              записано.
+            </div>
             {sourceAlert}
             {summary}
             {built.rows.length ? null : (
               <Alert type="error" showIcon message="Жоден рядок не придатний для завантаження — перевірте зіставлення колонок." />
             )}
+            {preview.isPending ? <Spin style={{ display: 'block', margin: '16px auto' }} tip="Рахуємо, що зміниться…"><div style={{ height: 40 }} /></Spin> : null}
+            {preview.isError ? (
+              <Alert
+                type="error"
+                showIcon
+                message={errorMessage(preview.error)}
+                action={
+                  <Button size="small" onClick={() => runPreview()}>
+                    Спробувати ще раз
+                  </Button>
+                }
+              />
+            ) : null}
+            {preview.data ? <PriceUpdateReportView update={preview.data} preview /> : null}
             <RowsPreview preview={built.preview} />
             <div className="po-muted" style={{ fontSize: 12 }}>
               Ціни показано вже зведеними до входу без ПДВ{options.pricesIncludeVat ? ` (поділено на ${(1 + vatRatePct / 100).toLocaleString('uk-UA')})` : ''}. РРЦ у

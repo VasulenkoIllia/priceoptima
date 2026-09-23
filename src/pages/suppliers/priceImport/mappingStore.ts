@@ -26,6 +26,23 @@ export function toSavedMapping(
 }
 
 /**
+ * Збережене зіставлення без змін лягає на файл: кожну збережену колонку знайдено за заголовком
+ * (або за номером, якщо заголовка не було) — тоді аркуш і колонки можна не показувати, а одразу перегляд.
+ */
+export function savedMappingFits(saved: SavedPriceMapping | null, rows: readonly string[][]): boolean {
+  if (!saved || saved.headerRow == null || saved.headerRow >= rows.length) return false;
+  const keys = (rows[saved.headerRow] ?? []).map((c) => headerKey(c ?? ''));
+  const width = rows.reduce((w, r) => Math.max(w, r.length), 0);
+  const roles = PRICE_COLUMN_ROLES.filter((role) => saved.columns[role]);
+  if (!roles.length) return false;
+  return roles.every((role) => {
+    const s = saved.columns[role]!;
+    const key = headerKey(s.header);
+    return key ? keys.includes(key) : s.index < width;
+  });
+}
+
+/**
  * Збережене зіставлення на поточний файл: колонку шукаємо спершу за заголовком, потім за індексом;
  * чого не знайшли — лишаємо з автовизначення.
  */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { detectColumns, EMPTY_COLUMN_MAP, type PriceColumnMap } from '../priceRows';
-import { applySavedMapping, toSavedMapping, type SavedPriceMapping } from '../mappingStore';
+import { applySavedMapping, savedMappingFits, toSavedMapping, type SavedPriceMapping } from '../mappingStore';
 
 const HEADER = ['Код 1С', 'Назва номенклатури', 'Ціна опт з ПДВ', 'Наявність філія'];
 const ROWS = [HEADER, ['ТА-1', 'Кран', '219,00', '100+']];
@@ -59,5 +59,21 @@ describe('applySavedMapping — підставляння минулого зіс
     const columns = { code: { index: 0, header: '' }, name: { index: 1, header: '' }, purchasePrice: { index: 2, header: '' } };
     const result = applySavedMapping({ ...EMPTY_COLUMN_MAP }, saved(columns, null), rows);
     expect(result).toMatchObject<Partial<PriceColumnMap>>({ headerRow: null, code: 0, name: 1, purchasePrice: 2 });
+  });
+});
+
+describe('savedMappingFits — файл той самий, можна одразу на перегляд (5.7)', () => {
+  const saved = toSavedMapping(detectColumns(ROWS), HEADER, OPTIONS, 'Прайс');
+
+  it('ті самі заголовки (навіть в іншому порядку) — так', () => {
+    expect(savedMappingFits(saved, ROWS)).toBe(true);
+    const moved = [['Наявність філія', 'Код 1С', 'Ціна опт з ПДВ', 'Назва номенклатури'], ['100+', 'ТА-1', '219,00', 'Кран']];
+    expect(savedMappingFits(saved, moved)).toBe(true);
+  });
+
+  it('колонку перейменували або зіставлення ще не зберігали — ні', () => {
+    const renamed = [['Код 1С', 'Назва номенклатури', 'Ціна дилер', 'Наявність філія'], ['ТА-1', 'Кран', '219,00', '100+']];
+    expect(savedMappingFits(saved, renamed)).toBe(false);
+    expect(savedMappingFits(null, ROWS)).toBe(false);
   });
 });
