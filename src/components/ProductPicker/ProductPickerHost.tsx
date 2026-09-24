@@ -265,7 +265,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
         </span>
       ),
     },
-    { key: 'rrp', title: 'РРЦ з ПДВ, грн', width: 96, align: 'right', render: (_, r) => <span className="po-num">{formatMoney(r.rrpGrossUah)}</span> },
+    { key: 'rrp', title: 'РРЦ з ПДВ, грн', width: 96, align: 'right', render: (_, r) => <span className="po-num po-rrp">{formatMoney(r.rrpGrossUah)}</span> },
     {
       key: 'stock',
       title: 'Наявність',

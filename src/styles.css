@@ -48,6 +48,10 @@ body {
 .po-cell-error {
   color: var(--po-error);
 }
+/* РРЦ — фіолетовим (правки замовника 23.09 п.4) */
+.po-rrp {
+  color: var(--po-rrp);
+}
 .po-cell-empty {
   color: var(--po-placeholder);
   font-style: italic;

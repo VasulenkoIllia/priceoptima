@@ -16,6 +16,8 @@ export const SEMANTIC_COLORS = {
   /** Виключено: сірий + закреслення. */
   excluded: '#9AA0A6',
   warning: '#FA8C16',
+  /** РРЦ: окремим кольором, щоб не плутати з цінами входу й продажу. */
+  rrp: '#722ED1',
   warningBg: '#FFF7E6',
   error: '#D93025',
   errorBg: '#FDECEA',
@@ -72,6 +74,7 @@ export function applyThemeCssVars(density: Density): void {
     '--po-excluded': SEMANTIC_COLORS.excluded,
     '--po-warning': SEMANTIC_COLORS.warning,
     '--po-warning-bg': SEMANTIC_COLORS.warningBg,
+    '--po-rrp': SEMANTIC_COLORS.rrp,
     '--po-error': SEMANTIC_COLORS.error,
     '--po-error-bg': SEMANTIC_COLORS.errorBg,
     '--po-placeholder': SEMANTIC_COLORS.placeholder,

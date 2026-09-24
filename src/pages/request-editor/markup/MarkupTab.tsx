@@ -282,7 +282,7 @@ export default function MarkupTab() {
         colId: 'rrp',
         width: 92,
         type: 'rightAligned',
-        cellClass: 'po-num',
+        cellClass: 'po-num po-rrp',
         valueGetter: (p) => p.data?.mr.rrpGross,
         valueFormatter: (p) => money(p.value),
       },

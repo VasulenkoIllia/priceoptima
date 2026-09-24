@@ -111,6 +111,10 @@
 .ag-cell.ag-cell-focus[col-id='ag-Grid-SelectionColumn']:focus-within {
   border-color: transparent;
 }
+/* «Примітка» в блоці постачальника — дрібнішим шрифтом (правки замовника 23.09 п.4) */
+.ag-cell.po-note-cell {
+  font-size: calc(1em - 2px);
+}
 /* точка, до якої прив'язане меню правого кліку по рядку */
 .po-ctx-anchor {
   position: fixed;

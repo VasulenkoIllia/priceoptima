@@ -14,6 +14,7 @@ import {
   EXCLUDE_HINT,
   ExcludeCell,
   FillCell,
+  NoteCell,
   OfferNameCell,
   PickCell,
   PosCell,
@@ -204,7 +205,7 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         tooltipValueGetter: (p) => (p.data?.kind === 'totals' ? 'Всього без ПДВ по блоку' : null),
       };
     case 'rrp':
-      return { ...base, type: 'rightAligned', cellClass: cls('po-num'), valueGetter: (p) => ocOf(p)?.rrpGrossUah ?? null, valueFormatter: (p) => money(p.value as number | null) };
+      return { ...base, type: 'rightAligned', cellClass: cls('po-num', 'po-rrp'), valueGetter: (p) => ocOf(p)?.rrpGrossUah ?? null, valueFormatter: (p) => money(p.value as number | null) };
     case 'stock':
       return { ...base, type: 'rightAligned', valueGetter: (p) => offerOf(p)?.stockQty ?? null, cellRenderer: StockCell };
     case 'note':
@@ -212,8 +213,10 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         ...base,
         editable: (p) => canEditRow(p) && !!cellOf(p.data, blockId)?.offer,
         cellEditor: 'agTextCellEditor',
+        cellClass: cls('po-note-cell'),
         valueGetter: (p) => offerOf(p)?.note ?? '',
-        tooltipValueGetter: (p) => cellOf(p.data, blockId)?.offer?.note ?? null,
+        cellRenderer: NoteCell,
+        autoHeight: true,
       };
     case 'exclude':
       return { ...base, cellClass: cls('po-cell-center'), valueGetter: (p) => offerOf(p)?.excluded ?? null, cellRenderer: ExcludeCell };

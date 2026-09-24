@@ -202,6 +202,13 @@ export function OfferNameCell(p: P<BlockCellParams>) {
   return <span className="po-wrap">{offerDisplayName(offer) ?? ''}</span>;
 }
 
+/** «Примітка» до пропозиції: переноситься по словах, як назви. */
+export function NoteCell(p: P<BlockCellParams>) {
+  if (!isLineRow(p.data)) return null;
+  const note = cellOf(p.data, p.blockId)?.offer?.note;
+  return note ? <span className="po-wrap">{note}</span> : null;
+}
+
 export function UnitCell(p: P<BlockCellParams>) {
   if (!isLineRow(p.data)) return null;
   const cell = cellOf(p.data, p.blockId);

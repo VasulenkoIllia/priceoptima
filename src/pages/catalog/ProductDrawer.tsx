@@ -24,7 +24,7 @@ function historyColumns(vatRatePct: number): TableColumnsType<PriceHistoryEntry>
       align: 'right',
       render: (_, h) => <span className="po-num">{priceCur(grossPrice(h.purchasePrice, vatRatePct), h.currency)}</span>,
     },
-    { title: 'РРЦ', key: 'rrp', align: 'right', render: (_, h) => <span className="po-num">{priceCur(h.rrp, h.currency)}</span> },
+    { title: 'РРЦ', key: 'rrp', align: 'right', render: (_, h) => <span className="po-num po-rrp">{priceCur(h.rrp, h.currency)}</span> },
     { title: 'Наявність', key: 'stock', render: (_, h) => (h.availability ? <Availability status={h.availability} qty={h.stockQty} /> : null) },
     {
       title: 'Джерело',
@@ -106,7 +106,7 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
       ),
       children: <span className="po-num">{formatMoneyUah(grossPrice(product.purchasePriceUah, vatRatePct))}</span>,
     },
-    { key: 'rrp', label: 'РРЦ з ПДВ', children: <span className="po-num">{priceCur(product.rrp, product.currency)}</span> },
+    { key: 'rrp', label: 'РРЦ з ПДВ', children: <span className="po-num po-rrp">{priceCur(product.rrp, product.currency)}</span> },
     { key: 'stock', label: 'Наявність', children: <Availability status={product.availability} qty={product.stockQty} /> },
     {
       key: 'date',

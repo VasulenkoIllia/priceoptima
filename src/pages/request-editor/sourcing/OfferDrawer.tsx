@@ -161,7 +161,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
       ),
     },
     { key: 'sum', label: 'Сума без ПДВ', children: <b className="po-num">{formatMoneyUah(oc?.sumNetUah)}</b> },
-    { key: 'rrp', label: 'РРЦ з ПДВ', children: <span className="po-num">{formatMoneyUah(oc?.rrpGrossUah)}</span> },
+    { key: 'rrp', label: 'РРЦ з ПДВ', children: <span className="po-num po-rrp">{formatMoneyUah(oc?.rrpGrossUah)}</span> },
     {
       key: 'stock',
       label: 'Наявність',

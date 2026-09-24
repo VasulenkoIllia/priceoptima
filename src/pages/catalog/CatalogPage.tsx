@@ -234,7 +234,7 @@ export default function CatalogPage() {
         valueFormatter: (p) => (p.data ? priceCur(p.data.rrp, p.data.currency) : ''),
         width: 128,
         type: 'rightAligned',
-        cellClass: 'po-num',
+        cellClass: 'po-num po-rrp',
         headerTooltip: 'Рекомендована роздрібна ціна з ПДВ у валюті прайсу',
       },
       {
