@@ -84,11 +84,6 @@
   justify-content: center;
   cursor: context-menu;
 }
-/* заголовки колонок по центру (правки замовника 23.09 п.3) */
-.po-sourcing-grid-inner .ag-header-cell-label {
-  justify-content: center;
-  text-align: center;
-}
 /* колонка галочок (36 px): стандартні поля зсували галочку вбік; рамка фокусу навколо неї зайва */
 .ag-cell[col-id='ag-Grid-SelectionColumn'],
 .ag-header-cell[col-id='ag-Grid-SelectionColumn'] {
@@ -587,19 +582,6 @@
   gap: 4px;
   width: 100%;
   min-width: 0;
-}
-/* назва з переносом по словах: рядок підростає під довгу назву, коротка лишається в один рядок
-   (не нижча за звичайний рядок, тож і лупа в рядку без назви стоїть по центру) */
-.po-wrap {
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  min-height: calc(var(--ag-row-height) - 2px);
-  min-width: 0;
-  padding: 4px 0;
-  line-height: 1.3;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 .po-client-name .po-wrap {
   flex: 1;

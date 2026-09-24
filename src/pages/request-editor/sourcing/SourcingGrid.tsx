@@ -120,6 +120,9 @@ const DEFAULT_COL_DEF: ColDef<SourcingRow> = {
   resizable: true,
   suppressMovable: true,
   suppressHeaderMenuButton: true,
+  // довгі заголовки («Сума без ПДВ», «РРЦ з ПДВ») переносяться, а не обрізаються
+  wrapHeaderText: true,
+  autoHeaderHeight: true,
   suppressKeyboardEvent,
   // рендери показують більше, ніж значення клітинки (затвердження, попередження, «не знайдено»):
   // у зміненому рядку перемальовуємо всі клітинки; незмінені рядки зберігають посилання й не оновлюються

@@ -411,7 +411,7 @@ export default function CatalogPage() {
           cacheBlockSize={PAGE_SIZE}
           maxBlocksInCache={20}
           columnDefs={sortableColumns}
-          defaultColDef={{ sortable: true, resizable: true, suppressMovable: true }}
+          defaultColDef={{ sortable: true, resizable: true, suppressMovable: true, wrapHeaderText: true, autoHeaderHeight: true }}
           getRowId={(p) => p.data.id}
           rowClass="po-cat-row"
           overlayNoRowsTemplate="<span>Товарів не знайдено</span>"

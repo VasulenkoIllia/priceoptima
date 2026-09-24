@@ -404,7 +404,7 @@ export default function RegistryPage() {
           cacheBlockSize={PAGE_SIZE}
           maxBlocksInCache={20}
           columnDefs={columns}
-          defaultColDef={{ sortable: false, resizable: true, suppressMovable: true }}
+          defaultColDef={{ sortable: false, resizable: true, suppressMovable: true, wrapHeaderText: true, autoHeaderHeight: true }}
           getRowId={(p) => p.data.id}
           onGridReady={(e) => {
             gridApi.current = e.api;

@@ -85,7 +85,7 @@ export default function ClientsPage() {
             containerStyle={{ height: '100%' }}
             rowData={rows}
             columnDefs={COLUMNS}
-            defaultColDef={{ sortable: true, resizable: true, suppressMovable: true }}
+            defaultColDef={{ sortable: true, resizable: true, suppressMovable: true, wrapHeaderText: true, autoHeaderHeight: true }}
             getRowId={(p) => p.data.id}
             rowClass="po-cli-row"
             loading={clients.isPending}

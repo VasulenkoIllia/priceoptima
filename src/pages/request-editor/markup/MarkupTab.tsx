@@ -47,10 +47,11 @@ function ProductCell({ data }: P) {
   if (!data.offer) return <span className="po-muted">не підібрано, у КП не увійде</span>;
   const name = offerDisplayName(data.offer) ?? '';
   return (
-    <span className="po-mk-product" title={`${data.offer.sku ?? ''} ${name}`}>
+    <span className="po-mk-product po-wrap">
       {data.supplier ? <SupplierLogo name={data.supplier.name} logoUrl={data.supplier.logoUrl} color={data.supplier.color} size={16} /> : null}
-      <span className="po-num po-muted">{data.offer.sku}</span>
-      <span className="po-mk-ellipsis">{name}</span>
+      <span>
+        <span className="po-num po-muted">{data.offer.sku}</span> {name}
+      </span>
     </span>
   );
 }
@@ -259,7 +260,9 @@ export default function MarkupTab() {
         flex: 1,
         minWidth: 170,
         pinned: 'left',
-        tooltipValueGetter: (p) => p.value as string,
+        // перенос по словах, як у «Підборі»: довга назва видна повністю
+        cellRenderer: (p: ICellRendererParams<MarkupRow>) => <span className="po-wrap">{p.value as string}</span>,
+        autoHeight: true,
       },
       {
         headerName: 'К-сть',
@@ -289,7 +292,7 @@ export default function MarkupTab() {
       {
         headerName: 'Спосіб',
         colId: 'method',
-        width: 150,
+        width: 178,
         cellRenderer: MethodCell,
         cellClass: 'po-mk-method-cell',
         tooltipValueGetter: (p) =>
@@ -298,7 +301,7 @@ export default function MarkupTab() {
       {
         headerName: '%',
         colId: 'value',
-        width: 64,
+        width: 80,
         type: 'rightAligned',
         cellClass: 'po-num',
         headerTooltip: 'Націнка на вхід або знижка від РРЦ, % (Enter: змінити)',
@@ -381,7 +384,7 @@ export default function MarkupTab() {
         valueGetter: (p) => p.data?.mr.rrpVsCostPct,
         valueFormatter: (p) => pct(p.value),
       },
-      { headerName: 'Товар постачальника', colId: 'product', width: 280, cellRenderer: ProductCell },
+      { headerName: 'Товар постачальника', colId: 'product', width: 280, cellRenderer: ProductCell, autoHeight: true },
       { headerName: '', colId: 'warn', width: 48, cellRenderer: WarnCell, pinned: 'right' },
     ];
     return defs;
@@ -527,7 +530,7 @@ export default function MarkupTab() {
             rowData={rows}
             columnDefs={columns}
             context={context}
-            defaultColDef={{ sortable: false, resizable: true, suppressMovable: true }}
+            defaultColDef={{ sortable: false, resizable: true, suppressMovable: true, wrapHeaderText: true, autoHeaderHeight: true }}
             getRowId={(p) => p.data.id}
             readOnlyEdit
             onCellEditRequest={onCellEditRequest}
