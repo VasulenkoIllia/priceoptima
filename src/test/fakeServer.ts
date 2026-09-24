@@ -370,7 +370,10 @@ class FakeTab {
 
   async createProduct(input: ProductInput): Promise<ProductDetail> {
     const at = this.srv.now().toISOString();
-    const p = pickProduct(`p-new-${this.srv.products.size + 1}`, input.supplierId, { sku: input.sku, nameWork: input.nameWork, purchasePrice: input.purchasePrice ?? null });
+    const n = this.srv.products.size + 1;
+    // без артикула — як сервер: «ВР-0000N»
+    const sku = input.sku || `ВР-${String(n).padStart(5, '0')}`;
+    const p = pickProduct(`p-new-${n}`, input.supplierId, { sku, nameWork: input.nameWork, purchasePrice: input.purchasePrice ?? null });
     this.srv.addProducts(p);
     return { ...p, version: 1, minOrderQty: null, notes: null, priceSource: 'manual', lastImportId: null, createdAt: at, updatedAt: at } as ProductDetail;
   }

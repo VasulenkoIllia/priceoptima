@@ -40,6 +40,7 @@ interface FormValues {
   supplierId: UUID;
   sku: string;
   nameWork: string;
+  name1c?: string;
   unitCode: string;
   currency: CurrencyCode;
   purchasePrice?: number | null;
@@ -85,8 +86,10 @@ export function NewProductDialog({
     try {
       const product = await onSubmit({
         supplierId: v.supplierId,
-        sku: v.sku.trim(),
+        // порожній артикул — сервер присвоїть «ВР-00001» (правки замовника 23.09 п.14)
+        sku: v.sku?.trim() || null,
         nameWork: v.nameWork.trim(),
+        name1c: v.name1c?.trim() || null,
         unitCode: v.unitCode,
         currency: v.currency,
         purchasePrice: v.purchasePrice ?? null,
@@ -152,13 +155,16 @@ export function NewProductDialog({
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="sku" label="Артикул" rules={[{ required: true, whitespace: true, message: 'Вкажіть артикул' }]}>
-              <Input autoFocus={!initial?.sku} />
+            <Form.Item name="sku" label="Артикул" extra="Порожньо: присвоїться автоматично (ВР-00001, ВР-00002…)">
+              <Input autoFocus={!initial?.sku} placeholder="присвоїться автоматично" />
             </Form.Item>
           </Col>
         </Row>
         <Form.Item name="nameWork" label="Найменування" rules={[{ required: true, whitespace: true, message: 'Вкажіть найменування' }]}>
           <Input autoFocus={!!initial?.sku} />
+        </Form.Item>
+        <Form.Item name="name1c" label="Назва 1С" extra="Як товар називається в 1С (для бухгалтерії); можна додати й пізніше в картці товару">
+          <Input placeholder="не задано" />
         </Form.Item>
         <Row gutter={12}>
           <Col span={5}>

@@ -14,8 +14,8 @@ import { createOwnCompany } from '../../modules/own-companies/ownCompanies.servi
 import { ownCompanyInputSchema } from '../../modules/own-companies/ownCompanies.schemas';
 import { importBodySchema } from '../../modules/price-updates/priceUpdates.schemas';
 import { importPriceRows } from '../../modules/price-updates/priceUpdates.service';
-import { productPatchSchema, productPriceUpdateSchema } from '../../modules/products/products.schemas';
-import { getPriceHistory, getProduct, updateProduct, updateProductPrice } from '../../modules/products/products.service';
+import { productInputSchema, productPatchSchema, productPriceUpdateSchema } from '../../modules/products/products.schemas';
+import { createProduct, getPriceHistory, getProduct, updateProduct, updateProductPrice } from '../../modules/products/products.service';
 import { kpCreateSchema, createRequestSchema, documentPatchSchema } from '../../modules/requests/requests.schemas';
 import { createKp, listKps } from '../../modules/requests/kp.service';
 import { acquireLock, activeLock, forceLock, releaseLock } from '../../modules/requests/locks.service';
@@ -113,6 +113,21 @@ describe('прайс файлом', () => {
     const dry = await importFile([{ code: 'NEW-1', name: 'Нове', purchasePrice: 10 }], { dryRun: true });
     expect(dry.added).toBe(1);
     expect(await prisma.product.count({ where: { supplierId } })).toBe(before);
+  });
+});
+
+describe('новий товар вручну (правки замовника 23.09 п.14)', () => {
+  it('без артикула — «ВР-00001», «ВР-00002»; назва 1С зберігається; зайнятий артикул — відмова', async () => {
+    const own = await createSupplier(parse(supplierInputSchema, { name: `Ручні ${RUN}`, defaultCurrency: 'UAH' }), admin);
+    const input = (extra: object) => parse(productInputSchema, { supplierId: own.id, nameWork: 'Лічильник води', currency: 'UAH', ...extra });
+    const a = await createProduct(input({ sku: '', name1c: 'Лічильник ХВ 1/2' }), admin);
+    const b = await createProduct(input({}), admin);
+    expect([a.sku, b.sku]).toEqual(['ВР-00001', 'ВР-00002']);
+    expect(a.name1c).toBe('Лічильник ХВ 1/2');
+    // одночасно — різні номери
+    const [c, d] = await Promise.all([createProduct(input({}), admin), createProduct(input({}), admin)]);
+    expect(new Set([c.sku, d.sku])).toEqual(new Set(['ВР-00003', 'ВР-00004']));
+    expect(await errorCode(() => createProduct(input({ sku: 'ВР-00001' }), admin))).toBe('DUPLICATE');
   });
 });
 

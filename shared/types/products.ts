@@ -135,7 +135,8 @@ export interface ProductSearchQuery {
 
 export interface ProductInput {
   supplierId: UUID;
-  sku: string;
+  /** Порожній — сервер присвоїть наступний вільний «ВР-00001» у цього постачальника. */
+  sku?: string | null;
   nameWork: string;
   name1c?: string | null;
   brand?: string | null;

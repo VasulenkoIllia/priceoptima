@@ -110,7 +110,8 @@ export const skuLookupSchema = z.object({
 
 export const productInputSchema = z.object({
   supplierId: z.uuid('Оберіть постачальника'),
-  sku: trimmed(120, 'Вкажіть артикул'),
+  // порожній — сервер присвоїть «ВР-00001» (правки замовника 23.09 п.14)
+  sku: optionalText(120),
   nameWork: trimmed(300, 'Вкажіть робочу назву'),
   name1c: optionalText(300),
   brand: optionalText(120),

@@ -405,16 +405,46 @@ export async function lookupSkus(body: SkuLookupInput): Promise<SkuLookupResult>
 
 // ── ручне ведення каталогу ──────────────────────────────────────────
 
+/** Префікс артикула, який сервер присвоює товару, створеному без артикула («вручну»). */
+export const MANUAL_SKU_PREFIX = 'ВР-';
+
+/** Наступний вільний артикул «ВР-00001» у цього постачальника. */
+async function nextManualSku(supplierId: UUID): Promise<string> {
+  const rows = await prisma.$queryRaw<{ n: number | null }[]>`
+    SELECT MAX(CAST(substring(sku FROM 4) AS integer)) AS n
+    FROM "Product"
+    WHERE "supplierId" = ${supplierId} AND sku ~ '^ВР-[0-9]{1,9}$'`;
+  return `${MANUAL_SKU_PREFIX}${String((rows[0]?.n ?? 0) + 1).padStart(5, '0')}`;
+}
+
+/** Артикул зайняли між вибором номера й записом: перевірка перед записом або унікальний індекс. */
+const skuTaken = (e: unknown) =>
+  (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') || (e instanceof ApiError && e.code === 'DUPLICATE');
+
+/**
+ * Новий товар вручну. Без артикула — сервер присвоює наступний вільний «ВР-00001» (правки замовника 23.09 п.14);
+ * двоє одночасно отримали той самий номер — унікальний індекс відмовить одному, тож беремо наступний.
+ */
 export async function createProduct(input: ProductInputBody, actor: User): Promise<ProductDetail> {
   const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true } });
   if (!supplier) throw notFound('Постачальника не знайдено');
+  if (input.sku) return createProductWithSku(input, input.sku, actor);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await createProductWithSku(input, await nextManualSku(input.supplierId), actor);
+    } catch (e) {
+      if (!skuTaken(e) || attempt >= 4) throw e;
+    }
+  }
+}
 
-  const skuKey = normalizeSku(input.sku);
+async function createProductWithSku(input: ProductInputBody, sku: string, actor: User): Promise<ProductDetail> {
+  const skuKey = normalizeSku(sku);
   const taken = await prisma.product.findUnique({
     where: { supplierId_skuKey: { supplierId: input.supplierId, skuKey } },
     select: { id: true },
   });
-  if (taken) throw duplicate(`Артикул ${input.sku} вже є в каталозі цього постачальника`);
+  if (taken) throw duplicate(`Артикул ${sku} вже є в каталозі цього постачальника`);
 
   const settings = await getSettings();
   const purchasePrice =
@@ -429,11 +459,11 @@ export async function createProduct(input: ProductInputBody, actor: User): Promi
     const product = await tx.product.create({
       data: {
         supplierId: input.supplierId,
-        sku: input.sku,
+        sku,
         skuKey,
         nameWork: input.nameWork,
         name1c: input.name1c,
-        searchText: searchTextOf({ sku: input.sku, nameWork: input.nameWork, name1c: input.name1c, brand: input.brand }),
+        searchText: searchTextOf({ sku, nameWork: input.nameWork, name1c: input.name1c, brand: input.brand }),
         brand: input.brand,
         unitCode: input.unitCode,
         currency: input.currency,
