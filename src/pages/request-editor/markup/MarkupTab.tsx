@@ -253,7 +253,7 @@ export default function MarkupTab() {
     const defs: ColDef<MarkupRow>[] = [
       { headerName: '№', colId: 'n', valueGetter: (p) => p.data?.line.position, width: 48, pinned: 'left', cellClass: 'po-num' },
       {
-        headerName: 'Найменування клієнта',
+        headerName: 'Найменування (згідно заявки)',
         colId: 'client',
         valueGetter: (p) => p.data?.line.clientName,
         flex: 1,

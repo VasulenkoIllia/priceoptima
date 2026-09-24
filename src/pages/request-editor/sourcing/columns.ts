@@ -65,15 +65,16 @@ function clientColumns(mode: EditorMode): SourcingColDef[] {
     },
     {
       colId: COL.line('clientName'),
-      headerName: 'Найменування (як у клієнта)',
+      headerName: 'Найменування (згідно заявки)',
       width: mode === 'comparison' ? 280 : 230,
       minWidth: 140,
       pinned: 'left',
       editable: canEditClient,
       cellEditor: 'agTextCellEditor',
       valueGetter: (p) => (isLineRow(p.data) ? p.data.line.clientName : p.data?.kind === 'totals' ? `Разом: ${p.data.activeCount} поз.` : ''),
-      tooltipValueGetter: (p) => (isLineRow(p.data) && p.data.line.clientName.length > 30 ? p.data.line.clientName : null),
       cellRenderer: ClientNameCell,
+      // перенос по словах: довга назва видна повністю, рядок стає вищим (правки замовника 23.09 п.3)
+      autoHeight: true,
       cellClassRules: { 'po-totals-label': (p) => p.data?.kind === 'totals' },
     },
     {
@@ -177,7 +178,7 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         cellRenderer: SkuCell,
       };
     case 'name':
-      return { ...base, valueGetter: (p) => offerOf(p)?.nameWork ?? '', cellRenderer: OfferNameCell };
+      return { ...base, valueGetter: (p) => offerOf(p)?.nameWork ?? '', cellRenderer: OfferNameCell, autoHeight: true };
     case 'unit':
       return { ...base, valueGetter: (p) => offerOf(p)?.unitCode ?? '', cellRenderer: UnitCell };
     case 'qty':

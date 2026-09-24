@@ -50,7 +50,7 @@ function Flex({ children, title }: { children: ReactNode; title?: string }) {
 }
 
 // ── колонки клієнта ─────────────────────────────────────────────────
-/** «Найменування (як у клієнта)»: назва + кнопка «Підібрати в каталозі» (видно при наведенні на рядок). */
+/** «Найменування (згідно заявки)»: назва (переноситься по словах) + кнопка «Підібрати в каталозі» (видно при наведенні на рядок). */
 export function ClientNameCell(p: P) {
   const row = p.data;
   if (row?.kind === 'totals') return <span className="po-totals-label">Разом: {row.activeCount} поз.</span>;
@@ -58,7 +58,7 @@ export function ClientNameCell(p: P) {
   if (!isLineRow(row)) return null;
   return (
     <span className="po-client-name">
-      <span className="po-ellipsis">{row.line.clientName}</span>
+      <span className="po-wrap">{row.line.clientName}</span>
       {p.context.isReadOnly() ? null : (
         <SearchOutlined
           className="po-client-pick"
@@ -199,12 +199,7 @@ export function OfferNameCell(p: P<BlockCellParams>) {
   if (!isLineRow(row)) return null;
   const offer = cellOf(row, p.blockId)?.offer;
   if (!offer) return null;
-  const name = offerDisplayName(offer) ?? '';
-  return (
-    <span className="po-ellipsis" title={name}>
-      {name}
-    </span>
-  );
+  return <span className="po-wrap">{offerDisplayName(offer) ?? ''}</span>;
 }
 
 export function UnitCell(p: P<BlockCellParams>) {
