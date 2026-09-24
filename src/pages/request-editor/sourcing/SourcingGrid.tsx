@@ -467,7 +467,11 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
         if (col.field === 'pick') a.togglePick(row.id, col.blockId);
         else if (col.field === 'exclude') a.toggleExclude(row.id, col.blockId);
       } else if (col.kind === 'compare') {
-        if (!row.cells[col.blockId]?.offer && !store.getState().readOnly) a.openPickerFor(row.id, col.blockId, 'add');
+        // клітинка з товаром: у редагуванні клік лише виділяє (ціну вводять одразу), у перегляді — показує пропозицію
+        const hasOffer = !!row.cells[col.blockId]?.offer;
+        const readOnly = store.getState().readOnly;
+        if (hasOffer && readOnly) ui.openDrawer({ lineId: row.id, blockId: col.blockId });
+        else if (!hasOffer && !readOnly) a.openPickerFor(row.id, col.blockId, 'add');
       } else if (col.kind === 'chosen' && mode === 'comparison' && row.chosen) {
         ui.openDrawer({ lineId: row.id, blockId: row.chosen.blockId });
       }
