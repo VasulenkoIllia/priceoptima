@@ -77,7 +77,19 @@ describe('фільтр і пошук рядків', () => {
     expect(filterRows(rows, 'unapproved', '').map((x) => x.id)).toEqual(['l1', 'l3']);
     // l3: к-сть 4 при наявності 1
     expect(filterRows(rows, 'warnings', '').map((x) => x.id)).toEqual(['l3']);
-    expect(countByFilter(rows)).toEqual({ all: 4, unmatched: 0, unapproved: 2, warnings: 1, stock: 1, stale: 0 });
+    expect(countByFilter(rows)).toEqual({ all: 4, matched: 3, unmatched: 0, unapproved: 2, warnings: 1, stock: 1, stale: 0 });
+  });
+
+  it('«Підібрані» і «З попередженнями» не дублюють «Не підібрані»', () => {
+    // l3 без пропозицій і з к-стю 0: лише «Не підібрані», хоча попередження «кількість 0» у рядка є
+    const doc = docWith({
+      lines: docWith().lines.map((l) => (l.id === 'l3' ? { ...l, qty: 0 } : l)),
+      offers: docWith().offers.filter((o) => o.lineId !== 'l3'),
+    });
+    const r = rowsOf(doc);
+    expect(filterRows(r, 'matched', '').map((x) => x.id)).toEqual(['l1', 'l2']);
+    expect(filterRows(r, 'unmatched', '').map((x) => x.id)).toEqual(['l3']);
+    expect(filterRows(r, 'warnings', '').map((x) => x.id)).toEqual([]);
   });
 
   it('пошук по назві клієнта, артикулу пропозиції і № рядка', () => {

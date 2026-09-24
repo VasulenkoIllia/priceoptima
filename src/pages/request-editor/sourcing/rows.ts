@@ -73,14 +73,15 @@ export const EMPTY_CELL: BlockCell = { offer: null, oc: null, miss: null };
 export const missKey = (lineId: UUID, blockId: UUID) => `${lineId}:${blockId}`;
 
 /** Фільтри рядків: базові (панель інструментів) і за видом попередження (лічильники панелі «Сценарії»). */
-export type RowFilter = 'all' | 'unmatched' | 'unapproved' | 'warnings' | WarningFilter;
+export type RowFilter = 'all' | 'matched' | 'unmatched' | 'unapproved' | 'warnings' | WarningFilter;
 export type WarningFilter = 'stock' | 'stale';
 
-export const BASE_FILTERS: readonly RowFilter[] = ['all', 'unmatched', 'unapproved', 'warnings'];
+export const BASE_FILTERS: readonly RowFilter[] = ['all', 'matched', 'unmatched', 'unapproved', 'warnings'];
 export const WARNING_FILTERS: readonly WarningFilter[] = ['stock', 'stale'];
 
 export const ROW_FILTER_LABELS: Record<RowFilter, string> = {
   all: 'Усі',
+  matched: 'Підібрані',
   unmatched: 'Не підібрані',
   unapproved: 'Без затвердження',
   warnings: 'З попередженнями',
@@ -195,12 +196,15 @@ export function rowMatchesFilter(row: LineRow, filter: RowFilter): boolean {
   switch (filter) {
     case 'all':
       return true;
+    case 'matched':
+      return !!cmp?.isActive && !!cmp.effectiveOfferId;
     case 'unmatched':
       return !!cmp?.isActive && !cmp.effectiveOfferId;
     case 'unapproved':
       return !!cmp?.isActive && isNotApproved(cmp);
+    // лише підібрані рядки: непідібрані вже є у «Не підібрані» (інакше списки дублювались — правки замовника 23.09 п.5)
     case 'warnings':
-      return rowWarnings(row).length > 0;
+      return !!cmp?.effectiveOfferId && rowWarnings(row).length > 0;
     default:
       return hasOfferWarning(row, WARNING_FILTER_CODES[filter]);
   }
@@ -234,7 +238,7 @@ export function filterRows(rows: readonly LineRow[], filter: RowFilter, search: 
 
 /** Кількість рядків за кожним фільтром (для підписів у перемикачі). */
 export function countByFilter(rows: readonly LineRow[]): Record<RowFilter, number> {
-  const counts: Record<RowFilter, number> = { all: rows.length, unmatched: 0, unapproved: 0, warnings: 0, stock: 0, stale: 0 };
+  const counts: Record<RowFilter, number> = { all: rows.length, matched: 0, unmatched: 0, unapproved: 0, warnings: 0, stock: 0, stale: 0 };
   const keys = [...BASE_FILTERS, ...WARNING_FILTERS].filter((f) => f !== 'all');
   for (const r of rows) {
     for (const f of keys) if (rowMatchesFilter(r, f)) counts[f]++;
