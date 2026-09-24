@@ -1,7 +1,8 @@
-// «Змінити ціну» — лише для товарів, доданих вручну; решта оновлюється з прайсів постачальників.
+// «Змінити ціну» — лише для товарів, доданих вручну; ціну товару з прайсу веде прайс, її змінюють лише в заявці.
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Col, Form, InputNumber, Modal, Row, Select, Typography } from 'antd';
 import { CURRENCY_CODES, CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
+import { round2 } from '@shared/pricing';
 import type { ProductDetail } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
 import { grossPrice, useVatRate } from './productView';
@@ -26,8 +27,10 @@ export function ManualPriceDialog({ open, product, onClose }: ManualPriceDialogP
   const queryClient = useQueryClient();
   const [form] = Form.useForm<FormValues>();
   const vatRatePct = useVatRate();
-  // вхід вводиться з ПДВ (п.7 правок); сервер зводить його до ціни без ПДВ за ставкою з Налаштувань
-  const initialGross = grossPrice(product.purchasePrice, vatRatePct);
+  // вхід вводиться з ПДВ (п.7 правок); сервер зводить його до ціни без ПДВ за ставкою з Налаштувань.
+  // У полі — до копійок (74,80, а не 74,796); не чіпали — лишається збережена ціна без ПДВ
+  const exactGross = grossPrice(product.purchasePrice, vatRatePct);
+  const initialGross = exactGross == null ? null : round2(exactGross);
 
   const save = useMutation({
     mutationFn: (v: FormValues) => {
@@ -68,6 +71,7 @@ export function ManualPriceDialog({ open, product, onClose }: ManualPriceDialogP
       <Typography.Paragraph type="secondary" ellipsis={{ rows: 2 }} style={{ marginBottom: 12 }}>
         <span className="po-num">{product.sku}</span> · {product.nameWork}
       </Typography.Paragraph>
+
       <Form<FormValues>
         form={form}
         layout="vertical"

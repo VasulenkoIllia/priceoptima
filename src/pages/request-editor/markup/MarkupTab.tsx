@@ -15,6 +15,7 @@ import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
+import { setOfferPriceFromInput, setOfferRrpFromInput } from '../offerCellInput';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 
 interface MarkupRow {
@@ -56,13 +57,13 @@ function ProductCell({ data }: P) {
   );
 }
 
-/** Вхід обраної пропозиції з логотипом постачальника. */
+/** Вхід обраної пропозиції з ПДВ (для порівняння з РРЦ, правки замовника 23.09 п.11) з логотипом постачальника. */
 function CostCell({ data }: P) {
   if (!data?.offer) return null;
   return (
     <span className="po-mk-cost">
       {data.supplier ? <SupplierLogo name={data.supplier.name} logoUrl={data.supplier.logoUrl} color={data.supplier.color} size={14} /> : null}
-      <span className="po-num">{formatMoney(data.mr.costNet)}</span>
+      <span className="po-num">{formatMoney(data.mr.costGross)}</span>
     </span>
   );
 }
@@ -273,11 +274,17 @@ export default function MarkupTab() {
         valueGetter: (p) => (p.data ? `${formatQty(p.data.mr.qty)} ${p.data.mr.unit ?? ''}`.trim() : ''),
       },
       {
-        headerName: 'Вхід без ПДВ',
+        headerName: 'Вхід з ПДВ',
         colId: 'cost',
         width: 116,
         cellRenderer: CostCell,
-        headerTooltip: 'Ціна обраної пропозиції без ПДВ, грн за од. (C); логотип показує постачальника',
+        headerTooltip: 'Ціна входу обраної пропозиції з ПДВ, грн за од.; логотип показує постачальника. Введіть нову, щоб змінити її лише в цій заявці',
+        // нова ціна входу — прямо тут, як у «Підборі» (правки замовника 23.09 п.8)
+        editable: canEdit,
+        cellEditor: 'agTextCellEditor',
+        cellEditorParams: { useFormatter: true },
+        valueGetter: (p) => p.data?.mr.costGross,
+        valueFormatter: (p) => money(p.value),
         cellClassRules: { 'po-cell-not-approved': (p) => !!p.data?.mr.notApproved },
       },
       {
@@ -286,6 +293,10 @@ export default function MarkupTab() {
         width: 92,
         type: 'rightAligned',
         cellClass: 'po-num po-rrp',
+        headerTooltip: 'Рекомендована роздрібна ціна з ПДВ, грн за од. Введіть нову, щоб змінити її лише в цій заявці',
+        editable: canEdit,
+        cellEditor: 'agTextCellEditor',
+        cellEditorParams: { useFormatter: true },
         valueGetter: (p) => p.data?.mr.rrpGross,
         valueFormatter: (p) => money(p.value),
       },
@@ -394,6 +405,13 @@ export default function MarkupTab() {
   const onCellEditRequest = (e: CellEditRequestEvent<MarkupRow>) => {
     const row = e.data;
     if (!row || latest.current.readOnly) return;
+    // вхід і РРЦ — ціни пропозиції, лише в цій заявці (спільно з «Підбором»)
+    if (e.column.getColId() === 'cost' || e.column.getColId() === 'rrp') {
+      if (!row.mr.blockId) return;
+      if (e.column.getColId() === 'cost') setOfferPriceFromInput({ message, modal }, row.id, row.mr.blockId, e.newValue, true);
+      else setOfferRrpFromInput({ message, modal }, row.id, row.mr.blockId, e.newValue);
+      return;
+    }
     const parsed = parseLocaleNumber(e.newValue == null ? '' : String(e.newValue));
     if (!parsed.valid || (parsed.value != null && parsed.value < 0)) {
       message.warning('Введіть невід’ємне число');

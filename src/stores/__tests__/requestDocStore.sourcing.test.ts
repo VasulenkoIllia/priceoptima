@@ -126,3 +126,19 @@ describe('requestDocStore — курс і націнка блоку (правк�
     expect(store.getState().doc!.blocks.find((b) => b.id === b1)).toMatchObject({ rates: { USD: 46, EUR: 51.5 }, supplierMarkupPct: 0 });
   });
 });
+
+describe('requestDocStore — РРЦ пропозиції лише в цій заявці (правки замовника 23.09 п.8)', () => {
+  it('setOfferRrp: нова РРЦ рахується в заявці, некоректне значення не пишеться, Ctrl+Z повертає', async () => {
+    const { srv, store } = await openNew();
+    const [l1] = store.getState().addLines([{ clientName: 'Позиція', qty: 1 }]);
+    const blockId = store.getState().addBlock('s1')!;
+    const offerId = store.getState().setOfferFromProduct(l1, blockId, { ...srv.products.get('p-s1-a')!, rrp: 150 })!;
+    expect(store.getState().getComputed()!.offers[offerId].rrpGrossUah).toBe(150);
+    store.getState().setOfferRrp(offerId, 180);
+    expect(store.getState().getComputed()!.offers[offerId].rrpGrossUah).toBe(180);
+    store.getState().setOfferRrp(offerId, -5);
+    expect(store.getState().doc!.offers.find((o) => o.id === offerId)?.rrpCur).toBe(180);
+    store.getState().undo();
+    expect(store.getState().getComputed()!.offers[offerId].rrpGrossUah).toBe(150);
+  });
+});

@@ -208,6 +208,8 @@ export interface RequestDocActions {
   /** Вимкнути / увімкнути округлення до кратності для цієї пропозиції (лише в цій заявці). */
   setOfferNoRounding(offerId: UUID, noRounding: boolean): void;
   setOfferNote(offerId: UUID, note: string | null): void;
+  /** РРЦ пропозиції лише в цій заявці (з ПДВ, у валюті прайсу); каталог не змінюється. */
+  setOfferRrp(offerId: UUID, rrpCur: number | null): void;
   toggleExclude(offerId: UUID, reason?: string | null): void;
   selectOffer(lineId: UUID, blockId: UUID | null): void;
   /** Затвердити рекомендовані для рядків без ручного вибору. Повертає кількість змінених рядків. */
@@ -1121,6 +1123,13 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       setOfferNote(offerId, note) {
         editOffer(offerId, (o) => {
           o.note = note?.trim() ? note : null;
+        });
+      },
+
+      setOfferRrp(offerId, rrpCur) {
+        if (rrpCur !== null && !(Number.isFinite(rrpCur) && rrpCur > 0)) return;
+        editOffer(offerId, (o) => {
+          o.rrpCur = rrpCur;
         });
       },
 

@@ -9,6 +9,7 @@ import { openPicker } from '@/components/ProductPicker';
 import { errorMessage } from '@/data/errors';
 import { getRequestDocStore, type AddLinesMode, type NewLineInput } from '@/stores/requestDocStore';
 import { COL, LINE_FIELDS, type LineField } from './colIds';
+import { setOfferPriceFromInput, setOfferRrpFromInput } from '../offerCellInput';
 import { planFill, type FillField } from './fill';
 import { pasteSkusSummary, type PastePlan } from './paste';
 import { NEW_ROW_ID } from './rows';
@@ -188,6 +189,15 @@ export function createSourcingActions(app: AppApi) {
     ui().setMiss(lineId, blockId, null);
   }
 
+  /** Нова ціна входу чи РРЦ прямо в клітинці — лише в цій заявці (offerCellInput). */
+  function setOfferPriceFromCell(lineId: UUID, blockId: UUID, raw: unknown, withVat: boolean): void {
+    setOfferPriceFromInput(app, lineId, blockId, raw, withVat);
+  }
+
+  function setOfferRrpFromCell(lineId: UUID, blockId: UUID, raw: unknown): void {
+    setOfferRrpFromInput(app, lineId, blockId, raw);
+  }
+
   /** Ціна змінилась у каталозі — взяти актуальну з прайсу постачальника; спершу показуємо, що саме зміниться. */
   function refreshOfferPrice(lineId: UUID, blockId: UUID): void {
     if (!guard()) return;
@@ -316,6 +326,8 @@ export function createSourcingActions(app: AppApi) {
     resolveMiss,
     setLineQtyFromInput,
     setOfferQtyFromInput,
+    setOfferPriceFromCell,
+    setOfferRrpFromCell,
     togglePick,
     toggleExclude,
     clearOffer,

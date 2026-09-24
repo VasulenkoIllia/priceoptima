@@ -1,7 +1,7 @@
-// Ручна ціна входу для пропозиції (РЕД-10): у цій заявці завжди, у каталозі — на вибір.
-// У каталозі ціну веде прайс, тож наступне завантаження прайсу її замінить — про це пишемо в підказці.
-// Ціну вводять з ПДВ, як усюди (правки замовника 16.09 п.7); у заявку й каталог іде ціна без ПДВ.
-import { App, Checkbox, Form, InputNumber, Modal, Typography } from 'antd';
+// Ручна ціна входу для пропозиції (РЕД-10): лише в цій заявці. У каталозі ціну веде прайс постачальника
+// (наступне оновлення переписало б ручну), тож туди не пишемо (правки замовника 23.09 п.8).
+// Ціну вводять з ПДВ, як усюди (правки замовника 16.09 п.7); у заявку йде ціна без ПДВ.
+import { App, Form, InputNumber, Modal, Typography } from 'antd';
 import { useState } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
 import { formatMoney, formatPct } from '@shared/format';
@@ -9,11 +9,12 @@ import { netToGross, normalizeInputPrice } from '@shared/pricing';
 import type { Offer } from '@shared/types';
 import { errorMessage } from '@/data';
 import { useRequestDoc } from '@/stores/requestDocStore';
+import { BIG_CHANGE_PCT } from '../offerCellInput';
+import { useSourcingUi } from './sourcingUiStore';
 
 interface Values {
   /** Вхід з ПДВ у валюті пропозиції. */
   purchasePrice: number | null;
-  updateCatalog: boolean;
 }
 
 export interface OfferPriceDialogProps {
@@ -21,8 +22,6 @@ export interface OfferPriceDialogProps {
   onClose: () => void;
 }
 
-/** Зміна ціни понад стільки відсотків — перепитуємо (помилка на порядок: 1200 замість 120). */
-const BIG_CHANGE_PCT = 30;
 
 export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
   const { message, modal } = App.useApp();
@@ -59,15 +58,11 @@ export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
 
   const submit = async (v: Values) => {
     setSaving(true);
-    let changed = false;
     try {
-      changed = await setOfferPurchasePrice(offer.id, netOf(v.purchasePrice), { updateCatalog: v.updateCatalog });
-      if (changed) message.success(v.updateCatalog ? 'Ціну змінено в заявці й у каталозі' : 'Ціну змінено в цій заявці');
+      if (await setOfferPurchasePrice(offer.id, netOf(v.purchasePrice))) message.success('Ціну змінено в цій заявці');
       onClose();
     } catch (e) {
-      // у заявці ціна вже змінена, не записалось лише в каталог
-      message.error(`Ціну змінено в заявці, але не в каталозі: ${errorMessage(e)}`);
-      onClose();
+      message.error(errorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -101,7 +96,7 @@ export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
         preserve={false}
         // значення підставляємо при кожному відкритті (форма живе лише поки відкрите вікно)
         key={offer.id}
-        initialValues={{ purchasePrice: initialGross, updateCatalog: false }}
+        initialValues={{ purchasePrice: initialGross }}
         onFinish={confirmBigChange}
       >
         <Form.Item
@@ -112,10 +107,17 @@ export function OfferPriceDialog({ offer, onClose }: OfferPriceDialogProps) {
         >
           <InputNumber min={0} step={0.01} decimalSeparator="," style={{ width: 200 }} autoFocus />
         </Form.Item>
-        <Form.Item name="updateCatalog" valuePropName="checked" extra="У каталозі ціну веде прайс: наступне завантаження прайсу замінить її на прайсову.">
-          <Checkbox disabled={!offer.productId}>Змінити ціну і в каталозі</Checkbox>
-        </Form.Item>
       </Form>
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        Ціна зміниться лише в цій заявці. У каталозі ціну веде прайс постачальника.
+      </Typography.Text>
     </Modal>
   );
+}
+
+/** «Змінити ціну» пропозиції зі стану вкладки: з меню правого кліку й з бічної панелі. */
+export function OfferPriceDialogHost() {
+  const offerId = useSourcingUi((s) => s.priceOfferId);
+  const offer = useRequestDoc((s) => (offerId ? (s.doc?.offers.find((o) => o.id === offerId) ?? null) : null));
+  return <OfferPriceDialog offer={offer} onClose={() => useSourcingUi.getState().openPriceDialog(null)} />;
 }

@@ -97,15 +97,20 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
       ),
       children: <b className="po-num">{priceCur(grossPrice(product.purchasePrice, vatRatePct), product.currency)}</b>,
     },
-    {
-      key: 'priceUah',
-      label: (
-        <Tooltip title="За курсом з прайсу постачальника. Націнку постачальника й курс блоку застосовують лише в заявці">
-          <span>Вхід з ПДВ, грн</span>
-        </Tooltip>
-      ),
-      children: <span className="po-num">{formatMoneyUah(grossPrice(product.purchasePriceUah, vatRatePct))}</span>,
-    },
+    // у гривневого товару це той самий рядок, що й вище — не дублюємо
+    ...(product.currency === 'UAH'
+      ? []
+      : [
+          {
+            key: 'priceUah',
+            label: (
+              <Tooltip title="За курсом з прайсу постачальника. Націнку постачальника й курс блоку застосовують лише в заявці">
+                <span>Вхід з ПДВ, грн</span>
+              </Tooltip>
+            ),
+            children: <span className="po-num">{formatMoneyUah(grossPrice(product.purchasePriceUah, vatRatePct))}</span>,
+          },
+        ]),
     { key: 'rrp', label: 'РРЦ з ПДВ', children: <span className="po-num po-rrp">{priceCur(product.rrp, product.currency)}</span> },
     { key: 'stock', label: 'Наявність', children: <Availability status={product.availability} qty={product.stockQty} /> },
     {
@@ -185,7 +190,13 @@ function ProductCard({ product, supplier }: { product: ProductDetail; supplier?:
             }
           />
         ) : (
-          <Alert type="info" showIcon message="Ціна оновлюється автоматично з прайсу постачальника. Скоригувати ціну для клієнта можна лише в заявці." />
+          // ціну товару з прайсу веде прайс (наступне оновлення перепише ручну) — змінюють її лише в заявці (правки замовника 23.09 п.8)
+          <Alert
+            type="info"
+            showIcon
+            message="Ціна з прайсу постачальника: оновлюється з кожним прайсом, тут її не змінюють"
+            description="Щоб продати за іншою ціною, змініть її в заявці: правий клік по товару в блоці постачальника, «Змінити ціну». Ціна зміниться лише в цій заявці."
+          />
         )}
       </div>
 

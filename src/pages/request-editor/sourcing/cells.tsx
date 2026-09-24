@@ -268,7 +268,7 @@ function PriceChangeMark({ offer, oc }: { offer: Offer; oc: OfferComputed | null
   );
 }
 
-/** «Ціна без ПДВ» — з прайсу постачальника (вручну не змінюється); ▲▼ — зміна після оновлення з прайсу. */
+/** «Ціна без ПДВ» — з прайсу постачальника; нову можна ввести прямо в клітинці (лише в цій заявці); ▲▼ — ціна змінилась. */
 export function PriceCell(p: P<BlockCellParams>) {
   const row = p.data;
   if (row?.kind === 'totals') {

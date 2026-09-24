@@ -31,6 +31,8 @@ export interface SourcingUiState {
   search: string;
   /** Бічна панель режиму «Порівняння». */
   drawer: OfferTarget | null;
+  /** «Змінити ціну» пропозиції (id пропозиції). */
+  priceOfferId: UUID | null;
   /** Форма «Створити товар» для клітинки блоку. */
   createProduct: CreateProductTarget | null;
   /** Вибір серед кількох товарів з однаковим артикулом. */
@@ -45,6 +47,7 @@ export interface SourcingUiState {
   setFilter(filter: RowFilter): void;
   setSearch(search: string): void;
   openDrawer(target: OfferTarget | null): void;
+  openPriceDialog(offerId: UUID | null): void;
   openCreateProduct(target: CreateProductTarget | null): void;
   openAmbiguous(target: (OfferTarget & { miss: SkuMiss }) | null): void;
   setMiss(lineId: UUID, blockId: UUID, miss: SkuMiss | null): void;
@@ -61,6 +64,7 @@ const INITIAL = {
   filter: 'all' as RowFilter,
   search: '',
   drawer: null,
+  priceOfferId: null,
   createProduct: null,
   ambiguous: null,
   skuMisses: {},
@@ -84,6 +88,7 @@ export const useSourcingUi = create<SourcingUiState>()((set, get) => ({
   setFilter: (filter) => set((s) => ({ filter, ...remember(s, { filter }) })),
   setSearch: (search) => set((s) => ({ search, ...remember(s, { search }) })),
   openDrawer: (drawer) => set({ drawer }),
+  openPriceDialog: (priceOfferId) => set({ priceOfferId }),
   openCreateProduct: (createProduct) => set({ createProduct }),
   openAmbiguous: (ambiguous) => set({ ambiguous }),
   setMiss: (lineId, blockId, miss) =>

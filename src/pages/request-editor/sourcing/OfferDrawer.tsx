@@ -11,11 +11,11 @@ import {
   UndoOutlined,
 } from '@ant-design/icons';
 import { Button, Descriptions, Drawer, Empty, Input, Space, Switch, Tag, Tooltip, Typography } from 'antd';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { AVAILABILITY_LABELS, CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatMoney, formatMoneyUah, formatPct, formatQty, formatRate, formatWarning } from '@shared/format';
 import { offerDisplayName, offerPriceDate } from '@shared/pricing';
-import type { Offer, UUID } from '@shared/types';
+import type { UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
 import { siteSearchUrl } from '@/components/ProductPicker';
@@ -23,7 +23,6 @@ import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { SEMANTIC_COLORS } from '@/theme';
 import { blockRateLabel } from '@/lib/rateLabels';
 import { EXCLUDE_HINT } from './cells';
-import { OfferPriceDialog } from './OfferPriceDialog';
 import { useSourcingUi } from './sourcingUiStore';
 import { useSourcingActions } from './useSourcingActions';
 
@@ -42,7 +41,6 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
   const setOfferNote = useRequestDoc((s) => s.setOfferNote);
   const setOfferNoRounding = useRequestDoc((s) => s.setOfferNoRounding);
   const computed = useRequestComputed();
-  const [priceOffer, setPriceOffer] = useState<Offer | null>(null);
 
   if (!line || !block) return <Empty description="Рядок або блок видалено" />;
   const oc = offer ? computed?.offers[offer.id] : undefined;
@@ -127,7 +125,7 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
             </Typography.Link>
           ) : null}
           {!readOnly ? (
-            <Typography.Link onClick={() => setPriceOffer(offer)} title="Постачальник дав іншу ціну на цей запит">
+            <Typography.Link onClick={() => useSourcingUi.getState().openPriceDialog(offer.id)} title="Постачальник дав іншу ціну на цей запит">
               <EditOutlined /> Змінити ціну
             </Typography.Link>
           ) : null}
@@ -258,7 +256,6 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
           Очистити
         </Button>
       </div>
-      <OfferPriceDialog offer={priceOffer} onClose={() => setPriceOffer(null)} />
     </div>
   );
 }

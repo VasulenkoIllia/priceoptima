@@ -1,5 +1,6 @@
 import type { CatalogSnapshot, Offer, OfferPriceChange } from '../types';
-import { round2 } from './money';
+import { round2, round6 } from './money';
+import { normalizeInputPrice } from './vat';
 
 /**
  * F34: оновити знімок пропозиції з каталогу (ціни, валюта, наявність, дата ціни).
@@ -71,4 +72,13 @@ export function offerWithManualPrice(
       changedAt: now.toISOString(),
     },
   };
+}
+
+/**
+ * Ціна постачальника у валюті прайсу з ціни входу в грн, як її показує клітинка блоку (разом з націнкою постачальника):
+ * введення прямо в «Без ПДВ» / «З ПДВ» (правки замовника 23.09 п.8). Після перерахунку клітинка покаже введене.
+ */
+export function purchasePriceFromCell(unitUah: number, withVat: boolean, vatRatePct: number, rate: number, supplierMarkupPct: number): number {
+  const unitNet = withVat ? normalizeInputPrice(unitUah, true, vatRatePct) : unitUah;
+  return round6(unitNet / rate / (1 + supplierMarkupPct / 100));
 }

@@ -7,6 +7,7 @@ import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { AmbiguousSkuDialog } from './AmbiguousSkuDialog';
 import { OfferDrawer } from './OfferDrawer';
+import { OfferPriceDialogHost } from './OfferPriceDialog';
 import { buildLineRows, countByFilter, type LineRow } from './rows';
 import { ScenariosPanel } from './ScenariosPanel';
 import { SourcingGrid } from './SourcingGrid';
@@ -74,6 +75,7 @@ export default function SourcingTab() {
         {scenariosOpen ? <ScenariosPanel counts={counts} /> : null}
         <OfferDrawer />
       </div>
+      <OfferPriceDialogHost />
       <CreateProductForCell />
       <AmbiguousSkuDialog />
       <ProductPickerHost onAdded={clearMisses} />

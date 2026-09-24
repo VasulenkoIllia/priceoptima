@@ -113,10 +113,18 @@ const HEADER: Record<BlockField, { name: string; tooltip?: string; width: number
   name: { name: 'Найменування', tooltip: 'Назва з каталогу; подвійний клік: панель пропозиції (змінити ціну, кратність, примітка); правий клік: дії', width: 200 },
   unit: { name: 'Од.', width: 54 },
   qty: { name: 'К-сть', tooltip: 'Кількість у постачальника (кратність: автоокруглення вгору)', width: 82 },
-  net: { name: 'Без ПДВ', tooltip: 'Ціна без ПДВ, грн за од., з прайсу постачальника (разом з націнкою постачальника)', width: 100 },
-  gross: { name: 'З ПДВ', tooltip: 'Ціна з ПДВ, грн за од., для довідки', width: 96 },
+  net: {
+    name: 'Без ПДВ',
+    tooltip: 'Ціна входу без ПДВ, грн за од. (разом з націнкою постачальника). Введіть нову ціну, щоб змінити її лише в цій заявці',
+    width: 100,
+  },
+  gross: { name: 'З ПДВ', tooltip: 'Ціна входу з ПДВ, грн за од. Введіть нову ціну, щоб змінити її лише в цій заявці', width: 96 },
   sum: { name: 'Сума без ПДВ', tooltip: 'Ціна без ПДВ × кількість у постачальника, грн', width: 112 },
-  rrp: { name: 'РРЦ з ПДВ', tooltip: 'Рекомендована роздрібна ціна з ПДВ, грн за од.', width: 96 },
+  rrp: {
+    name: 'РРЦ з ПДВ',
+    tooltip: 'Рекомендована роздрібна ціна з ПДВ, грн за од. Введіть нову, щоб змінити її лише в цій заявці',
+    width: 96,
+  },
   stock: { name: 'Наявн.', tooltip: 'Наявність у постачальника', width: 74 },
   note: { name: 'Примітка', width: 130 },
   exclude: { name: '✕', tooltip: EXCLUDE_HINT, width: 40 },
@@ -191,10 +199,29 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         valueGetter: (p) => ocOf(p)?.qtyEffective ?? null,
         cellRenderer: BlockQtyCell,
       };
+    // ціна входу редагується прямо в клітинці — лише в цій заявці (правки замовника 23.09 п.8)
     case 'net':
-      return { ...base, type: 'rightAligned', valueGetter: (p) => ocOf(p)?.unitNetUah ?? null, cellRenderer: PriceCell };
+      return {
+        ...base,
+        type: 'rightAligned',
+        editable: (p) => canEditRow(p) && !!cellOf(p.data, blockId)?.offer,
+        cellEditor: 'agTextCellEditor',
+        cellEditorParams: { useFormatter: true },
+        valueGetter: (p) => ocOf(p)?.unitNetUah ?? null,
+        valueFormatter: (p) => money(p.value as number | null),
+        cellRenderer: PriceCell,
+      };
     case 'gross':
-      return { ...base, type: 'rightAligned', cellClass: cls('po-num'), valueGetter: (p) => ocOf(p)?.unitGrossUah ?? null, valueFormatter: (p) => money(p.value as number | null) };
+      return {
+        ...base,
+        type: 'rightAligned',
+        cellClass: cls('po-num'),
+        editable: (p) => canEditRow(p) && !!cellOf(p.data, blockId)?.offer,
+        cellEditor: 'agTextCellEditor',
+        cellEditorParams: { useFormatter: true },
+        valueGetter: (p) => ocOf(p)?.unitGrossUah ?? null,
+        valueFormatter: (p) => money(p.value as number | null),
+      };
     case 'sum':
       return {
         ...base,
@@ -205,7 +232,16 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         tooltipValueGetter: (p) => (p.data?.kind === 'totals' ? 'Всього без ПДВ по блоку' : null),
       };
     case 'rrp':
-      return { ...base, type: 'rightAligned', cellClass: cls('po-num', 'po-rrp'), valueGetter: (p) => ocOf(p)?.rrpGrossUah ?? null, valueFormatter: (p) => money(p.value as number | null) };
+      return {
+        ...base,
+        type: 'rightAligned',
+        cellClass: cls('po-num', 'po-rrp'),
+        editable: (p) => canEditRow(p) && !!cellOf(p.data, blockId)?.offer,
+        cellEditor: 'agTextCellEditor',
+        cellEditorParams: { useFormatter: true },
+        valueGetter: (p) => ocOf(p)?.rrpGrossUah ?? null,
+        valueFormatter: (p) => money(p.value as number | null),
+      };
     case 'stock':
       return { ...base, type: 'rightAligned', valueGetter: (p) => offerOf(p)?.stockQty ?? null, cellRenderer: StockCell };
     case 'note':
@@ -255,7 +291,12 @@ function compareColumn(blockId: UUID, first: boolean): SourcingColDef {
     type: 'rightAligned',
     cellClass: first ? ['po-block-start', 'po-cell-compare'] : ['po-cell-compare'],
     headerClass: first ? ['po-block-start'] : [],
+    // ціна без ПДВ — прямо в клітинці, лише в цій заявці; панель пропозиції — пробіл або правий клік
+    editable: (p) => canEditRow(p) && !!cellOf(p.data, blockId)?.offer,
+    cellEditor: 'agTextCellEditor',
+    cellEditorParams: { useFormatter: true },
     valueGetter: (p) => cellOf(p.data, blockId)?.oc?.unitNetUah ?? null,
+    valueFormatter: (p) => money(p.value as number | null),
     cellRenderer: CompareCell,
     cellRendererParams: { blockId },
     cellClassRules: {

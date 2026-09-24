@@ -2,6 +2,7 @@
 // (readOnlyEdit + onCellEditRequest), власні вставка з буфера (TSV), клавіші й контекстне меню.
 import {
   DeleteOutlined,
+  EditOutlined,
   ProfileOutlined,
   SearchOutlined,
   StopOutlined,
@@ -55,7 +56,7 @@ export interface SourcingGridProps {
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 /** Поля блоку, які AG Grid редагує/очищає сам (Delete → cellClear → onCellEditRequest). */
-const EDITABLE_BLOCK_FIELDS = new Set<BlockField>(['sku', 'qty', 'note']);
+const EDITABLE_BLOCK_FIELDS = new Set<BlockField>(['sku', 'qty', 'note', 'net', 'gross', 'rrp']);
 
 const isPickerKey = (e: KeyboardEvent) => e.key === 'F4' || ((e.ctrlKey || e.metaKey) && (e.key === ' ' || e.code === 'Space'));
 const isDeleteKey = (e: KeyboardEvent) => e.key === 'Delete' || (isMac && e.key === 'Backspace');
@@ -63,8 +64,8 @@ const isPasteKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && !e.shiftKey
 /** Ctrl+D (на Mac і Cmd+D) — заповнити з рядка вище, як в Excel; розкладка неважлива (e.code). */
 const isFillKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyD' || e.key.toLowerCase() === 'd');
 
-/** Колонки блоку, подвійний клік по яких відкриває панель пропозиції (решта редагується в клітинці). */
-const DETAIL_FIELDS: ReadonlySet<string> = new Set(['name', 'net', 'gross', 'sum', 'rrp']);
+/** Колонки блоку, подвійний клік по яких відкриває панель пропозиції (решта, зокрема ціни, редагується в клітинці). */
+const DETAIL_FIELDS: ReadonlySet<string> = new Set(['name', 'sum']);
 
 /** keydown, повністю оброблені в suppressKeyboardEvent (F4 під час введення), — onCellKeyDown їх пропускає. */
 const handledKeys = new WeakSet<Event>();
@@ -275,6 +276,8 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
       return {
         items: [
           { key: 'details', icon: <ProfileOutlined />, label: 'Пропозиція: ціна, кратність, примітка' },
+          // ціна постачальника на цей запит — лише в цій заявці (правки замовника 23.09 п.8)
+          { key: 'price', icon: <EditOutlined />, label: 'Змінити ціну (лише в цій заявці)', disabled: ro },
           ...(changed ? [{ key: 'refresh', icon: <SyncOutlined />, label: 'Оновити ціну з прайсу', disabled: ro }] : []),
           { key: 'replace', icon: <SwapOutlined />, label: 'Замінити товар (F4)', disabled: ro },
           { key: 'clear', icon: <StopOutlined />, label: 'Очистити (Delete)', disabled: ro, danger: true },
@@ -283,6 +286,7 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
           domEvent.stopPropagation();
           const a = actionsRef.current;
           if (key === 'details') useSourcingUi.getState().openDrawer({ lineId: row.id, blockId });
+          else if (key === 'price' && cell.offer) useSourcingUi.getState().openPriceDialog(cell.offer.id);
           else if (key === 'refresh') a.refreshOfferPrice(row.id, blockId);
           else if (key === 'replace') a.openPickerFor(row.id, blockId, 'replace');
           else if (key === 'clear') a.clearOffer(row.id, blockId);
@@ -513,6 +517,10 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
         if (col.field === 'sku') void a.enterSku(row.id, col.blockId, text);
         else if (col.field === 'qty' && offer) a.setOfferQtyFromInput(row.id, offer.id, text);
         else if (col.field === 'note' && offer) s.setOfferNote(offer.id, text.trim() || null);
+        else if ((col.field === 'net' || col.field === 'gross') && offer) a.setOfferPriceFromCell(row.id, col.blockId, text, col.field === 'gross');
+        else if (col.field === 'rrp' && offer) a.setOfferRrpFromCell(row.id, col.blockId, text);
+      } else if (col.kind === 'compare' && row.cells[col.blockId]?.offer) {
+        a.setOfferPriceFromCell(row.id, col.blockId, text, false);
       }
     },
     [store],
@@ -528,8 +536,7 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
         if (col.field === 'pick') a.togglePick(row.id, col.blockId);
         else if (col.field === 'exclude') a.toggleExclude(row.id, col.blockId);
       } else if (col.kind === 'compare') {
-        if (row.cells[col.blockId]?.offer) ui.openDrawer({ lineId: row.id, blockId: col.blockId });
-        else if (!store.getState().readOnly) a.openPickerFor(row.id, col.blockId, 'add');
+        if (!row.cells[col.blockId]?.offer && !store.getState().readOnly) a.openPickerFor(row.id, col.blockId, 'add');
       } else if (col.kind === 'chosen' && mode === 'comparison' && row.chosen) {
         ui.openDrawer({ lineId: row.id, blockId: row.chosen.blockId });
       }
@@ -581,12 +588,14 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
         } else if ((ev.key === 'Enter' || ev.key === ' ') && (col.field === 'pick' || col.field === 'exclude')) {
           openCell(row, colId);
         }
-      } else if (col.kind === 'compare' || (col.kind === 'chosen' && mode === 'comparison')) {
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          openCell(row, colId);
-        } else if (isDeleteKey(ev) && col.kind === 'compare') {
-          a.clearOffer(row.id, col.blockId);
-        }
+      } else if (col.kind === 'compare') {
+        // клітинка з товаром: Enter і цифри — нова ціна (редагування AG Grid), пробіл — панель пропозиції
+        const hasOffer = !!row.cells[col.blockId]?.offer;
+        if (ev.key === ' ' && hasOffer) useSourcingUi.getState().openDrawer({ lineId: row.id, blockId: col.blockId });
+        else if ((ev.key === 'Enter' || ev.key === ' ') && !hasOffer) openCell(row, colId);
+        else if (isDeleteKey(ev)) a.clearOffer(row.id, col.blockId);
+      } else if (col.kind === 'chosen' && mode === 'comparison') {
+        if (ev.key === 'Enter' || ev.key === ' ') openCell(row, colId);
       }
     },
     [mode, openCell, openPickerAt, store],

@@ -86,7 +86,12 @@ describe('buildColumnDefs — «Підбір»', () => {
     expect(editable(COL.block('b1', 'sku'), row2)).toBe(true);
     expect(editable(COL.block('b1', 'qty'), row1)).toBe(true);
     expect(editable(COL.block('b1', 'qty'), row2)).toBe(false);
-    expect(findCol(cols, COL.block('b1', 'net')).editable).toBeUndefined();
+    // ціна входу — прямо в клітинці, лише з пропозицією і не в режимі перегляду (правки замовника 23.09 п.8)
+    for (const f of ['net', 'gross'] as const) {
+      expect(editable(COL.block('b1', f), row1)).toBe(true);
+      expect(editable(COL.block('b1', f), row1, true)).toBe(false);
+      expect(editable(COL.block('b1', f), row2)).toBe(false);
+    }
     // порожній рядок: введення в назву / од. / к-сть створює рядок заявки; колонки блоку — ні
     for (const f of ['clientName', 'clientUnit', 'qty'] as const) {
       expect(editable(COL.line(f), NEW_ROW)).toBe(true);
