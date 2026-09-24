@@ -23,7 +23,7 @@ export async function pricingEnv(now = new Date()): Promise<PricingEnv> {
   return { settings, suppliers, ctx: { now, settings: pricingSettingsFrom(settings), suppliers } };
 }
 
-/** Курси шапки заявки на дату: ручний загальний курс, якщо задано, інакше НБУ (останній відомий). */
+/** Курси шапки заявки на дату: більший із останнього курсу НБУ й чинного ручного загального (rates.service). */
 export async function headerRatesOn(date: ISODate): Promise<HeaderRates> {
   const eff = await getEffectiveRates(date);
   return { USD: eff.USD?.rate ?? null, EUR: eff.EUR?.rate ?? null, date };

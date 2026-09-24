@@ -51,6 +51,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
   const { message, modal } = App.useApp();
   const doc = useRequestDoc((s) => s.doc);
   const ctx = useRequestDoc((s) => s.ctx);
+  const ratesToday = useRequestDoc((s) => s.ratesToday);
   const suppliers = useRequestDoc((s) => s.suppliers);
   const readOnly = useRequestDoc((s) => s.readOnly);
   const line = doc?.lines.find((l) => l.id === request.lineId) ?? null;
@@ -83,8 +84,8 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
   );
 
   const rows = useMemo(
-    () => (doc && ctx && line && results ? buildPickerRows(results, { doc, ctx, line, supplierRef }) : []),
-    [doc, ctx, line, results, supplierRef],
+    () => (doc && ctx && line && results ? buildPickerRows(results, { doc, ctx, line, supplierRef, ratesToday }) : []),
+    [doc, ctx, line, results, supplierRef, ratesToday],
   );
 
   const toggle = (p: ProductPickDto) => {

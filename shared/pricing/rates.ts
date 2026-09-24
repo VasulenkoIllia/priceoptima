@@ -81,11 +81,28 @@ export function supplierDefaultRatesInfo(
 
 /**
  * F33 (Ф2, ДОВ-3): курси нового блоку. price_list → прайс (не старший за строк дії з налаштувань) → ручний курс постачальника → загальний курс із шапки
- * (ручний на дату, якщо його задано в «Курси валют», інакше НБУ); manual → ручні (fallback — шапка);
+ * (більший із НБУ й ручного з «Курсів валют», general-rates.ts); manual → ручні (fallback — шапка);
  * nbu → шапка; nbu_adjusted → round6(шапка × (1 + adj/100)).
  */
 export function supplierDefaultRates(supplier: SupplierRef | null, headerRates: RatesPair, opts: DefaultRatesOptions = {}): RatesPair {
   return supplierDefaultRatesInfo(supplier, headerRates, opts).rates;
+}
+
+/** Курс (F33) і націнка постачальника для блоку: новий блок і «Оновити курс і націнку» в наявному. */
+export function supplierBlockDefaults(
+  supplier: SupplierRef,
+  headerRates: HeaderRates,
+  opts: DefaultRatesOptions = {},
+): Pick<SupplierBlock, 'rates' | 'rateSource' | 'ratesDate' | 'supplierMarkupPct'> {
+  const info = supplierDefaultRatesInfo(supplier, headerRates, opts);
+  // підпис джерела — за фактичним джерелом курсу валюти прайсу (для гривневого прайсу — долара)
+  const mainCurrency: ForeignCurrency = supplier.defaultCurrency === 'EUR' ? 'EUR' : 'USD';
+  return {
+    rates: info.rates,
+    rateSource: info.origins[mainCurrency] ?? supplier.ratePolicy,
+    ratesDate: info.date,
+    supplierMarkupPct: supplier.supplierMarkupPct,
+  };
 }
 
 /** Новий блок постачальника з курсами за F33. */
@@ -95,19 +112,13 @@ export function createSupplierBlock(
   init: { id: UUID; position: number },
   opts: DefaultRatesOptions = {},
 ): SupplierBlock {
-  const info = supplierDefaultRatesInfo(supplier, headerRates, opts);
-  // підпис джерела — за фактичним джерелом курсу валюти прайсу (для гривневого прайсу — долара)
-  const mainCurrency: ForeignCurrency = supplier.defaultCurrency === 'EUR' ? 'EUR' : 'USD';
   return {
     id: init.id,
     position: init.position,
     supplierId: supplier.id,
     legalEntityId: null,
     defaultCurrency: supplier.defaultCurrency,
-    rates: info.rates,
-    rateSource: info.origins[mainCurrency] ?? supplier.ratePolicy,
-    ratesDate: info.date,
-    supplierMarkupPct: supplier.supplierMarkupPct,
+    ...supplierBlockDefaults(supplier, headerRates, opts),
     pricesIncludeVat: supplier.pricesIncludeVat,
     note: null,
   };

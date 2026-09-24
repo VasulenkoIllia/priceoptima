@@ -2,7 +2,7 @@
 // правила вибору (1–3 товари різних постачальників), посилання на сайт постачальника. Ранжування — у DataSource.searchProducts.
 import { computeOfferBase, createOfferFromProduct, createSupplierBlock } from '@shared/pricing';
 import { isHttpUrl, searchTokens } from '@shared/parse';
-import type { PricingContext, ProductPickDto, RequestDocument, RequestLine, SupplierRef, UUID } from '@shared/types';
+import type { HeaderRates, PricingContext, ProductPickDto, RequestDocument, RequestLine, SupplierRef, UUID } from '@shared/types';
 
 export const MAX_PICK = 3;
 
@@ -11,6 +11,8 @@ export interface PickerPricing {
   ctx: PricingContext;
   line: RequestLine;
   supplierRef(supplierId: UUID): SupplierRef | null;
+  /** Загальний курс, який візьме новий блок (на сьогодні); немає — курс шапки заявки. */
+  ratesToday?: HeaderRates | null;
 }
 
 export interface PickerRow {
@@ -38,7 +40,7 @@ function priceInRequest(product: ProductPickDto, blockId: UUID | null, supplier:
   const block =
     (blockId ? p.doc.blocks.find((b) => b.id === blockId) : null) ??
     (supplier
-      ? createSupplierBlock(supplier, p.doc.header.rates, { id: PREVIEW_ID, position: 0 }, { maxAgeDays: p.ctx.settings.priceListRateMaxAgeDays })
+      ? createSupplierBlock(supplier, p.ratesToday ?? p.doc.header.rates, { id: PREVIEW_ID, position: 0 }, { maxAgeDays: p.ctx.settings.priceListRateMaxAgeDays })
       : null);
   if (!block) return { unitNetUah: null, rrpGrossUah: null, rate: null, supplierMarkupPct: 0 };
   const offer = createOfferFromProduct(product, {

@@ -72,7 +72,7 @@ import type {
   ProfileInput,
   RegisterInput,
 } from '@shared/types';
-import type { UserRole } from '@shared/enums';
+import type { ForeignCurrency, UserRole } from '@shared/enums';
 import type { CallOptions, DataSource, LockAcquireResult } from '../DataSource';
 import { isDataSourceError } from '../errors';
 import { api, apiFile, SESSION_ID } from './client';
@@ -229,6 +229,10 @@ export class HttpDataSource implements DataSource {
 
   addManualRate(input: ManualRateInput): Promise<CurrencyRateDto> {
     return api<CurrencyRateDto>('/rates', { body: input });
+  }
+
+  cancelManualRates(currency: ForeignCurrency): Promise<{ cancelled: number }> {
+    return api<{ cancelled: number }>('/rates/manual/cancel', { body: { currency } });
   }
 
   // ── прайси постачальників ─────────────────────────────────────────

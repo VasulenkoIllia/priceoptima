@@ -69,3 +69,60 @@ describe('requestDocStore — дії сітки підбору', () => {
     expect(store.getState().doc!.lines.map((l) => l.clientName)).toEqual(['А', 'Б']);
   });
 });
+
+describe('requestDocStore — курс і націнка блоку (правки замовника 23.09 п.6, 15, 16)', () => {
+  const today = (usd: number, eur: number) => ({
+    date: '2026-09-24',
+    USD: { rate: usd, rateDate: '2026-09-24', source: 'manual' as const },
+    EUR: { rate: eur, rateDate: '2026-09-24', source: 'manual' as const },
+    stale: false,
+  });
+
+  it('новий блок бере загальний курс на сьогодні, а не на дату заявки', async () => {
+    const { srv } = createServerWithRequest();
+    srv.ratesToday = today(46, 53);
+    const tab = srv.tab(USERS.koval, 'a');
+    const { id } = await tab.createRequest({});
+    const store = createRequestDocStore({ ds: tab, bindPageLifecycle: false, watchIntervalMs: 0 });
+    stores.push(store);
+    await store.getState().load(id);
+    expect(store.getState().doc!.header.rates).toMatchObject({ USD: 45, EUR: 52.1 });
+    const blockId = store.getState().addBlock('s1')!;
+    expect(store.getState().doc!.blocks.find((b) => b.id === blockId)!.rates).toEqual({ USD: 46, EUR: 53 });
+  });
+
+  it('«Оновити курс і націнку»: курс на сьогодні й ручний курс і націнка з картки постачальника; повтор нічого не змінює; Ctrl+Z повертає', async () => {
+    const { srv } = createServerWithRequest();
+    srv.ratesToday = today(46, 53);
+    const tab = srv.tab(USERS.koval, 'a');
+    const { id } = await tab.createRequest({});
+    const store = createRequestDocStore({ ds: tab, bindPageLifecycle: false, watchIntervalMs: 0 });
+    stores.push(store);
+    await store.getState().load(id);
+    const b1 = store.getState().addBlock('s1')!;
+    const b2 = store.getState().addBlock('s2')!;
+    store.getState().setBlockRates(b1, { EUR: 51.5 });
+
+    // у «Курсах валют» новий курс, у картці s1 — ручний курс євро й націнка
+    srv.ratesToday = today(47, 54);
+    srv.suppliers = srv.suppliers.map((s) => (s.id === 's1' ? { ...s, manualRateEur: 52.5, supplierMarkupPct: 5 } : s));
+
+    const changes = await store.getState().refreshBlocksFromSuppliers([b1]);
+    expect(changes).toEqual([
+      { blockId: b1, before: { rates: { USD: 46, EUR: 51.5 }, supplierMarkupPct: 0 }, after: { rates: { USD: 47, EUR: 52.5 }, supplierMarkupPct: 5 } },
+    ]);
+    const blocks = store.getState().doc!.blocks;
+    expect(blocks.find((b) => b.id === b1)).toMatchObject({ rates: { USD: 47, EUR: 52.5 }, supplierMarkupPct: 5 });
+    // інший блок без дії не змінюється
+    expect(blocks.find((b) => b.id === b2)!.rates).toEqual({ USD: 46, EUR: 53 });
+
+    expect(await store.getState().refreshBlocksFromSuppliers([b1])).toEqual([]);
+    // усі блоки: s2 підтягує новий загальний курс
+    const all = await store.getState().refreshBlocksFromSuppliers();
+    expect(all.map((c) => c.blockId)).toEqual([b2]);
+
+    store.getState().undo();
+    store.getState().undo();
+    expect(store.getState().doc!.blocks.find((b) => b.id === b1)).toMatchObject({ rates: { USD: 46, EUR: 51.5 }, supplierMarkupPct: 0 });
+  });
+});

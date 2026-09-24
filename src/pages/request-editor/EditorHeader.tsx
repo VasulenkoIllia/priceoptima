@@ -4,6 +4,7 @@ import { Alert, App, Button, Input, Select, Space, Tooltip, Typography } from 'a
 import { useState, type ReactNode } from 'react';
 import { REQUEST_STATUS_LABELS } from '@shared/enums';
 import { formatDate, formatRate, formatRequestNumber } from '@shared/format';
+import { isEditableStatus } from '@shared/status';
 import { defaultKpVatMode } from '@shared/pricing';
 import type { RequestHeaderEditable, UUID } from '@shared/types';
 import { useIsAdmin } from '@/app/session';
@@ -88,6 +89,7 @@ export function EditorHeader() {
   const save = useRequestDoc((s) => s.save);
   const dirty = useRequestDoc((s) => s.dirty);
   const settings = useRequestDoc((s) => s.settings);
+  const ratesToday = useRequestDoc((s) => s.ratesToday);
   const setHeader = useRequestDoc((s) => s.setHeader);
   const retryLock = useRequestDoc((s) => s.retryLock);
   const forceLock = useRequestDoc((s) => s.forceLock);
@@ -128,6 +130,13 @@ export function EditorHeader() {
   const detail = client.data?.id === clientId ? client.data : undefined;
   // документ закрито (стор скинуто) — компонент от-от зникне
   if (!header || !refs) return null;
+
+  // у заявці в роботі показуємо курс, який візьмуть нові блоки (на сьогодні); у закритій — курс на дату заявки
+  const editable = isEditableStatus(header.status);
+  const shownRates = editable && ratesToday ? ratesToday : header.rates;
+  const ratesHint = editable
+    ? 'Загальний курс на сьогодні: більший із курсу НБУ й ручного з «Курсів валют». Його беруть нові блоки й «Оновити курс і націнку» в меню блоку (для постачальників без курсу в прайсі й без ручного курсу в картці). Курс наявного блоку сам не змінюється.'
+    : 'Загальний курс на дату заявки: більший із курсу НБУ й ручного з «Курсів валют».';
 
   const onClientChange = async (id: UUID | undefined) => {
     if (!id) {
@@ -258,9 +267,9 @@ export function EditorHeader() {
         <Field label="Відповідальний">
           <Select style={{ width: 140 }} disabled={readOnly} value={header.managerId} options={managerOptions} onChange={onManagerChange} />
         </Field>
-        <Tooltip title="Загальний курс на дату заявки: ручний, якщо його задано в «Курси валют», інакше НБУ. Діє для постачальників без курсу в прайсі й без ручного курсу в картці; у блоці постачальника курс можна змінити.">
+        <Tooltip title={ratesHint}>
           <div className="po-editor-rates po-num">
-            Курс {formatDate(header.rates.date ?? header.requestDate)}: USD {formatRate(header.rates.USD) || 'немає'} · EUR {formatRate(header.rates.EUR) || 'немає'}
+            Курс {formatDate(shownRates.date ?? header.requestDate)}: USD {formatRate(shownRates.USD) || 'немає'} · EUR {formatRate(shownRates.EUR) || 'немає'}
           </div>
         </Tooltip>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>

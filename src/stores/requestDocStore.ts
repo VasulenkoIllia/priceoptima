@@ -16,6 +16,7 @@ import {
   offerMultiplicity,
   offerWithManualPrice,
   refreshOfferFromCatalog,
+  supplierBlockDefaults,
   type ProductForOffer,
 } from '@shared/pricing';
 import { EDITABLE_HEADER_KEYS } from '@shared/requests';
@@ -23,6 +24,7 @@ import { isEditableStatus } from '@shared/status';
 import type {
   AppSettings,
   DocumentRefs,
+  HeaderRates,
   ISODateTime,
   LineMarkupOverride,
   LockInfo,
@@ -45,6 +47,7 @@ import { ds as defaultDs } from '@/data';
 import type { CallOptions, DataSource } from '@/data/DataSource';
 import { DataSourceError, errorMessage, isDataSourceError } from '@/data/errors';
 import { newId } from '@/lib/ids';
+import { headerRatesOf } from '@/lib/rateLabels';
 import { toSupplierRef } from '@/lib/supplierRef';
 import { diffDocuments } from './requestDocDiff';
 import { describeUnsavedChanges } from './unsavedChanges';
@@ -69,6 +72,13 @@ export type LinePatch = Partial<Pick<RequestLine, 'clientName' | 'clientUnit' | 
 export type ProductForLine = ProductForOffer & { supplierId: UUID };
 
 export type HeaderRefsPatch = Partial<Pick<DocumentRefs, 'client' | 'counterparty' | 'contact' | 'ownCompany' | 'manager'>>;
+
+/** Що змінило «Оновити курс і націнку» в блоці (для повідомлення). */
+export interface BlockRefreshChange {
+  blockId: UUID;
+  before: { rates: RatesPair; supplierMarkupPct: number };
+  after: { rates: RatesPair; supplierMarkupPct: number };
+}
 
 export type SetOfferBySkuResult =
   | { status: 'ok'; product: ProductPickDto }
@@ -136,6 +146,8 @@ export interface RequestDocData {
   settings: AppSettings | null;
   /** Усі постачальники (для «+ Постачальник» і створення блоків). */
   suppliers: SupplierListItem[];
+  /** Загальний курс на сьогодні (більший із НБУ й ручного з «Курсів валют»): його беруть нові блоки й «Оновити курс і націнку». */
+  ratesToday: HeaderRates | null;
   /** Поточний власник блокування (ця або інша вкладка). */
   lock: LockInfo | null;
   /** Ця вкладка тримає блокування. */
@@ -179,6 +191,11 @@ export interface RequestDocActions {
   moveBlock(blockId: UUID, toIndex: number): void;
   setBlockRates(blockId: UUID, rates: Partial<RatesPair>): void;
   setBlockSupplierMarkup(blockId: UUID, pct: number): void;
+  /**
+   * «Оновити курс і націнку»: курс за правилами на сьогодні (прайс → ручний курс постачальника → загальний) і націнка з картки
+   * постачальника — для цих блоків (без аргументу — усіх). Картки й курси перечитуються з сервера. Повертає змінені блоки.
+   */
+  refreshBlocksFromSuppliers(blockIds?: UUID[]): Promise<BlockRefreshChange[]>;
 
   setOfferFromProduct(lineId: UUID, blockId: UUID, product: ProductForOffer): UUID | null;
   setOfferBySku(lineId: UUID, blockId: UUID, sku: string): Promise<SetOfferBySkuResult>;
@@ -240,6 +257,7 @@ const INITIAL_DATA: RequestDocData = {
   ctx: null,
   settings: null,
   suppliers: [],
+  ratesToday: null,
   lock: null,
   hasLock: false,
   lockLost: null,
@@ -543,7 +561,13 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       future = [];
       set({ ...INITIAL_DATA, requestId: id, loadState: 'loading' });
       try {
-        const [lockRes, settings, suppliers] = await Promise.all([ds.acquireLock(id), ds.getSettings(), ds.listSuppliers()]);
+        const [lockRes, settings, suppliers, ratesToday] = await Promise.all([
+          ds.acquireLock(id),
+          ds.getSettings(),
+          ds.listSuppliers(),
+          // без курсу на сьогодні нові блоки візьмуть курс із шапки заявки
+          ds.getRates(toIsoDate(new Date())).then(headerRatesOf, () => null),
+        ]);
         const doc = token === loadToken ? await ds.getRequestDocument(id) : null;
         if (!doc || token !== loadToken) {
           if (lockRes.acquired) void ds.releaseLock(id);
@@ -561,6 +585,7 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
           ctx: ctxFor(doc, null),
           settings,
           suppliers,
+          ratesToday,
           lock: closed ? null : lockRes.lock,
           hasLock,
           ...readOnlyOf(doc, hasLock),
@@ -723,9 +748,10 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
       if (existing) return { blockId: existing.id, created: false };
       const ref = supplierRefFor(supplierId);
       if (!ref) return null;
+      // загальний курс — на сьогодні, коли блок додають (РЕД-4; правки замовника 23.09 п.6)
       const block = createSupplierBlock(
         ref,
-        d.header.rates,
+        get().ratesToday ?? d.header.rates,
         { id: newId(), position: d.blocks.length + 1 },
         { maxAgeDays: get().ctx?.settings.priceListRateMaxAgeDays },
       );
@@ -960,6 +986,43 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
           const b = d.blocks.find((x) => x.id === blockId);
           if (b) b.supplierMarkupPct = pct;
         });
+      },
+
+      async refreshBlocksFromSuppliers(blockIds) {
+        const s = get();
+        if (!s.doc || s.readOnly) return [];
+        const id = s.requestId;
+        const [suppliers, ratesToday] = await Promise.all([ds.listSuppliers(), ds.getRates(toIsoDate(new Date())).then(headerRatesOf)]);
+        if (get().requestId !== id) return [];
+        set({ suppliers, ratesToday });
+        const maxAgeDays = get().ctx?.settings.priceListRateMaxAgeDays;
+        const changes: BlockRefreshChange[] = [];
+        edit((d) => {
+          for (const b of d.blocks) {
+            if (!b.supplierId || (blockIds && !blockIds.includes(b.id))) continue;
+            const ref = supplierRefFor(b.supplierId);
+            if (!ref) continue;
+            const next = supplierBlockDefaults(ref, ratesToday, { maxAgeDays });
+            const same =
+              next.rates.USD === b.rates.USD &&
+              next.rates.EUR === b.rates.EUR &&
+              next.supplierMarkupPct === b.supplierMarkupPct &&
+              next.rateSource === b.rateSource &&
+              next.ratesDate === b.ratesDate;
+            if (same) continue;
+            changes.push({
+              blockId: b.id,
+              before: { rates: { ...b.rates }, supplierMarkupPct: b.supplierMarkupPct },
+              after: { rates: { ...next.rates }, supplierMarkupPct: next.supplierMarkupPct },
+            });
+            b.rates = next.rates;
+            b.rateSource = next.rateSource;
+            b.ratesDate = next.ratesDate;
+            b.supplierMarkupPct = next.supplierMarkupPct;
+            d.refs.suppliers[ref.id] = ref;
+          }
+        });
+        return changes;
       },
 
       setOfferFromProduct(lineId, blockId, product) {

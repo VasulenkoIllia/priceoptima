@@ -9,11 +9,13 @@
 }
 .po-rates-bottom {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* курси постачальників ширші (більше колонок), ніж курси за датами */
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 16px;
   align-items: start;
 }
-@media (max-width: 1100px) {
+/* до ~1400 px таблиці поруч не вміщаються — одна під одною */
+@media (max-width: 1400px) {
   .po-rates-bottom {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -30,6 +32,19 @@
 }
 .po-rates-cur .po-muted {
   font-weight: 400;
+}
+.po-rates-caption {
+  font-size: 12px;
+  margin-top: 4px;
+}
+.po-rates-cancel.ant-btn {
+  padding: 0;
+  height: auto;
+  margin-top: 4px;
+}
+.po-rates-cancelled {
+  text-decoration: line-through;
+  opacity: 0.6;
 }
 .po-rates-value {
   font-size: 28px;
@@ -63,6 +78,13 @@
 }
 .po-rates-table .ant-table {
   font-size: 13px;
+}
+/* широка таблиця прокручується у своїй картці, а не розпирає всю сторінку */
+.po-rates-table .ant-table-content {
+  overflow-x: auto;
+}
+.po-rates-effective {
+  font-variant-numeric: tabular-nums;
 }
 .po-rates-hint {
   margin-top: 10px;

@@ -23,6 +23,9 @@ export const manualRateSchema = z.object({
   note: optionalText(200),
 });
 
+export const cancelManualRateSchema = z.object({ currency });
+
 export type RatesQuery = z.infer<typeof ratesQuerySchema>;
 export type EffectiveRatesQuery = z.infer<typeof effectiveRatesQuerySchema>;
 export type ManualRateBody = z.infer<typeof manualRateSchema>;
+export type CancelManualRateBody = z.infer<typeof cancelManualRateSchema>;

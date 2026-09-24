@@ -1,6 +1,7 @@
 export * from './money';
 export * from './vat';
 export * from './rates';
+export * from './general-rates';
 export * from './multiplicity';
 export * from './stock';
 export * from './staleness';

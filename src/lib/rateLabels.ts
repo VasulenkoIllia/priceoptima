@@ -13,8 +13,8 @@ export function usePriceListRateMaxAge(): number {
   return settings.data?.priceListRateMaxAgeDays ?? DEFAULT_APP_SETTINGS.priceListRateMaxAgeDays;
 }
 
-/** «загальний» — ручний курс із «Курси валют» на цю дату, якщо його задано, інакше НБУ. */
-export const GENERAL_RATE_HINT = 'Загальний курс: ручний курс із розділу «Курси валют» на цю дату, якщо його задано, інакше курс НБУ';
+/** «загальний» — більший із курсу НБУ й ручного з «Курсів валют» (ручний діє до нового або до скасування). */
+export const GENERAL_RATE_HINT = 'Загальний курс: більший із курсу НБУ й ручного курсу з розділу «Курси валют» (ручний діє до нового або до скасування)';
 
 /** Звідки курс: «з прайсу від 12.09.2026», «ручний курс постачальника», «загальний на 12.09.2026», «НБУ ± %». */
 export function rateOriginLabel(origin: RatePolicy | null, date: ISODate | null): string {

@@ -14,5 +14,6 @@ export function toCurrencyRateDto(row: CurrencyRate): CurrencyRateDto {
     source: oneOf(RATE_SOURCES, row.source, 'manual'),
     fetchedAt: row.fetchedAt.toISOString(),
     note: row.note,
+    cancelledAt: row.cancelledAt ? row.cancelledAt.toISOString() : null,
   };
 }

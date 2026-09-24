@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { blockRateLabel, relevantCurrencies, requestRatesLabel } from '@/lib/rateLabels';
-import { deltaLabel } from '../BlockHeader';
+import { makeSupplier, uah } from '@shared/pricing/__tests__/fixtures';
+import { blockRefreshSummary, deltaLabel } from '../BlockHeader';
 
 describe('джерело курсу — однакові назви в блоці й на картці постачальника (4.7)', () => {
   it('блок: з прайсу, ручний курс постачальника, загальний, змінено в заявці', () => {
@@ -48,5 +49,23 @@ describe('шапка блоку — підпис дельти (п.5 правок
 
   it('«найдешевший» лише в одного блоку: інший без переплати — без підпису', () => {
     expect(deltaLabel({ deltaNet: 0, filledCount: 3, cheapest: false })).toBeNull();
+  });
+});
+
+describe('«Оновити курс і націнку»: повідомлення', () => {
+  it('лише валюти блоку, що змінились, і націнка', () => {
+    const doc = {
+      blocks: [{ id: 'b1', supplierId: 's1', defaultCurrency: 'EUR' as const }, { id: 'b2', supplierId: 's2', defaultCurrency: 'UAH' as const }],
+      offers: [uah('l1', 'b2', 10)],
+      refs: { suppliers: { s1: makeSupplier('s1', { name: 'ІУП' }), s2: makeSupplier('s2', { name: 'САНДІ' }) } },
+    } as unknown as Parameters<typeof blockRefreshSummary>[1];
+    const text = blockRefreshSummary(
+      [
+        { blockId: 'b1', before: { rates: { USD: 45, EUR: 51.5 }, supplierMarkupPct: 0 }, after: { rates: { USD: 46, EUR: 52.5 }, supplierMarkupPct: 0 } },
+        { blockId: 'b2', before: { rates: { USD: 45, EUR: 51 }, supplierMarkupPct: 0 }, after: { rates: { USD: 46, EUR: 52 }, supplierMarkupPct: 10 } },
+      ],
+      doc,
+    );
+    expect(text).toBe('ІУП: EUR 51,50 → 52,50; САНДІ: націнка 0,00\u00a0% → 10,00\u00a0%');
   });
 });

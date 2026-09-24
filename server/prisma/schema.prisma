@@ -371,6 +371,8 @@ model CurrencyRate {
   note        String?
   /// Хто ввів ручний курс.
   createdById String?
+  /// Ручний курс скасовано («Скасувати ручний курс»): далі діє НБУ, доки не введуть новий ручний.
+  cancelledAt DateTime?
 
   @@unique([currency, rateDate, source])
   @@index([rateDate])

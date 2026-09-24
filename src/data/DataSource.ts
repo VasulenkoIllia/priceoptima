@@ -1,5 +1,5 @@
 // Контракт джерела даних (§8 ui-prototype). Методи 1:1 з REST.
-import type { UserRole } from '@shared/enums';
+import type { ForeignCurrency, UserRole } from '@shared/enums';
 import type {
   AttachmentDto,
   ProductListQuery,
@@ -218,4 +218,6 @@ export interface DataSource {
   listRates(): Promise<CurrencyRateDto[]>;
   /** Загальний ручний курс на дату: за ту саму дату переважає курс НБУ (діє для постачальників без курсу в прайсі й без ручного). */
   addManualRate(input: ManualRateInput): Promise<CurrencyRateDto>;
+  /** «Скасувати ручний курс» валюти: далі діє НБУ, доки не введуть новий ручний. */
+  cancelManualRates(currency: ForeignCurrency): Promise<{ cancelled: number }>;
 }

@@ -6,6 +6,7 @@ import {
   EllipsisOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  SyncOutlined,
   WarningFilled,
 } from '@ant-design/icons';
 import { App, Button, Dropdown, InputNumber, Popover, Space, Tooltip } from 'antd';
@@ -13,10 +14,11 @@ import type { IHeaderGroupParams, IHeaderParams } from 'ag-grid-community';
 import { useState, type ReactNode } from 'react';
 import { CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
 import { formatMoney, formatPct, formatRate, formatWarning } from '@shared/format';
-import type { BlockTotals, SupplierBlock, SupplierProfit, SupplierRef, UUID } from '@shared/types';
+import type { BlockTotals, RequestDocument, SupplierBlock, SupplierProfit, SupplierRef, UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { blockRateLabel, GENERAL_RATE_HINT, relevantCurrencies } from '@/lib/rateLabels';
-import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
+import { errorMessage } from '@/data/errors';
+import { getRequestDocStore, useRequestComputed, useRequestDoc, type BlockRefreshChange } from '@/stores/requestDocStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { SEMANTIC_COLORS } from '@/theme';
 
@@ -113,6 +115,43 @@ function totalsHelp(t: BlockTotals): ReactNode {
   );
 }
 
+const REFRESH_HINT =
+  'Курс на сьогодні за правилами (курс із прайсу, далі ручний курс постачальника, далі загальний) і націнка з картки постачальника. Ціни блоку перерахуються';
+
+/** «Оновити курс і націнку» з повідомленням, що змінилось: для цих блоків або (без аргументу) для всіх. */
+function useRefreshBlocks(): (blockIds?: UUID[]) => Promise<void> {
+  const { message } = App.useApp();
+  const refreshBlocks = useRequestDoc((s) => s.refreshBlocksFromSuppliers);
+  return async (blockIds) => {
+    try {
+      const changes = await refreshBlocks(blockIds);
+      const doc = getRequestDocStore().getState().doc;
+      if (!changes.length || !doc) message.info(blockIds ? 'Курс і націнка блоку вже актуальні' : 'Курси й націнки всіх блоків уже актуальні');
+      else message.success({ content: `${blockRefreshSummary(changes, doc)}. Скасувати: Ctrl+Z`, duration: 8 });
+    } catch (e) {
+      message.error(`Не вдалося оновити курс: ${errorMessage(e)}`);
+    }
+  };
+}
+
+/** Кнопка «Оновити курс і націнку» у віконцях «курс» і «націнка» шапки блоку. */
+function RefreshBlockButton({ blockId, onDone }: { blockId: UUID; onDone: () => void }) {
+  const refresh = useRefreshBlocks();
+  return (
+    <Button
+      size="small"
+      icon={<SyncOutlined />}
+      title={REFRESH_HINT}
+      onClick={() => {
+        onDone();
+        void refresh([blockId]);
+      }}
+    >
+      Оновити курс і націнку
+    </Button>
+  );
+}
+
 function RatesEditor({ block, disabled, compact }: { block: SupplierBlock; disabled: boolean; compact?: boolean }) {
   const setBlockRates = useRequestDoc((s) => s.setBlockRates);
   // валюти товарів блоку (рядком — щоб селектор не давав новий масив на кожен рендер)
@@ -163,6 +202,7 @@ function RatesEditor({ block, disabled, compact }: { block: SupplierBlock; disab
               Скасувати
             </Button>
           </Space>
+          <RefreshBlockButton blockId={block.id} onDone={() => setOpen(false)} />
         </div>
       }
     >
@@ -208,6 +248,7 @@ function MarkupEditor({ block, disabled }: { block: SupplierBlock; disabled: boo
               Скасувати
             </Button>
           </Space>
+          <RefreshBlockButton blockId={block.id} onDone={() => setOpen(false)} />
         </div>
       }
     >
@@ -225,6 +266,24 @@ function MarkupEditor({ block, disabled }: { block: SupplierBlock; disabled: boo
   );
 }
 
+/** Що змінило «Оновити курс і націнку»: «ІУП: EUR 51,50 → 52,50, націнка 0,00 % → 0,20 %». */
+export function blockRefreshSummary(changes: readonly BlockRefreshChange[], doc: Pick<RequestDocument, 'blocks' | 'offers' | 'refs'>): string {
+  return changes
+    .map((c) => {
+      const b = doc.blocks.find((x) => x.id === c.blockId);
+      const name = (b?.supplierId ? doc.refs.suppliers[b.supplierId]?.name : null) ?? 'Блок';
+      const used = doc.offers.filter((o) => o.blockId === c.blockId).map((o) => o.currency);
+      const parts = relevantCurrencies(b?.defaultCurrency ?? 'UAH', used)
+        .filter((cur) => c.before.rates[cur] !== c.after.rates[cur])
+        .map((cur) => `${cur} ${formatRate(c.before.rates[cur]) || 'немає'} → ${formatRate(c.after.rates[cur]) || 'немає'}`);
+      if (c.before.supplierMarkupPct !== c.after.supplierMarkupPct) {
+        parts.push(`націнка ${formatPct(c.before.supplierMarkupPct)} → ${formatPct(c.after.supplierMarkupPct)}`);
+      }
+      return `${name}: ${parts.length ? parts.join(', ') : 'ціни без змін'}`;
+    })
+    .join('; ');
+}
+
 function BlockMenu({ block, name, disabled }: { block: SupplierBlock; name: string; disabled: boolean }) {
   const { modal } = App.useApp();
   const count = useRequestDoc((s) => s.doc?.blocks.length ?? 0);
@@ -232,6 +291,8 @@ function BlockMenu({ block, name, disabled }: { block: SupplierBlock; name: stri
   const offers = useRequestDoc((s) => s.doc?.offers.filter((o) => o.blockId === block.id).length ?? 0);
   const moveBlock = useRequestDoc((s) => s.moveBlock);
   const removeBlock = useRequestDoc((s) => s.removeBlock);
+  const refresh = useRefreshBlocks();
+
   return (
     <Dropdown
       trigger={['click']}
@@ -241,11 +302,20 @@ function BlockMenu({ block, name, disabled }: { block: SupplierBlock; name: stri
           { key: 'left', icon: <ArrowLeftOutlined />, label: 'Перемістити ліворуч', disabled: index <= 0 },
           { key: 'right', icon: <ArrowRightOutlined />, label: 'Перемістити праворуч', disabled: index < 0 || index >= count - 1 },
           { type: 'divider' },
+          // курс і націнка блоку зафіксовані при додаванні; нові з «Курсів валют» і картки постачальника — лише цією дією
+          {
+            key: 'refresh',
+            icon: <SyncOutlined />,
+            label: <span title={REFRESH_HINT}>Оновити курс і націнку</span>,
+          },
+          ...(count > 1 ? [{ key: 'refreshAll', icon: <SyncOutlined />, label: 'Оновити курс і націнку в усіх блоках' }] : []),
+          { type: 'divider' },
           { key: 'remove', icon: <DeleteOutlined />, label: 'Видалити блок', danger: true },
         ],
         onClick: ({ key }) => {
           if (key === 'left') moveBlock(block.id, index - 1);
           else if (key === 'right') moveBlock(block.id, index + 1);
+          else if (key === 'refresh' || key === 'refreshAll') void refresh(key === 'refreshAll' ? undefined : [block.id]);
           else if (key === 'remove') {
             modal.confirm({
               title: `Видалити блок ${name}?`,

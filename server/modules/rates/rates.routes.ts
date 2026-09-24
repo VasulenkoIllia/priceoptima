@@ -4,8 +4,8 @@ import { Router } from 'express';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseQuery } from '../../http/validate';
 import { currentUser, requireAuth } from '../auth/middleware';
-import { effectiveRatesQuerySchema, manualRateSchema, ratesQuerySchema } from './rates.schemas';
-import { addManualRate, getEffectiveRates, listRates } from './rates.service';
+import { cancelManualRateSchema, effectiveRatesQuerySchema, manualRateSchema, ratesQuerySchema } from './rates.schemas';
+import { addManualRate, cancelManualRates, getEffectiveRates, listRates } from './rates.service';
 
 export const ratesRouter = Router();
 
@@ -31,5 +31,13 @@ ratesRouter.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.status(201).json(await addManualRate(parseBody(manualRateSchema, req), currentUser(req)));
+  }),
+);
+
+ratesRouter.post(
+  '/manual/cancel',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    res.json(await cancelManualRates(parseBody(cancelManualRateSchema, req), currentUser(req)));
   }),
 );

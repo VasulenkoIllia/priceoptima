@@ -21,6 +21,7 @@ import { createKp, listKps } from '../../modules/requests/kp.service';
 import { acquireLock, activeLock, forceLock, releaseLock } from '../../modules/requests/locks.service';
 import { toProductForOffer } from '../../modules/requests/requests.context';
 import { changeStatus, createRequest, getRequestDocument, saveRequestDocument } from '../../modules/requests/requests.service';
+import { addManualRate, cancelManualRates, getEffectiveRates, saveNbuRate } from '../../modules/rates/rates.service';
 import { getSettings } from '../../modules/settings/settings.service';
 import { supplierInputSchema } from '../../modules/suppliers/suppliers.schemas';
 import { createSupplier, getSupplier } from '../../modules/suppliers/suppliers.service';
@@ -220,6 +221,28 @@ describe('заявка: збереження, блокування, КП, ста
     expect((await activeLock(req))?.userId).toBe(admin.id);
     await releaseLock(req, admin, sessionB);
     expect(await activeLock(req)).toBeNull();
+  });
+});
+
+describe('загальний курс: більший із НБУ й ручного', () => {
+  it('ручний діє наступного дня, поки вищий; вищий НБУ перебиває; скасування повертає НБУ', async () => {
+    // окремі далекі дати: у тестовій базі вони ні з чим не перетинаються
+    await cancelManualRates({ currency: 'EUR' }, admin);
+    await saveNbuRate('EUR', '2099-03-10', 60);
+    await addManualRate({ currency: 'EUR', rateDate: '2099-03-10', rate: 61.5, note: null }, admin);
+    await saveNbuRate('EUR', '2099-03-11', 60.2);
+    expect((await getEffectiveRates('2099-03-11')).EUR).toMatchObject({ rate: 61.5, source: 'manual', nbu: { rate: 60.2 } });
+
+    await saveNbuRate('EUR', '2099-03-12', 62);
+    expect((await getEffectiveRates('2099-03-12')).EUR).toMatchObject({ rate: 62, source: 'nbu', manual: { rate: 61.5 } });
+
+    expect(await cancelManualRates({ currency: 'EUR' }, admin)).toEqual({ cancelled: 1 });
+    expect((await getEffectiveRates('2099-03-11')).EUR).toMatchObject({ rate: 60.2, source: 'nbu', manual: null });
+
+    // повторне введення на ту саму дату знімає скасування
+    await addManualRate({ currency: 'EUR', rateDate: '2099-03-10', rate: 61.5, note: null }, admin);
+    expect((await getEffectiveRates('2099-03-11')).EUR?.source).toBe('manual');
+    await cancelManualRates({ currency: 'EUR' }, admin);
   });
 });
 

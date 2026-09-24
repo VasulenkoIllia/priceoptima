@@ -159,12 +159,23 @@ export interface CurrencyRateDto {
   source: RateSource;
   fetchedAt: ISODateTime;
   note: string | null;
+  /** Ручний курс скасовано («Скасувати ручний курс»): у розрахунку не бере участі. */
+  cancelledAt?: ISODateTime | null;
+}
+
+/** Курс на дату без джерела. */
+export interface RateValue {
+  rate: number;
+  rateDate: ISODate;
 }
 
 export interface EffectiveRate {
   rate: number;
   rateDate: ISODate;
   source: RateSource;
+  /** Обидва кандидати, з яких обрано більший: останній курс НБУ і останній нескасований ручний. */
+  nbu?: RateValue | null;
+  manual?: RateValue | null;
 }
 
 export interface EffectiveRates {

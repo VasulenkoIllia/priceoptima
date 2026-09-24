@@ -3,9 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Card, DatePicker, Form, Input, InputNumber, Modal, Radio, Spin, Table, Tag, type TableColumnsType } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
-import { FOREIGN_CURRENCIES, RATE_POLICY_LABELS, type ForeignCurrency, type RateSource } from '@shared/enums';
+import { FOREIGN_CURRENCIES, RATE_POLICY_LABELS, type ForeignCurrency } from '@shared/enums';
 import { formatDate, formatRate, toIsoDate } from '@shared/format';
-import type { CurrencyRateDto, EffectiveRates, ISODate, SupplierListItem } from '@shared/types';
+import { effectiveSeries } from '@shared/pricing';
+import type { CurrencyRateDto, EffectiveRate, EffectiveRates, ISODate, SupplierListItem } from '@shared/types';
 import { EmptyState, LoadError, ManualRateFields, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
@@ -17,29 +18,20 @@ const DAY_MS = 86_400_000;
 const CURRENCY_NAMES: Record<ForeignCurrency, string> = { USD: 'долар США', EUR: 'євро' };
 const CHART_COLORS: Record<ForeignCurrency, string> = { USD: BRAND_COLOR, EUR: '#00838F' };
 
+/** Курси за день у таблиці: НБУ і ручний (якщо вводили), окремо по валютах. */
+interface DayCell {
+  nbu: number | null;
+  manual: { rate: number; cancelled: boolean } | null;
+}
 interface DayRow {
   date: ISODate;
-  USD: number | null;
-  EUR: number | null;
-  sources: Partial<Record<ForeignCurrency, RateSource>>;
+  USD: DayCell;
+  EUR: DayCell;
 }
 
-/** Діючі курси за датами: за ту саму дату ручний курс переважає НБУ (так само рахує сервер). */
-function effectiveByDate(rates: readonly CurrencyRateDto[]): CurrencyRateDto[] {
-  const best = new Map<string, CurrencyRateDto>();
-  for (const r of rates) {
-    const key = `${r.currency}:${r.rateDate}`;
-    const cur = best.get(key);
-    if (!cur || (r.source === 'manual' && cur.source !== 'manual')) best.set(key, r);
-  }
-  return [...best.values()];
-}
-
-function seriesOf(rates: CurrencyRateDto[], currency: ForeignCurrency): RatePoint[] {
-  return rates
-    .filter((r) => r.currency === currency)
-    .sort((a, b) => a.rateDate.localeCompare(b.rateDate))
-    .map((r) => ({ date: r.rateDate, rate: r.rate, manual: r.source === 'manual' }));
+/** Діючий курс по днях для графіка — те саме правило, що й на сервері: більший із НБУ й останнього ручного. */
+function seriesOf(rates: readonly CurrencyRateDto[], currency: ForeignCurrency): RatePoint[] {
+  return effectiveSeries(rates, currency).map((e) => ({ date: e.date, rate: e.rate, manual: e.source === 'manual' }));
 }
 
 /** Останній відомий курс на дату за 7 днів до останньої. */
@@ -50,7 +42,35 @@ function weekBefore(points: RatePoint[]): RatePoint | undefined {
   return undefined;
 }
 
-function RateCard({ currency, points }: { currency: ForeignCurrency; points: RatePoint[] }) {
+/** Звідки діючий курс: «Вручну від 24.09.2026 · НБУ 44,8571 нижчий» / «НБУ на 25.09.2026 · ручний 45,10 від 24.09.2026 нижчий». */
+function effectiveSourceText(now: EffectiveRate): string {
+  if (now.source === 'manual') {
+    return `Вручну від ${formatDate(now.rateDate)}${now.nbu ? ` · НБУ ${formatRate(now.nbu.rate)} нижчий` : ''}`;
+  }
+  return `НБУ на ${formatDate(now.rateDate)}${now.manual ? ` · ручний ${formatRate(now.manual.rate)} від ${formatDate(now.manual.rateDate)} нижчий` : ''}`;
+}
+
+function RateCard({ currency, points, now }: { currency: ForeignCurrency; points: RatePoint[]; now: EffectiveRate | null }) {
+  const { modal, message } = App.useApp();
+  const queryClient = useQueryClient();
+  const cancel = useMutation({
+    mutationFn: () => ds.cancelManualRates(currency),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.ratesList });
+      void queryClient.invalidateQueries({ queryKey: ['rates'] });
+      message.success(`Ручний курс ${currency} скасовано, далі діє НБУ`);
+    },
+    onError: (e) => message.error(errorMessage(e)),
+  });
+  const confirmCancel = () =>
+    modal.confirm({
+      title: `Скасувати ручний курс ${currency}?`,
+      content: `Далі діятиме курс НБУ${now?.nbu ? ` (${formatRate(now.nbu.rate)})` : ''}, доки не введуть новий ручний. Курси в уже створених блоках заявок не зміняться.`,
+      okText: 'Скасувати ручний курс',
+      okButtonProps: { danger: true },
+      cancelText: 'Залишити',
+      onOk: () => cancel.mutateAsync(),
+    });
   const last = points[points.length - 1];
   const prev = weekBefore(points);
   const delta = prev ? last.rate - prev.rate : null;
@@ -62,12 +82,16 @@ function RateCard({ currency, points }: { currency: ForeignCurrency; points: Rat
           <div className="po-rates-cur">
             {currency} <span className="po-muted">· {CURRENCY_NAMES[currency]}</span>
           </div>
+          <div className="po-muted po-rates-caption">Діє для заявок зараз</div>
           <div className="po-rates-value po-num">
-            {formatRate(last.rate)} <span className="po-rates-unit">грн</span>
+            {formatRate(now?.rate ?? last.rate)} <span className="po-rates-unit">грн</span>
           </div>
-          <div className="po-muted">
-            {last.manual ? 'Вручну' : 'НБУ'} на {formatDate(last.date)}
-          </div>
+          <div className="po-muted">{now ? effectiveSourceText(now) : `${last.manual ? 'Вручну' : 'НБУ'} на ${formatDate(last.date)}`}</div>
+          {now?.manual ? (
+            <Button size="small" type="link" danger className="po-rates-cancel" loading={cancel.isPending} onClick={confirmCancel}>
+              Скасувати ручний курс
+            </Button>
+          ) : null}
         </div>
         {delta != null ? (
           <span className={`po-rates-delta po-num ${deltaClass}`} title={`Порівняно з ${formatDate(prev?.date)}`}>
@@ -81,12 +105,18 @@ function RateCard({ currency, points }: { currency: ForeignCurrency; points: Rat
   );
 }
 
-const rateCell = (currency: ForeignCurrency) => (v: number | null, row: DayRow) => (
+const rateCell = (cell: DayCell) => (
   <span className="po-num">
-    {formatRate(v)}
-    {row.sources[currency] === 'manual' ? (
-      <Tag color="gold" bordered={false} style={{ marginInlineStart: 6, marginInlineEnd: 0 }}>
-        вручну
+    {formatRate(cell.nbu)}
+    {cell.manual ? (
+      <Tag
+        color={cell.manual.cancelled ? undefined : 'gold'}
+        bordered={false}
+        className={cell.manual.cancelled ? 'po-rates-cancelled' : undefined}
+        title={cell.manual.cancelled ? 'Ручний курс скасовано' : 'Ручний курс: діє до нового ручного, поки вищий за НБУ'}
+        style={{ marginInlineStart: 6, marginInlineEnd: 0 }}
+      >
+        вручну {formatRate(cell.manual.rate)}
       </Tag>
     ) : null}
   </span>
@@ -94,8 +124,8 @@ const rateCell = (currency: ForeignCurrency) => (v: number | null, row: DayRow) 
 
 const NBU_COLUMNS: TableColumnsType<DayRow> = [
   { title: 'Дата', dataIndex: 'date', render: (v: ISODate) => <span className="po-num">{formatDate(v)}</span> },
-  { title: 'USD', dataIndex: 'USD', align: 'right', render: rateCell('USD') },
-  { title: 'EUR', dataIndex: 'EUR', align: 'right', render: rateCell('EUR') },
+  { title: 'USD', dataIndex: 'USD', align: 'right', render: rateCell },
+  { title: 'EUR', dataIndex: 'EUR', align: 'right', render: rateCell },
 ];
 
 interface ManualRateValues {
@@ -133,8 +163,8 @@ function ManualRateDialog({ open, onClose }: { open: boolean; onClose: () => voi
       width={460}
     >
       <p className="po-muted" style={{ marginTop: 0 }}>
-        Діє на обрану дату для нових заявок і блоків постачальників, у яких немає курсу в прайсі й ручного курсу в картці. За цю дату він
-        замінює курс НБУ.
+        Для блоків постачальників без курсу в прайсі й без ручного курсу в картці. Діє з обраної дати, доки не введуть новий ручний або не
+        скасують, і лише поки він вищий за курс НБУ.
       </p>
       <Form<ManualRateValues>
         form={form}
@@ -253,13 +283,28 @@ function supplierColumns(
       render: (_, s) => <SupplierLogo name={s.name} logoUrl={s.logoUrl} color={s.color} size={18} showName />,
     },
     { title: 'Прайс', key: 'currency', render: (_, s) => <span className="po-num">{s.defaultCurrency}</span> },
-    { title: 'USD у прайсі', key: 'usd', align: 'right', render: (_, s) => pair(s.priceListRates.USD, s.manualRateUsd) },
-    { title: 'EUR у прайсі', key: 'eur', align: 'right', render: (_, s) => pair(s.priceListRates.EUR, s.manualRateEur) },
+    // одна колонка на обидві валюти: у постачальника прайс в одній валюті, друга колонка завжди була б порожня
+    {
+      title: 'Курс у прайсі',
+      key: 'listed',
+      align: 'right',
+      render: (_, s) => {
+        const usd = pair(s.priceListRates.USD, s.manualRateUsd);
+        const eur = pair(s.priceListRates.EUR, s.manualRateEur);
+        return (
+          <>
+            {usd ? <div>USD {usd}</div> : null}
+            {eur ? <div>EUR {eur}</div> : null}
+          </>
+        );
+      },
+    },
     { title: 'Дата прайсу', key: 'date', render: (_, s) => <span className="po-num">{formatDate(s.priceListRates.date)}</span> },
     {
       title: <span title={GENERAL_RATE_HINT}>Курс для заявок сьогодні</span>,
       key: 'effective',
-      render: (_, s) => <span className="po-num">{requestRatesLabel(s, today, maxAgeDays)}</span>,
+      // довгий підпис («USD 44,86 (загальний на 24.09.2026)») переноситься, а не розпирає таблицю
+      render: (_, s) => <span className="po-rates-effective">{requestRatesLabel(s, today, maxAgeDays)}</span>,
     },
     {
       title: '',
@@ -286,17 +331,15 @@ export default function RatesPage() {
   const [rateSupplier, setRateSupplier] = useState<SupplierListItem | null>(null);
   // курс має сенс лише там, де прайс у валюті
   const foreignSuppliers = useMemo(() => (suppliers.data ?? []).filter((s) => s.defaultCurrency !== 'UAH'), [suppliers.data]);
-  const series = useMemo(() => {
-    const data = effectiveByDate(rates.data ?? []);
-    return { USD: seriesOf(data, 'USD'), EUR: seriesOf(data, 'EUR') };
-  }, [rates.data]);
+  const series = useMemo(() => ({ USD: seriesOf(rates.data ?? [], 'USD'), EUR: seriesOf(rates.data ?? [], 'EUR') }), [rates.data]);
 
   const days = useMemo<DayRow[]>(() => {
     const byDate = new Map<ISODate, DayRow>();
-    for (const r of effectiveByDate(rates.data ?? [])) {
-      const row = byDate.get(r.rateDate) ?? { date: r.rateDate, USD: null, EUR: null, sources: {} };
-      row[r.currency] = r.rate;
-      row.sources[r.currency] = r.source;
+    const empty = (): DayCell => ({ nbu: null, manual: null });
+    for (const r of rates.data ?? []) {
+      const row = byDate.get(r.rateDate) ?? { date: r.rateDate, USD: empty(), EUR: empty() };
+      if (r.source === 'manual') row[r.currency].manual = { rate: r.rate, cancelled: !!r.cancelledAt };
+      else row[r.currency].nbu = r.rate;
       byDate.set(r.rateDate, row);
     }
     return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
@@ -309,7 +352,9 @@ export default function RatesPage() {
   else
     body = (
       <div className="po-rates-top">
-        {FOREIGN_CURRENCIES.map((c) => (series[c].length ? <RateCard key={c} currency={c} points={series[c]} /> : null))}
+        {FOREIGN_CURRENCIES.map((c) =>
+          series[c].length ? <RateCard key={c} currency={c} points={series[c]} now={todayRates.data?.[c] ?? null} /> : null,
+        )}
       </div>
     );
 
@@ -317,7 +362,7 @@ export default function RatesPage() {
     <div className="po-page po-rates-page">
       <PageHeader
         title="Курси валют"
-        subtitle="У заявці курс береться так: з прайсу постачальника; якщо там немає, то ручний курс із картки постачальника; далі загальний курс на дату (ручний, якщо задано тут, інакше НБУ)."
+        subtitle="У заявці курс береться так: з прайсу постачальника; якщо там немає, то ручний курс із картки постачальника; далі загальний: більший із курсу НБУ й ручного, заданого тут (ручний діє до нового або до скасування)."
         extra={
           <Button icon={<EditOutlined />} onClick={() => setManualOpen(true)}>
             Задати курс вручну
@@ -327,7 +372,7 @@ export default function RatesPage() {
       <ManualRateDialog open={manualOpen} onClose={() => setManualOpen(false)} />
       {body}
       <div className="po-rates-bottom">
-        <Card title="Загальні курси за датами (НБУ або вручну)" size="small">
+        <Card title="Загальні курси за датами (НБУ і вручну)" size="small">
           <Table<DayRow>
             className="po-rates-table"
             size="small"
@@ -356,7 +401,7 @@ export default function RatesPage() {
           )}
           <div className="po-rates-hint">
             Показано лише постачальників, чий прайс у валюті. Курс приходить разом із прайсом; якщо в прайсі його немає, у заявці береться
-            ручний курс із картки постачальника, а якщо й його немає, то загальний курс на дату заявки.
+            ручний курс із картки постачальника, а якщо й його немає, то загальний курс на сьогодні.
           </div>
         </Card>
         <SupplierRateDialog supplier={rateSupplier} onClose={() => setRateSupplier(null)} />

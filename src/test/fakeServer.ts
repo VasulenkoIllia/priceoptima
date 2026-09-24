@@ -19,6 +19,8 @@ import type {
   CreateRequestBody,
   CreateRequestResult,
   DocumentPatch,
+  EffectiveRates,
+  ISODate,
   LockInfo,
   LockStatusResponse,
   ProductDetail,
@@ -114,6 +116,8 @@ export class FakeServer {
   readonly clock = { t: TEST_NOW };
   settings: AppSettings = { ...DEFAULT_APP_SETTINGS, nextRequestNumber: 1 };
   suppliers: SupplierListItem[] = [];
+  /** Загальний курс на сьогодні («Курси валют»); null — getRates падає, і стор бере курс із шапки заявки. */
+  ratesToday: EffectiveRates | null = null;
   products = new Map<UUID, ProductPickDto>();
   readonly requests = new Map<UUID, StoredRequest>();
   readonly locks = new Map<UUID, StoredLock>();
@@ -237,6 +241,11 @@ class FakeTab {
 
   async listSuppliers(): Promise<SupplierListItem[]> {
     return structuredClone(this.srv.suppliers);
+  }
+
+  async getRates(date: ISODate): Promise<EffectiveRates> {
+    if (!this.srv.ratesToday) throw new Error('FakeServer: курсу немає');
+    return { ...structuredClone(this.srv.ratesToday), date };
   }
 
   async createRequest(body: CreateRequestBody): Promise<CreateRequestResult> {
