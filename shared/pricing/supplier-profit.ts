@@ -11,14 +11,18 @@ import type {
   UUID,
 } from '../types';
 import { isActiveLine } from './lines';
-import { computeSalePrice, profitAmounts, resolveMarkupRule, VAT_PAYER_PROFIT, type ProfitBasis } from './markup';
+import { computeSalePrice, profitAmounts, profitAmountsGross, resolveMarkupRule, VAT_PAYER_PROFIT, type ProfitBasis } from './markup';
 import { pct, round2, sumMoney } from './money';
 
-interface ProfitRow {
-  cost: number | null;
-  sale: number | null;
-  profit: number | null;
+type Amounts = { sale: number | null; cost: number | null; profit: number | null };
+
+/** Рядок заробітку: без ПДВ і з ПДВ. */
+interface ProfitRow extends Amounts {
+  gross: Amounts;
 }
+
+type SumSource = Parameters<typeof profitAmounts>[0];
+const amounts = (r: SumSource, basis: ProfitBasis): ProfitRow => ({ ...profitAmounts(r, basis), gross: profitAmountsGross(r, basis) });
 
 function summarize(rows: readonly ProfitRow[]): ProfitSummary {
   const priced = rows.filter((r) => r.sale != null && r.cost != null);
@@ -30,11 +34,14 @@ function summarize(rows: readonly ProfitRow[]): ProfitSummary {
     costNet,
     saleNet,
     profitNet: sumMoney(priced.map((r) => r.profit)),
+    costGross: sumMoney(priced.map((r) => r.gross.cost)),
+    saleGross: sumMoney(priced.map((r) => r.gross.sale)),
+    profitGross: sumMoney(priced.map((r) => r.gross.profit)),
     markupPct: pct(saleNet - costNet, costNet),
   };
 }
 
-const fromMarkupRow = (r: MarkupRowComputed, basis: ProfitBasis): ProfitRow => profitAmounts(r, basis);
+const fromMarkupRow = (r: MarkupRowComputed, basis: ProfitBasis): ProfitRow => amounts(r, basis);
 
 /** Рядок «якщо все в цього постачальника»: ціна продажу за правилом націнки рядка від пропозиції блоку (як F24–F27). */
 function allInRow(line: RequestLine, oc: OfferComputed, markup: MarkupSettings, header: RequestHeader, basis: ProfitBasis): ProfitRow {
@@ -53,7 +60,7 @@ function allInRow(line: RequestLine, oc: OfferComputed, markup: MarkupSettings, 
   const qty = oc.qtyEffective;
   const sumNet = sale.saleNet != null ? round2(sale.saleNet * qty) : null;
   const sumGross = sale.saleGross != null ? round2(sale.saleGross * qty) : null;
-  return profitAmounts({ sumNet, sumGross, costNet: oc.unitNetUah, costGross: oc.unitGrossUah, qty }, basis);
+  return amounts({ sumNet, sumGross, costNet: oc.unitNetUah, costGross: oc.unitGrossUah, qty }, basis);
 }
 
 /**

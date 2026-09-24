@@ -128,6 +128,19 @@ export function profitAmounts(
   return { sale, cost, profit: sale != null && cost != null ? round2(sale - cost) : null };
 }
 
+/**
+ * Те саме «з ПДВ» (правки замовника 23.09 п.7): для платника ПДВ — продаж з ПДВ мінус вхід з ПДВ;
+ * ФОП і так рахує вхід з ПДВ, а продаж — як у КП, тож для нього збігається з profitAmounts.
+ */
+export function profitAmountsGross(
+  r: { sumNet: number | null; sumGross: number | null; costNet: number | null; costGross: number | null; qty: number },
+  basis: ProfitBasis,
+): { sale: number | null; cost: number | null; profit: number | null } {
+  if (basis.fop) return profitAmounts(r, basis);
+  const cost = r.costGross != null ? round2(r.costGross * r.qty) : null;
+  return { sale: r.sumGross, cost, profit: r.sumGross != null && cost != null ? round2(r.sumGross - cost) : null };
+}
+
 /** F24–F28: рядок блоку націнки від ефективної пропозиції. */
 export function computeMarkupRow(
   line: RequestLine,
@@ -163,6 +176,7 @@ export function computeMarkupRow(
   const sumGross = sale.saleGross != null ? round2(sale.saleGross * qty) : null;
   const { markupPct, marginPct } = markupIndicators(costNet, sale.saleNet);
   const { profit: profitNet } = profitAmounts({ sumNet, sumGross, costNet, costGross, qty }, profitBasis);
+  const { profit: profitGross } = profitAmountsGross({ sumNet, sumGross, costNet, costGross, qty }, profitBasis);
   const rrpVsCostPct = rrpNet != null && costNet ? pct(rrpNet - costNet, costNet) : null;
 
   const ref = { lineId: line.id, ...(eff ? { blockId: eff.blockId, offerId: eff.offerId } : {}) };
@@ -203,6 +217,7 @@ export function computeMarkupRow(
     markupPct,
     marginPct,
     profitNet,
+    profitGross,
     approvedQty,
     approvedSumNet,
     approvedSumGross,
@@ -240,6 +255,9 @@ export function computeMarkupTotals(rows: readonly MarkupRowComputed[], mode: To
     vat: sale.vat,
     saleGross: sale.totalGross,
     profitNet: sumMoney(priced.map((r) => r.profitNet)),
+    // прибуток з ПДВ унизу = «Продаж з ПДВ» (підсумок як у КП) мінус «Собівартість з ПДВ», щоб цифри сходились до копійки;
+    // рядок без входу (ціни немає) у різницю не йде — тоді сума по рядках
+    profitGross: withCost.length === priced.length ? round2(sale.totalGross - costGross) : sumMoney(priced.map((r) => r.profitGross)),
     markupPct: pct(saleNetOfCosted - costNet, costNet),
     marginPct: pct(saleNetOfCosted - costNet, saleNetOfCosted),
     approvedSaleNet: approved.totalNet,

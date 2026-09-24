@@ -147,6 +147,7 @@ describe('F26–F29 рядки і підсумки націнки', () => {
       vat: 3502,
       saleGross: 21012,
       profitNet: 310,
+      profitGross: 372,
       markupPct: 1.8023,
       marginPct: 1.7704,
       approvedSaleNet: 1278,
@@ -192,6 +193,9 @@ describe('F26–F29 рядки і підсумки націнки', () => {
     );
     expect(fopGross.markup.totals).toMatchObject({ vat: 0, saleGross: 0.15, approvedSaleGross: 0.15 });
     expect(fopGross.totals.totalSaleGross).toBe(withVat.totals.totalSaleGross);
+    // прибуток «з ПДВ» у ФОП той самий, що й звичайний: він і так рахує вхід з ПДВ, а продаж — як у КП
+    expect(fop.markup.totals.profitGross).toBe(fop.markup.totals.profitNet);
+    expect(fopGross.markup.totals.profitGross).toBe(fopGross.markup.totals.profitNet);
   });
 
   it('F32 підсумки заявки для реєстру', () => {

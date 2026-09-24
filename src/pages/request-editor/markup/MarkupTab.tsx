@@ -168,34 +168,34 @@ function SupplierProfitBreakdown({ doc, computed }: { doc: RequestDocument; comp
           render: (_, r) => <SupplierLogo name={r.supplier?.name ?? 'Постачальник'} logoUrl={r.supplier?.logoUrl} color={r.supplier?.color} size={16} showName />,
         },
         { title: 'Обрано рядків', align: 'right', render: (_, r) => r.selected.lines },
-        { title: fop ? 'Вхід з ПДВ' : 'Вхід без ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.costNet) },
-        { title: fop ? 'Продаж як у КП' : 'Продаж без ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.saleNet) },
+        { title: 'Вхід з ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.costGross) },
+        { title: fop ? 'Продаж як у КП' : 'Продаж з ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.saleGross) },
         {
-          title: 'Прибуток',
+          title: fop ? 'Прибуток' : 'Прибуток з ПДВ',
           align: 'right',
           className: 'po-num',
-          render: (_, r) => <b className="po-mk-stat-good">{formatMoney(r.selected.profitNet)}</b>,
+          render: (_, r) => <b className="po-mk-stat-good">{formatMoney(r.selected.profitGross)}</b>,
         },
         { title: 'Націнка', align: 'right', className: 'po-num', render: (_, r) => formatPct(r.selected.markupPct, 1) },
         {
           title: <Tooltip title="Якби всі рядки з ціною в цього постачальника брали в нього">Якщо все тут</Tooltip>,
           align: 'right',
           className: 'po-num',
-          render: (_, r) => `${formatMoney(r.allIn.profitNet)} (${r.allIn.lines} рядк.)`,
+          render: (_, r) => `${formatMoney(r.allIn.profitGross)} (${r.allIn.lines} рядк.)`,
         },
       ]}
     />
   );
   return (
-    <Popover content={table} title={fop ? 'Прибуток по постачальниках (ФОП: продаж мінус вхід з ПДВ)' : 'Прибуток по постачальниках (без ПДВ)'} placement="topLeft">
+    <Popover content={table} title={fop ? 'Прибуток по постачальниках (ФОП: продаж мінус вхід з ПДВ)' : 'Прибуток по постачальниках з ПДВ'} placement="topLeft">
       <div className="po-mk-stat po-mk-by-supplier">
-        <span className="po-mk-stat-label">По постачальниках</span>
+        <span className="po-mk-stat-label">{fop ? 'По постачальниках' : 'По постачальниках з ПДВ'}</span>
         <span className="po-mk-sup-list">
           {used.length
             ? used.map((r) => (
                 <span key={r.blockId} className="po-mk-sup">
                   <SupplierLogo name={r.supplier?.name ?? 'Постачальник'} logoUrl={r.supplier?.logoUrl} color={r.supplier?.color} size={14} />
-                  <span className="po-num">{formatMoney(r.selected.profitNet)}</span>
+                  <span className="po-num">{formatMoney(r.selected.profitGross)}</span>
                 </span>
               ))
             : null}
@@ -346,15 +346,16 @@ export default function MarkupTab() {
         valueFormatter: (p) => money(p.value),
       },
       {
-        headerName: 'Прибуток',
+        headerName: vatMode === 'no_vat' ? 'Прибуток' : 'Прибуток з ПДВ',
         colId: 'profit',
         width: 100,
         type: 'rightAligned',
         cellClass: 'po-num',
-        headerTooltip: vatMode === 'no_vat' ? 'Прибуток по рядку: продаж як у КП мінус вхід з ПДВ (ФОП ПДВ не повертає)' : 'Прибуток без ПДВ по рядку',
-        valueGetter: (p) => p.data?.mr.profitNet,
+        headerTooltip:
+          vatMode === 'no_vat' ? 'Прибуток по рядку: продаж як у КП мінус вхід з ПДВ (ФОП ПДВ не повертає)' : 'Прибуток по рядку: сума продажу з ПДВ мінус вхід з ПДВ',
+        valueGetter: (p) => p.data?.mr.profitGross,
         valueFormatter: (p) => money(p.value),
-        cellClassRules: { 'po-cell-error': (p) => (p.data?.mr.profitNet ?? 0) < 0 },
+        cellClassRules: { 'po-cell-error': (p) => (p.data?.mr.profitGross ?? 0) < 0 },
       },
       {
         headerName: 'Націнка',
@@ -543,24 +544,11 @@ export default function MarkupTab() {
           />
         </div>
         <div className="po-mk-totals">
-          {isFop ? (
-            <Stat label="Вхід з ПДВ" value={formatMoney(totals.costGross)} />
-          ) : (
-            <Stat label="Вхід без ПДВ" value={formatMoney(totals.costNet)} />
-          )}
-          {vatMode === 'no_vat' ? (
-            <Stat label="Разом" value={formatMoney(totals.saleNet)} strong />
-          ) : (
-            <>
-              <Stat label="Разом без ПДВ" value={formatMoney(totals.saleNet)} />
-              <Stat label={vatMode === 'with_vat' ? `у т.ч. ПДВ ${header.vatRatePct} %` : `ПДВ ${header.vatRatePct} %`} value={formatMoney(totals.vat)} />
-              <Stat label="Разом з ПДВ" value={formatMoney(totals.saleGross)} strong />
-            </>
-          )}
-          <Stat label="Прибуток" value={formatMoney(totals.profitNet)} tone="good" />
+          {/* лише суми з ПДВ (правки замовника 23.09 п.7); ФОП ПДВ не нараховує — продаж як у КП */}
+          <Stat label="Собівартість з ПДВ" value={formatMoney(totals.costGross)} />
+          <Stat label={vatMode === 'no_vat' ? 'Продаж' : 'Продаж з ПДВ'} value={formatMoney(totals.saleGross)} strong />
+          <Stat label={vatMode === 'no_vat' ? 'Прибуток' : 'Прибуток з ПДВ'} value={formatMoney(totals.profitGross)} tone="good" />
           <SupplierProfitBreakdown doc={doc} computed={computed} />
-          <Stat label="Націнка" value={formatPct(totals.markupPct, 1)} />
-          <Stat label="Маржа" value={formatPct(totals.marginPct, 1)} />
           <span className="po-muted po-mk-count">
             з ціною: {totals.linesPriced}
             {totals.linesUnpriced ? ` · без ціни: ${totals.linesUnpriced}` : ''}

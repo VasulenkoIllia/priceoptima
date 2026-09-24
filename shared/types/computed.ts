@@ -182,6 +182,8 @@ export interface MarkupRowComputed {
   markupPct: number | null;
   marginPct: number | null;
   profitNet: number | null;
+  /** Прибуток з ПДВ: продаж з ПДВ мінус вхід з ПДВ (ТОВ); ФОП — як profitNet (правки замовника 23.09 п.7). */
+  profitGross: number | null;
   approvedQty: number | null;
   approvedSumNet: number | null;
   approvedSumGross: number | null;
@@ -199,6 +201,8 @@ export interface MarkupTotals {
   vat: number;
   saleGross: number;
   profitNet: number;
+  /** Σ profitGross рядків. */
+  profitGross: number;
   markupPct: number | null;
   marginPct: number | null;
   /** Ф18: погоджені рядки з погодженими к-стями. */
@@ -218,6 +222,10 @@ export interface ProfitSummary {
   costNet: number;
   saleNet: number;
   profitNet: number;
+  /** Те саме з ПДВ (ТОВ: продаж і вхід з ПДВ; ФОП — як без ПДВ). */
+  costGross: number;
+  saleGross: number;
+  profitGross: number;
   markupPct: number | null;
 }
 

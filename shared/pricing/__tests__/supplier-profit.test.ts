@@ -30,9 +30,31 @@ describe('заробіток по постачальниках', () => {
   const c = computeRequest(doc, makeCtx([makeSupplier('A'), makeSupplier('B')]));
 
   it('за поточним вибором: рядки, де обрано постачальника; разом = прибуток заявки', () => {
-    expect(c.supplierProfit.A!.selected).toEqual({ lines: 3, unpriced: 1, costNet: 450, saleNet: 540, profitNet: 90, markupPct: 20 });
-    expect(c.supplierProfit.B!.selected).toEqual({ lines: 1, unpriced: 0, costNet: 2560, saleNet: 3072, profitNet: 512, markupPct: 20 });
+    // з ПДВ (правки замовника 23.09 п.7): продаж з ПДВ мінус вхід з ПДВ
+    expect(c.supplierProfit.A!.selected).toEqual({
+      lines: 3,
+      unpriced: 1,
+      costNet: 450,
+      saleNet: 540,
+      profitNet: 90,
+      costGross: 540,
+      saleGross: 648,
+      profitGross: 108,
+      markupPct: 20,
+    });
+    expect(c.supplierProfit.B!.selected).toEqual({
+      lines: 1,
+      unpriced: 0,
+      costNet: 2560,
+      saleNet: 3072,
+      profitNet: 512,
+      costGross: 3072,
+      saleGross: 3686.4,
+      profitGross: 614.4,
+      markupPct: 20,
+    });
     expect(c.supplierProfit.A!.selected.profitNet + c.supplierProfit.B!.selected.profitNet).toBe(c.markup.totals.profitNet);
+    expect(c.supplierProfit.A!.selected.profitGross + c.supplierProfit.B!.selected.profitGross).toBeCloseTo(c.markup.totals.profitGross, 2);
   });
 
   it('«якщо все в цього постачальника»: покриті рядки, ручна ціна рядка лишається, виключені не входять', () => {
