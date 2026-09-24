@@ -652,28 +652,3 @@
   background: var(--po-min-bg);
 }
 
-/* ── протягування за куточок (як в Excel) ───────────────────────── */
-.po-fill-handle {
-  display: none;
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 7px;
-  height: 7px;
-  background: var(--po-brand);
-  border: 1px solid #fff;
-  cursor: crosshair;
-  z-index: 2;
-}
-.ag-cell-focus .po-fill-handle {
-  display: block;
-}
-.ag-cell.po-fill-range {
-  background: rgba(30, 80, 170, 0.1);
-  box-shadow: inset 1px 0 0 var(--po-brand), inset -1px 0 0 var(--po-brand);
-}
-body.po-filling,
-body.po-filling * {
-  cursor: crosshair !important;
-  user-select: none;
-}

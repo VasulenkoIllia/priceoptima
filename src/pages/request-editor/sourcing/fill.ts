@@ -39,10 +39,4 @@ export function fillDownTargets(
   return i > 0 ? { sourceId: displayed[i - 1], targetIds: [focusedId] } : null;
 }
 
-/** Протягування: рядки між джерелом і рядком, де відпустили мишу (вниз або вгору), без самого джерела. */
-export function dragTargets(displayed: readonly UUID[], sourceId: UUID, toIndex: number): UUID[] {
-  const from = displayed.indexOf(sourceId);
-  if (from < 0 || toIndex === from) return [];
-  const to = Math.max(0, Math.min(toIndex, displayed.length - 1));
-  return to > from ? displayed.slice(from + 1, to + 1) : displayed.slice(to, from);
-}
+export { dragTargets } from '@/lib/gridFillDrag';

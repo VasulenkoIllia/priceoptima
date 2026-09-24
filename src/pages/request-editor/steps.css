@@ -64,9 +64,6 @@
 .po-mk-method-default .ant-select-selection-item {
   color: rgba(0, 0, 0, 0.45);
 }
-.po-mk-anchor {
-  font-weight: 600;
-}
 .ag-cell.po-mk-editable {
   cursor: text;
 }

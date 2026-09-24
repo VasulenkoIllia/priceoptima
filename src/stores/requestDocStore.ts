@@ -227,6 +227,8 @@ export interface RequestDocActions {
 
   setMarkupDefaults(patch: Partial<MarkupSettings>): void;
   setLineMarkup(lineId: UUID, patch: Partial<LineMarkupOverride>): void;
+  /** Той самий спосіб націнки кільком рядкам одним кроком (протягування, Ctrl+D). */
+  setLinesMarkup(lineIds: UUID[], patch: Partial<LineMarkupOverride>): void;
   /** «Як у заявці»: скинути власну націнку рядків (без аргументу — усіх). */
   resetLineMarkups(lineIds?: UUID[]): void;
   setApproval(lineId: UUID, approved: boolean, qty?: number | null): void;
@@ -1249,6 +1251,14 @@ export function createRequestDocStore(deps: RequestDocStoreDeps): RequestDocStor
         edit((d) => {
           const line = d.lines.find((l) => l.id === lineId);
           if (line) Object.assign(line.markup, patch);
+        });
+      },
+
+      setLinesMarkup(lineIds, patch) {
+        if (!lineIds.length) return;
+        const ids = new Set(lineIds);
+        edit((d) => {
+          for (const line of d.lines) if (ids.has(line.id)) Object.assign(line.markup, patch);
         });
       },
 

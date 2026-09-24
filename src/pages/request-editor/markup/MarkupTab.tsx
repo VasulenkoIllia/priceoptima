@@ -2,9 +2,18 @@
 // ручна ціна (без ПДВ або з ПДВ), попередження й підсумки в режимі цін КП. Коригувати ціни для клієнта можна лише тут, у заявці.
 import { ArrowRightOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { App, Button, InputNumber, Popover, Segmented, Select, Table, Tag, Tooltip } from 'antd';
-import type { CellEditRequestEvent, ColDef, ICellRendererParams, RowClassParams } from 'ag-grid-community';
+import type {
+  CellEditRequestEvent,
+  CellKeyDownEvent,
+  ColDef,
+  FullWidthCellKeyDownEvent,
+  GridApi,
+  ICellRendererParams,
+  RowClassParams,
+  SuppressKeyboardEventParams,
+} from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { DISCOUNT_FORMULAS, DISCOUNT_FORMULA_LABELS, MARKUP_METHOD_LABELS, MARKUP_METHODS, type DiscountFormula, type KpVatMode, type MarkupMethod } from '@shared/enums';
 import { formatMoney, formatPct, formatQty } from '@shared/format';
@@ -14,8 +23,10 @@ import type { MarkupRowComputed, Offer, RequestComputed, RequestDocument, Reques
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
+import { startFillDrag } from '@/lib/gridFillDrag';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { setOfferPriceFromInput, setOfferRrpFromInput } from '../offerCellInput';
+import { markupFillPatch } from './markupFill';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 
 interface MarkupRow {
@@ -32,6 +43,38 @@ interface MarkupGridContext {
   readOnly(): boolean;
   defaultMethod(): MarkupMethod;
   setMethod(row: MarkupRow, value: MethodChoice): void;
+  /** Куточок клітинки «Спосіб» / «%» — протягнути правило рядка в рядки нижче (вище), як в Excel. */
+  onFillStart(e: ReactMouseEvent<HTMLElement>, row: MarkupRow, colId: string): void;
+}
+
+/** Колонки, які протягуються (правки замовника 23.09 п.9). */
+const FILL_COLS = new Set(['method', 'value']);
+const FILL_HINT = 'Потягніть за куточок униз, щоб застосувати спосіб і % цього рядка до рядків нижче (як в Excel). Ctrl+D: взяти з рядка вище';
+/** Ctrl+D (на Mac і Cmd+D) — з рядка вище, як в Excel; розкладка неважлива (e.code). */
+const isFillKey = (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === 'KeyD' || e.key.toLowerCase() === 'd');
+/** Ctrl+D не віддаємо браузеру (у Safari це «додати закладку»). */
+const suppressFillKey = (p: SuppressKeyboardEventParams<MarkupRow>) => {
+  const hit = !p.editing && p.event.type === 'keydown' && isFillKey(p.event);
+  if (hit) p.event.preventDefault();
+  return hit;
+};
+
+/** Куточок для протягування (видно на клітинці з фокусом). */
+function FillHandle({ row, colId, context }: { row: MarkupRow; colId: string; context: MarkupGridContext }) {
+  if (context.readOnly() || !row.offer) return null;
+  return <span className="po-fill-handle" title={FILL_HINT} onMouseDown={(e) => context.onFillStart(e, row, colId)} />;
+}
+
+/** «%» рядка + куточок для протягування. */
+function ValueCell(p: P) {
+  const text = p.valueFormatted ?? '';
+  if (!p.data) return <>{text}</>;
+  return (
+    <>
+      {text}
+      <FillHandle row={p.data} colId="value" context={p.context} />
+    </>
+  );
 }
 
 type P = ICellRendererParams<MarkupRow, unknown, MarkupGridContext>;
@@ -73,19 +116,22 @@ function MethodCell({ data, context }: P) {
   const m = data.line.markup;
   const value: MethodChoice = m.manualPriceNet != null || m.manualPriceGross != null ? 'manual' : (m.method ?? 'default');
   return (
-    <Select<MethodChoice>
-      size="small"
-      variant="borderless"
-      value={value}
-      disabled={context.readOnly() || !data.offer}
-      popupMatchSelectWidth={false}
-      className={value === 'default' ? 'po-mk-method po-mk-method-default' : 'po-mk-method'}
-      options={[
-        { value: 'default', label: 'Як у заявці', title: `Як у заявці: ${MARKUP_METHOD_LABELS[context.defaultMethod()]}` },
-        ...MARKUP_METHODS.map((x) => ({ value: x, label: MARKUP_METHOD_LABELS[x] })),
-      ]}
-      onChange={(v) => context.setMethod(data, v)}
-    />
+    <>
+      <Select<MethodChoice>
+        size="small"
+        variant="borderless"
+        value={value}
+        disabled={context.readOnly() || !data.offer}
+        popupMatchSelectWidth={false}
+        className={value === 'default' ? 'po-mk-method po-mk-method-default' : 'po-mk-method'}
+        options={[
+          { value: 'default', label: 'Як у заявці', title: `Як у заявці: ${MARKUP_METHOD_LABELS[context.defaultMethod()]}` },
+          ...MARKUP_METHODS.map((x) => ({ value: x, label: MARKUP_METHOD_LABELS[x] })),
+        ]}
+        onChange={(v) => context.setMethod(data, v)}
+      />
+      <FillHandle row={data} colId="method" context={context} />
+    </>
   );
 }
 
@@ -231,6 +277,46 @@ export default function MarkupTab() {
   // рендери клітинок читають актуальний стан через контекст (стабільний об'єкт)
   const latest = useRef({ readOnly, method: doc?.markup.method ?? 'rrp' });
   latest.current = { readOnly, method: doc?.markup.method ?? 'rrp' };
+
+  // ── протягування способу й % (як в Excel) і Ctrl+D ──────────────
+  const apiRef = useRef<GridApi<MarkupRow> | null>(null);
+  const fillCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => fillCleanup.current?.(), []);
+  const displayedIds = (): UUID[] => {
+    const ids: UUID[] = [];
+    apiRef.current?.forEachNodeAfterFilterAndSort((n) => {
+      if (n.data) ids.push(n.data.id);
+    });
+    return ids;
+  };
+  /** Правило рядка-джерела — у цільові рядки з підібраним товаром, одним кроком. */
+  const applyFill = (sourceId: UUID, targetIds: UUID[]) => {
+    const s = getRequestDocStore().getState();
+    const source = s.doc?.lines.find((l) => l.id === sourceId);
+    if (!source || !targetIds.length || latest.current.readOnly) return;
+    const patch = markupFillPatch(source);
+    if (!patch) {
+      message.info('Ручну ціну не протягують: це ціна конкретного товару');
+      return;
+    }
+    const computedNow = s.getComputed();
+    const ids = targetIds.filter((id) => computedNow?.markup.rows[id]?.effectiveOfferId);
+    if (!ids.length) return;
+    s.setLinesMarkup(ids, patch);
+    const what = patch.method
+      ? `${MARKUP_METHOD_LABELS[patch.method]}${isPctMethod(patch.method) && patch.value != null ? ` ${formatPct(patch.value, 1)}` : ''}`
+      : 'Як у заявці';
+    message.success(`${what}: ${ids.length} рядк. Скасувати: Ctrl+Z`);
+  };
+  const applyFillRef = useRef(applyFill);
+  applyFillRef.current = applyFill;
+  const onCellKeyDown = (e: CellKeyDownEvent<MarkupRow> | FullWidthCellKeyDownEvent<MarkupRow>) => {
+    const ev = e.event as KeyboardEvent | null | undefined;
+    if (!ev || !('column' in e) || !e.data || !FILL_COLS.has(e.column.getColId()) || !isFillKey(ev)) return;
+    const ids = displayedIds();
+    const i = ids.indexOf(e.data.id);
+    if (i > 0) applyFill(ids[i - 1], [e.data.id]);
+  };
   const context = useMemo<MarkupGridContext>(
     () => ({
       readOnly: () => latest.current.readOnly,
@@ -240,6 +326,22 @@ export default function MarkupTab() {
         if (v === 'default') s.setLineMarkup(row.id, { method: null, value: null, manualPriceNet: null, manualPriceGross: null });
         else if (v === 'manual') s.setLineMarkup(row.id, { method: 'manual', value: null, manualPriceNet: row.mr.saleNet ?? row.mr.costNet, manualPriceGross: null });
         else s.setLineMarkup(row.id, { method: v, value: v === 'rrp' ? null : (row.mr.value ?? s.doc?.markup.value ?? 0), manualPriceNet: null, manualPriceGross: null });
+      },
+      onFillStart: (e, row, colId) => {
+        const api = apiRef.current;
+        if (!api || latest.current.readOnly) return;
+        fillCleanup.current?.();
+        fillCleanup.current = startFillDrag({
+          event: e,
+          api,
+          colId,
+          displayed: displayedIds(),
+          sourceId: row.id,
+          onApply: (targetIds) => {
+            fillCleanup.current = null;
+            applyFillRef.current(row.id, targetIds);
+          },
+        });
       },
     }),
     [],
@@ -306,6 +408,8 @@ export default function MarkupTab() {
         width: 178,
         cellRenderer: MethodCell,
         cellClass: 'po-mk-method-cell',
+        headerTooltip: FILL_HINT,
+        suppressKeyboardEvent: suppressFillKey,
         tooltipValueGetter: (p) =>
           p.data && !hasOverride(p.data.line) ? `Як у заявці: ${MARKUP_METHOD_LABELS[latest.current.method]}` : null,
       },
@@ -315,11 +419,13 @@ export default function MarkupTab() {
         width: 80,
         type: 'rightAligned',
         cellClass: 'po-num',
-        headerTooltip: 'Націнка на вхід або знижка від РРЦ, % (Enter: змінити)',
+        headerTooltip: `Націнка на вхід або знижка від РРЦ, % (Enter: змінити). ${FILL_HINT}`,
         editable: (p) => canEdit(p) && !!p.data && isPctMethod(p.data.mr.method),
         cellEditor: 'agTextCellEditor',
+        suppressKeyboardEvent: suppressFillKey,
         valueGetter: (p) => (p.data && isPctMethod(p.data.mr.method) ? p.data.mr.value : null),
         valueFormatter: (p) => (p.value == null ? '' : formatPct(p.value as number, 2)),
+        cellRenderer: ValueCell,
       },
       {
         headerName: 'Ціна без ПДВ',
@@ -332,7 +438,6 @@ export default function MarkupTab() {
         cellEditor: 'agTextCellEditor',
         valueGetter: (p) => p.data?.mr.saleNet,
         valueFormatter: (p) => money(p.value),
-        cellClassRules: { 'po-mk-anchor': (p) => p.data?.mr.priceBasis === 'net' && p.data.mr.saleNet != null },
       },
       {
         headerName: 'Ціна з ПДВ',
@@ -345,7 +450,6 @@ export default function MarkupTab() {
         cellEditor: 'agTextCellEditor',
         valueGetter: (p) => p.data?.mr.saleGross,
         valueFormatter: (p) => money(p.value),
-        cellClassRules: { 'po-mk-anchor': (p) => p.data?.mr.priceBasis === 'gross' && p.data.mr.saleGross != null },
       },
       {
         headerName: vatMode === 'no_vat' ? 'Сума' : sumGross ? 'Сума з ПДВ' : 'Сума без ПДВ',
@@ -553,6 +657,10 @@ export default function MarkupTab() {
             getRowId={(p) => p.data.id}
             readOnlyEdit
             onCellEditRequest={onCellEditRequest}
+            onCellKeyDown={onCellKeyDown}
+            onGridReady={(e) => {
+              apiRef.current = e.api;
+            }}
             singleClickEdit={false}
             stopEditingWhenCellsLoseFocus
             rowClass="po-mk-row"
