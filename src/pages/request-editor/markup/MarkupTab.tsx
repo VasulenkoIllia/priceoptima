@@ -1,7 +1,7 @@
 // Вкладка «Націнка» (НАЦ-1…НАЦ-5): ціна продажу кожного рядка від обраної пропозиції — спосіб для заявки й для рядка,
 // ручна ціна (без ПДВ або з ПДВ), попередження й підсумки в режимі цін КП. Коригувати ціни для клієнта можна лише тут, у заявці.
 import { ArrowRightOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { App, Button, InputNumber, Popover, Segmented, Select, Table, Tag, Tooltip } from 'antd';
+import { App, Button, InputNumber, Popover, Select, Table, Tag, Tooltip } from 'antd';
 import type {
   CellEditRequestEvent,
   CellKeyDownEvent,
@@ -352,7 +352,8 @@ export default function MarkupTab() {
   const columns = useMemo<ColDef<MarkupRow>[]>(() => {
     const canEdit = (p: { data?: MarkupRow }) => !latest.current.readOnly && !!p.data?.offer;
     // сума — як у КП: ТОВ з ПДВ і ФОП «на рівні цін з ПДВ» — з ПДВ
-    const sumGross = vatMode === 'with_vat' || (vatMode === 'no_vat' && fopBasis === 'gross');
+    // сума — з ПДВ (правки замовника 23.09 п.10); ФОП ПДВ не нараховує — як у його КП («на рівні цін з ПДВ» чи без ПДВ)
+    const sumGross = vatMode !== 'no_vat' || fopBasis === 'gross';
     // найважливіше (вхід → спосіб → ціна продажу → сума → прибуток) — без прокрутки на 1366–1440 px; довідкове — праворуч
     const defs: ColDef<MarkupRow>[] = [
       { headerName: '№', colId: 'n', valueGetter: (p) => p.data?.line.position, width: 48, pinned: 'left', cellClass: 'po-num' },
@@ -452,7 +453,7 @@ export default function MarkupTab() {
         valueFormatter: (p) => money(p.value),
       },
       {
-        headerName: vatMode === 'no_vat' ? 'Сума' : sumGross ? 'Сума з ПДВ' : 'Сума без ПДВ',
+        headerName: vatMode === 'no_vat' ? 'Сума' : 'Сума з ПДВ',
         colId: 'sum',
         width: 112,
         type: 'rightAligned',
@@ -538,12 +539,11 @@ export default function MarkupTab() {
   };
 
   if (!doc || !computed || !requestId) return null;
-  const { markup, header, refs } = doc;
+  const { markup, header } = doc;
   const store = getRequestDocStore().getState();
   const totals = computed.markup.totals;
   const checks = kpChecks(doc.lines, computed);
   const overrides = doc.lines.filter(hasOverride).length;
-  const isFop = !refs.ownCompany.isVatPayer;
 
   const applyToAll = () =>
     modal.confirm({
@@ -593,24 +593,7 @@ export default function MarkupTab() {
             </Button>
           </Tooltip>
         ) : null}
-        <span className="po-mk-divider" />
-        <span className="po-muted">Ціни в КП:</span>
-        {isFop ? (
-          <Tooltip title="ФОП не платник ПДВ: у КП ПДВ не виділяється. Рівень цін задається в Налаштуваннях">
-            <Tag bordered={false}>{pricing?.fopPriceBasis === 'net' ? 'ФОП, без ПДВ' : 'ФОП, на рівні цін з ПДВ'}</Tag>
-          </Tooltip>
-        ) : (
-          <Segmented<KpVatMode>
-            size="small"
-            value={header.kpSettings.vatMode}
-            disabled={readOnly}
-            options={[
-              { value: 'without_vat', label: 'без ПДВ' },
-              { value: 'with_vat', label: 'з ПДВ' },
-            ]}
-            onChange={(v) => store.setHeader({ kpSettings: { ...header.kpSettings, vatMode: v } })}
-          />
-        )}
+        {/* «Ціни в КП: без/з ПДВ» — лише на вкладці «КП»: тут ціни без і з ПДВ поруч, суми з ПДВ (правки замовника 23.09 п.10) */}
         <span className="po-tab-spacer" />
         {checks.notApproved ? (
           <Tooltip title="Рядки без ✔ ідуть у націнку і КП з мінімальною ціною">
