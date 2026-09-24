@@ -110,6 +110,10 @@ describe('buildColumnDefs — «Підбір»', () => {
     expect(cls(COL.block('b1', 'net'), r1)).toEqual(expect.arrayContaining(['po-cell-min', 'po-cell-not-approved']));
     expect(cls(COL.block('b2', 'net'), r1)).toEqual([]);
     expect(cls(COL.block('b2', 'net'), r2)).toContain('po-cell-approved');
+    // рамка обраної пропозиції й на ціні з ПДВ
+    expect(cls(COL.block('b2', 'gross'), r2)).toContain('po-cell-approved');
+    expect(cls(COL.block('b1', 'gross'), r1)).toContain('po-cell-not-approved');
+    expect(cls(COL.block('b2', 'sum'), r2)).not.toContain('po-cell-approved');
     expect(cls(COL.block('b1', 'sum'), r3)).toContain('po-cell-excluded');
     expect(cls(COL.block('b2', 'sku'), r3)).toContain('po-cell-empty');
   });

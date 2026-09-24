@@ -130,10 +130,13 @@ function blockCellClassRules(blockId: UUID, field: BlockField, collapsed: boolea
     'po-cell-excluded': (p: CellClassParams<SourcingRow>) => !!cellOf(p.data, blockId)?.offer?.excluded,
   };
   if (priceField) rules['po-cell-min'] = (p) => !!cellOf(p.data, blockId)?.oc?.isMin;
-  if (field === 'net') {
+  // рамка обраної пропозиції — на обох цінах, без ПДВ і з ПДВ (правки замовника 23.09 п.2)
+  if (field === 'net' || field === 'gross') {
     rules['po-cell-approved'] = (p) =>
       isLineRow(p.data) && p.data.line.selection.blockId === blockId && !!cellOf(p.data, blockId)?.oc?.isSelected;
     rules['po-cell-not-approved'] = (p) => isLineRow(p.data) && isNotApproved(p.data.cmp) && p.data.cmp?.effectiveBlockId === blockId;
+  }
+  if (field === 'net') {
     rules['po-cell-error'] = (p) => !!cellOf(p.data, blockId)?.oc?.warnings.some((w) => w.code === 'RATE_MISSING');
   }
   if (field === 'sku') {
