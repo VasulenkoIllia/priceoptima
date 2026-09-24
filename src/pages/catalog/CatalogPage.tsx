@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Checkbox, Dropdown, Input, Select, Space, Tag } from 'antd';
 import type { ColDef, GridApi, ICellRendererParams, IDatasource } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { catalogSortAllowed } from '@shared/catalog/limits';
 import { AVAILABILITY_LABELS, type AvailabilityStatus } from '@shared/enums';
 import { formatDate, formatMoney, formatQty } from '@shared/format';
@@ -108,11 +108,11 @@ export default function CatalogPage() {
   );
 
   // нові фільтри — нове джерело рядків: таблиця скидає підвантажене й читає з першої сторінки;
-  // запізніла відповідь за попередніми фільтрами не переписує лічильник і помилку нового пошуку
-  const generation = useRef(0);
+  // запізніла відповідь за попередніми фільтрами не переписує лічильник і помилку нового пошуку.
+  // Яке джерело зараз у таблиці, позначаємо після рендеру: обчислення в useMemo React у режимі розробки викликає двічі
+  const activeSource = useRef<IDatasource | null>(null);
   const datasource = useMemo<IDatasource>(() => {
-    const gen = ++generation.current;
-    return {
+    const source: IDatasource = {
       getRows: (params) => {
         const sort = params.sortModel[0];
         const sortField = sort ? SORT_FIELDS[sort.colId] : undefined;
@@ -124,7 +124,7 @@ export default function CatalogPage() {
           sortDir: sortField ? (sort.sort ?? 'asc') : undefined,
         }).then(
           (page) => {
-            if (gen !== generation.current) return;
+            if (activeSource.current !== source) return;
             // загальну кількість сервер рахує лише для першої сторінки
             if (page.total != null) totalRef.current = page.total;
             setTotal(totalRef.current);
@@ -134,14 +134,18 @@ export default function CatalogPage() {
             else gridApi.current?.hideOverlay();
           },
           (e: unknown) => {
-            if (gen !== generation.current) return;
+            if (activeSource.current !== source) return;
             setLoadError(errorMessage(e));
             params.failCallback();
           },
         );
       },
     };
+    return source;
   }, [filters]);
+  useLayoutEffect(() => {
+    activeSource.current = datasource;
+  }, [datasource]);
 
   // каталог змінився деінде (прайс, новий товар, ціна) — інвалідується весь ['products'], разом із цією позначкою;
   // перечитуємо підвантажені сторінки, не скидаючи прокрутку

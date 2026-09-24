@@ -14,7 +14,7 @@ import { Button, Checkbox, DatePicker, Dropdown, Input, Result, Segmented, Selec
 import type { ColDef, GridApi, ICellRendererParams, IDatasource } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useOpenTab } from '@/app/AppTabs';
 import { REQUEST_STATUSES } from '@shared/enums';
 import { formatDate, formatKpNumber, formatMoney, formatTime } from '@shared/format';
@@ -181,11 +181,11 @@ export default function RegistryPage() {
   const totalRef = useRef<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // запізніла відповідь за попереднім пошуком чи фільтром не переписує лічильник нового
-  const generation = useRef(0);
+  // запізніла відповідь за попереднім пошуком чи фільтром не переписує лічильник нового.
+  // Яке джерело зараз у таблиці, позначаємо після рендеру: обчислення в useMemo React у режимі розробки викликає двічі
+  const activeSource = useRef<IDatasource | null>(null);
   const datasource = useMemo<IDatasource>(() => {
-    const gen = ++generation.current;
-    return {
+    const source: IDatasource = {
       getRows: (params) => {
         const sortModel = params.sortModel[0];
         const field = sortModel ? SORT_FIELDS[sortModel.colId] : undefined;
@@ -196,7 +196,7 @@ export default function RegistryPage() {
           limit: params.endRow - params.startRow,
         }).then(
           (page) => {
-            if (gen !== generation.current) return;
+            if (activeSource.current !== source) return;
             if (page.total != null) totalRef.current = page.total;
             setTotal(totalRef.current);
             setLoadError(null);
@@ -205,14 +205,18 @@ export default function RegistryPage() {
             else gridApi.current?.hideOverlay();
           },
           (e: unknown) => {
-            if (gen !== generation.current) return;
+            if (activeSource.current !== source) return;
             setLoadError(errorMessage(e));
             params.failCallback();
           },
         );
       },
     };
+    return source;
   }, [query]);
+  useLayoutEffect(() => {
+    activeSource.current = datasource;
+  }, [datasource]);
 
   // заявку змінили (КП, статус, збереження) — інвалідується весь ['requests'], разом із цією позначкою
   const version = useQuery({ queryKey: qk.requestsVersion, queryFn: () => Date.now(), staleTime: Infinity });
