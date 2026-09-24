@@ -32,12 +32,6 @@
   flex: 1;
   min-height: 240px;
 }
-.po-mk-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--po-border);
-  margin: 0 4px;
-}
 .po-mk-product {
   display: flex;
   align-items: center;

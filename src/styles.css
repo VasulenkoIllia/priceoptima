@@ -17,11 +17,6 @@ body {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.po-num-right {
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  white-space: nowrap;
-}
 .po-muted {
   color: rgba(0, 0, 0, 0.45);
 }
@@ -153,9 +148,6 @@ body {
   height: 28px;
   max-width: 96px;
   object-fit: contain;
-}
-.po-header-spacer {
-  flex: 1;
 }
 .po-sider {
   border-right: 1px solid var(--po-border);

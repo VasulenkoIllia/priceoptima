@@ -65,12 +65,6 @@
   width: 100%;
   justify-content: flex-end;
 }
-.po-ellipsis {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
 .po-cell-center {
   display: flex;
   align-items: center;
@@ -177,11 +171,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.po-price-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .po-price-change {
   flex: none;
@@ -421,26 +410,6 @@
   padding-top: 12px;
   border-top: 1px solid var(--po-border);
 }
-.po-price-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-.po-price-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
-  margin-bottom: 12px;
-  background: #f7f9fc;
-  border-radius: 6px;
-}
-.po-price-preview-label {
-  display: inline-block;
-  width: 170px;
-  color: rgba(0, 0, 0, 0.6);
-}
 
 /* ── сценарії (панель праворуч) ─────────────────────────────────── */
 .po-scenarios {
@@ -596,55 +565,6 @@
 .ag-row-hover .po-client-pick,
 .ag-cell-focus .po-client-pick {
   opacity: 1;
-}
-
-/* ── імпорт і вставка рядків клієнта ───────────────────────────────── */
-.po-lines-file {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.po-lines-file-icon {
-  font-size: 18px;
-  color: #1d6f42;
-}
-.po-lines-template {
-  margin-top: 8px;
-  color: rgba(0, 0, 0, 0.55);
-}
-.po-lines-kind.ant-typography {
-  margin: 8px 0 4px;
-}
-.po-lp-mapping {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-.po-lp-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.po-lp-col {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.po-lp .ant-table {
-  font-size: 12px;
-}
-.po-lp .ant-table-cell.po-lp-mapped {
-  background: rgba(16, 80, 184, 0.05);
-}
-.po-lp-header-row > td {
-  font-style: italic;
-  color: rgba(0, 0, 0, 0.45);
-}
-.po-lp-more {
-  margin: 4px 0 8px;
-  font-size: 12px;
 }
 
 /* мінімум важливіший за фон попередження (іконка попередження лишається) */
