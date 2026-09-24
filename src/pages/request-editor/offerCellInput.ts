@@ -6,7 +6,6 @@ import { formatMoney, formatPct } from '@shared/format';
 import { normalizeInputPrice, purchasePriceFromCell, round6 } from '@shared/pricing';
 import { parseLocaleNumber } from '@shared/parse';
 import type { UUID } from '@shared/types';
-import { errorMessage } from '@/data/errors';
 import { getRequestDocStore } from '@/stores/requestDocStore';
 
 type Ui = Pick<ReturnType<typeof App.useApp>, 'message' | 'modal'>;
@@ -72,12 +71,7 @@ export function setOfferPriceFromInput(ui: Ui, lineId: UUID, blockId: UUID, raw:
   if (before != null && Math.abs(unitNet - before) < 0.005) return;
   const price = purchasePriceFromCell(value, withVat, t.vatRatePct, t.rate, t.block.supplierMarkupPct);
   confirmBig(ui, before, unitNet, withVat ? t.oc.unitGrossUah : before, value, withVat ? 'з ПДВ' : 'без ПДВ', () => {
-    t.s.setOfferPurchasePrice(t.offer.id, price).then(
-      (changed) => {
-        if (changed) ui.message.success('Ціну змінено в цій заявці. Скасувати: Ctrl+Z');
-      },
-      (e: unknown) => ui.message.error(errorMessage(e)),
-    );
+    if (t.s.setOfferPurchasePrice(t.offer.id, price)) ui.message.success('Ціну змінено в цій заявці. Скасувати: Ctrl+Z');
   });
 }
 

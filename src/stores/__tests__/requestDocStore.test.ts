@@ -189,35 +189,16 @@ describe('requestDocStore', () => {
     expect(events[0]).toMatchObject({ kind: 'price_update' });
   });
 
-  it('змінити ціну в заявці: лише тут або і в каталозі (РЕД-10)', async () => {
+  it('змінити ціну в заявці — лише тут, каталог не змінюється (РЕД-10; правки замовника 23.09 п.8)', async () => {
     const store = await openStore(setup());
     const offer = store.getState().doc!.offers.find((o) => o.lineId === 'L1' && o.blockId === 'b1')!;
-    expect(await store.getState().setOfferPurchasePrice(offer.id, 90)).toBe(true);
-    let saved = store.getState().doc!.offers.find((o) => o.id === offer.id)!;
+    expect(store.getState().setOfferPurchasePrice(offer.id, 90)).toBe(true);
+    const saved = store.getState().doc!.offers.find((o) => o.id === offer.id)!;
     expect(saved.purchasePriceCur).toBe(90);
     expect(saved.priceChange).toMatchObject({ reason: 'manual_edit', prevPurchasePriceCur: 100 });
-    // у каталозі ціна поки стара
     expect(product(offer.productId!).purchasePrice).toBe(100);
-
-    // прайс тим часом змінив РРЦ: із заявки в каталог іде лише вхідна ціна, РРЦ лишається прайсова
-    srv.addProducts({ ...product(offer.productId!), rrp: 555 });
-    await store.getState().setOfferPurchasePrice(offer.id, 80, { updateCatalog: true });
-    saved = store.getState().doc!.offers.find((o) => o.id === offer.id)!;
-    expect(saved.purchasePriceCur).toBe(80);
-    expect(product(offer.productId!).purchasePrice).toBe(80);
-    expect(product(offer.productId!).rrp).toBe(555);
-    // знімок каталогу теж оновлено — «ціна в каталозі змінилась» не показуємо
-    expect(saved.catalog?.purchasePrice).toBe(80);
-  });
-
-  it('змінити ціну і в каталозі: валюта товару змінилась — у каталог не пишемо', async () => {
-    const store = await openStore(setup());
-    const offer = store.getState().doc!.offers.find((o) => o.lineId === 'L1' && o.blockId === 'b1')!;
-    srv.addProducts({ ...product(offer.productId!), currency: offer.currency === 'EUR' ? 'USD' : 'EUR' });
-    await expect(store.getState().setOfferPurchasePrice(offer.id, 70, { updateCatalog: true })).rejects.toThrow(/Валюта/);
-    // у заявці ціну змінено, у каталозі — ні
-    expect(store.getState().doc!.offers.find((o) => o.id === offer.id)!.purchasePriceCur).toBe(70);
-    expect(product(offer.productId!).purchasePrice).toBe(100);
+    // та сама ціна — нічого не змінюється
+    expect(store.getState().setOfferPurchasePrice(offer.id, 90)).toBe(false);
   });
 
   it('setApprovals і resetLineMarkups — одним кроком', async () => {
