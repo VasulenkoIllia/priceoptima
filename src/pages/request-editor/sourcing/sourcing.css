@@ -80,8 +80,57 @@
   padding: 0;
 }
 .ag-cell.po-cell-pos .po-cell-fill {
+  position: relative;
   justify-content: center;
   cursor: context-menu;
+}
+/* колонка галочок (36 px): стандартні поля зсували галочку вбік; рамка фокусу навколо неї зайва */
+.ag-cell[col-id='ag-Grid-SelectionColumn'],
+.ag-header-cell[col-id='ag-Grid-SelectionColumn'] {
+  padding-left: 0;
+  padding-right: 0;
+  justify-content: center;
+}
+.ag-cell[col-id='ag-Grid-SelectionColumn'] .ag-cell-wrapper {
+  justify-content: center;
+}
+/* порожнє значення (і порожній підпис у шапці) колонки галочок тиснули галочку вліво */
+.ag-cell[col-id='ag-Grid-SelectionColumn'] .ag-cell-value,
+.ag-header-cell[col-id='ag-Grid-SelectionColumn'] .ag-header-cell-comp-wrapper {
+  display: none;
+}
+.ag-cell[col-id='ag-Grid-SelectionColumn'] .ag-selection-checkbox,
+.ag-header-cell[col-id='ag-Grid-SelectionColumn'] .ag-header-select-all {
+  margin: 0;
+}
+.ag-cell.ag-cell-focus[col-id='ag-Grid-SelectionColumn']:focus-within {
+  border-color: transparent;
+}
+/* точка, до якої прив'язане меню правого кліку по рядку */
+.po-ctx-anchor {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+.po-row-insert {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  padding: 2px;
+  border-radius: 50%;
+  color: var(--po-brand);
+  cursor: pointer;
+  opacity: 0;
+}
+.ag-row-hover .po-row-insert {
+  opacity: 1;
+}
+.po-row-insert:hover {
+  background: var(--po-brand);
+  color: #fff;
 }
 .po-placeholder {
   color: var(--po-placeholder);
@@ -528,6 +577,8 @@
   align-items: center;
   gap: 4px;
   width: 100%;
+  /* на всю висоту клітинки: у рядку без назви лупа інакше притискається догори */
+  height: 100%;
   min-width: 0;
 }
 .po-client-name .po-ellipsis {

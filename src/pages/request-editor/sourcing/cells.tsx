@@ -1,8 +1,7 @@
 // Рендери клітинок сітки підбору (обидва режими). Лише показ — кліки й клавіші обробляє сітка (SourcingGrid).
-import { CheckCircleFilled, CheckCircleOutlined, CloseOutlined, SearchOutlined, UndoOutlined } from '@ant-design/icons';
-import { Dropdown, type MenuProps } from 'antd';
+import { CheckCircleFilled, CheckCircleOutlined, CloseOutlined, PlusOutlined, SearchOutlined, UndoOutlined } from '@ant-design/icons';
 import type { ICellRendererParams } from 'ag-grid-community';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { AVAILABILITY_LABELS } from '@shared/enums';
 import { formatMoney, formatPct, formatQty, formatRate } from '@shared/format';
 import { offerDisplayName, offerMultiplicity } from '@shared/pricing';
@@ -41,19 +40,6 @@ export function lineWarnings(row: LineRow): Warning[] {
 }
 
 const cellOf = (row: LineRow, blockId: UUID): BlockCell | undefined => row.cells[blockId];
-
-const EMPTY_MENU: MenuProps = { items: [] };
-
-/** Контекстне меню клітинки (правий клік); пункти будуються лише при відкритті. */
-function CellMenu({ getMenu, children }: { getMenu: () => MenuProps | null; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const menu = open ? getMenu() : null;
-  return (
-    <Dropdown trigger={['contextMenu']} open={open && !!menu} onOpenChange={setOpen} menu={menu ?? EMPTY_MENU}>
-      <div className="po-cell-fill">{children}</div>
-    </Dropdown>
-  );
-}
 
 function Flex({ children, title }: { children: ReactNode; title?: string }) {
   return (
@@ -109,9 +95,20 @@ export function PosCell(p: P) {
   const row = p.data;
   if (!isLineRow(row)) return null;
   return (
-    <CellMenu getMenu={() => p.context.rowMenu(row)}>
+    <div className="po-cell-fill">
       <span className="po-num">{row.line.position}</span>
-    </CellMenu>
+      {p.context.isReadOnly() ? null : (
+        <PlusOutlined
+          className="po-row-insert"
+          title="Вставити рядок нижче. Правий клік по рядку: вставити вище, видалити"
+          aria-label="Вставити рядок нижче"
+          onClick={(e) => {
+            e.stopPropagation();
+            p.context.onInsertBelow(row);
+          }}
+        />
+      )}
+    </div>
   );
 }
 
@@ -204,11 +201,9 @@ export function OfferNameCell(p: P<BlockCellParams>) {
   if (!offer) return null;
   const name = offerDisplayName(offer) ?? '';
   return (
-    <CellMenu getMenu={() => p.context.nameMenu(row, p.blockId)}>
-      <span className="po-ellipsis" title={name}>
-        {name}
-      </span>
-    </CellMenu>
+    <span className="po-ellipsis" title={name}>
+      {name}
+    </span>
   );
 }
 

@@ -2,7 +2,6 @@
 // (readOnlyEdit + onCellEditRequest), власні вставка з буфера (TSV), клавіші й контекстне меню.
 import {
   DeleteOutlined,
-  GlobalOutlined,
   ProfileOutlined,
   SearchOutlined,
   StopOutlined,
@@ -11,7 +10,7 @@ import {
   VerticalAlignBottomOutlined,
   VerticalAlignTopOutlined,
 } from '@ant-design/icons';
-import type { MenuProps } from 'antd';
+import { Dropdown, type MenuProps } from 'antd';
 import type {
   CellClickedEvent,
   CellDoubleClickedEvent,
@@ -29,11 +28,10 @@ import type {
   Theme,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useCallback, useEffect, useMemo, useRef, type ClipboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import type { UUID } from '@shared/types';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
-import { siteSearchUrl } from '@/components/ProductPicker';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import type { EditorMode } from '@/stores/uiPrefsStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
@@ -141,6 +139,20 @@ const SELECTION_COLUMN: SelectionColumnDef = { pinned: 'left', width: 36, maxWid
 
 const getRowId = (p: GetRowIdParams<SourcingRow>) => p.data.id;
 
+/** Меню товару постачальника + меню рядка: два розділи з підписами; клік іде в меню, якому належить пункт. */
+function joinMenus(offer: MenuProps | null, offerLabel: string, row: MenuProps, rowLabel: string): MenuProps {
+  if (!offer?.items?.length) return row;
+  const offerKeys = new Set(offer.items.map((i) => (i && 'key' in i ? i.key : null)));
+  return {
+    items: [
+      { type: 'group', key: 'g-offer', label: offerLabel, children: offer.items },
+      { type: 'divider' },
+      { type: 'group', key: 'g-row', label: rowLabel, children: row.items },
+    ],
+    onClick: (info) => (offerKeys.has(info.key) ? offer.onClick : row.onClick)?.(info),
+  };
+}
+
 type CellAt = { colId: string; rowIndex: number };
 
 /** Клітинка рядка даних, з якої прийшла подія (рядок підсумків — ні). */
@@ -222,20 +234,12 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
       const ro = s.readOnly;
       const selected = apiRef.current?.getSelectedRows().filter(isLineRow).map((r) => r.id) ?? [];
       const targetIds = selected.length > 1 && selected.includes(row.id) ? selected : [row.id];
-      const sites = (s.doc?.blocks ?? []).flatMap((b) => {
-        const sup = supplierOfBlock(b.id);
-        const url = sup ? siteSearchUrl(sup.searchUrlTemplate, { query: row.line.clientName, sku: row.cells[b.id]?.offer?.sku }) : null;
-        return sup && url ? [{ key: `web:${b.id}`, label: sup.name, url }] : [];
-      });
       return {
         items: [
           { key: 'above', icon: <VerticalAlignTopOutlined />, label: 'Вставити рядок вище', disabled: ro },
           { key: 'below', icon: <VerticalAlignBottomOutlined />, label: 'Вставити рядок нижче', disabled: ro },
           { type: 'divider' },
           { key: 'pick', icon: <SearchOutlined />, label: 'Підібрати в каталозі (F4)', disabled: ro },
-          sites.length
-            ? { key: 'web', icon: <GlobalOutlined />, label: 'Знайти на сайті постачальника', children: sites.map((x) => ({ key: x.key, label: x.label })) }
-            : { key: 'web', icon: <GlobalOutlined />, label: 'Знайти на сайті постачальника', disabled: true },
           { type: 'divider' },
           {
             key: 'delete',
@@ -252,10 +256,6 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
           else if (key === 'below') a.addLine({ afterId: row.id });
           else if (key === 'pick') a.openPickerFor(row.id, null, 'add');
           else if (key === 'delete') a.removeLines(targetIds);
-          else if (key.startsWith('web:')) {
-            const site = sites.find((x) => x.key === key);
-            if (site) window.open(site.url, '_blank', 'noopener,noreferrer');
-          }
         },
       };
     },
@@ -287,6 +287,27 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
       };
     },
     [store],
+  );
+
+  // ── меню правого кліку: одне на всю сітку, відкривається в точці кліку ──
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; menu: MenuProps } | null>(null);
+
+  /** Правий клік будь-де в рядку: меню рядка; на клітинці постачальника з товаром зверху ще дії з цим товаром. */
+  const onContextMenu = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement;
+      // у полі введення лишаємо меню браузера (копіювати, вставити)
+      if (target.closest('input, textarea, .ag-cell-inline-editing')) return;
+      const rowId = target.closest('.ag-row')?.getAttribute('row-id');
+      const row = rowId ? apiRef.current?.getRowNode(rowId)?.data : null;
+      if (!isLineRow(row)) return;
+      e.preventDefault();
+      const col = parseColId(target.closest('.ag-cell')?.getAttribute('col-id'));
+      const offer = col.kind === 'block' || col.kind === 'compare' ? nameMenu(row, col.blockId) : null;
+      const supplier = offer && (col.kind === 'block' || col.kind === 'compare') ? supplierOfBlock(col.blockId)?.name : null;
+      setCtxMenu({ x: e.clientX, y: e.clientY, menu: joinMenus(offer, supplier ?? 'Товар постачальника', rowMenu(row), `Рядок ${row.line.position}`) });
+    },
+    [rowMenu, nameMenu],
   );
 
   // ── вставка з буфера (TSV з Excel) ─────────────────────────────────
@@ -424,14 +445,13 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
       isReadOnly: () => store.getState().readOnly,
       blockOf,
       supplierOfBlock,
-      rowMenu,
-      nameMenu,
+      onInsertBelow: (row) => actionsRef.current.addLine({ afterId: row.id }),
       onMissClick: (row, blockId) => actionsRef.current.resolveMiss(row.id, blockId),
       onPickerKey: openPickerAt,
       onPasteKey: startPasteFallback,
       onFillStart: startFill,
     }),
-    [store, rowMenu, nameMenu, openPickerAt, startPasteFallback, startFill],
+    [store, openPickerAt, startPasteFallback, startFill],
   );
 
   // перехід у режим перегляду/редагування — перемалювати клітинки (плейсхолдери, доступність дій)
@@ -616,7 +636,26 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
   const groupHeaderHeight = density === 'compact' ? 74 : 82;
 
   return (
-    <div className="po-sourcing-grid-inner" onPaste={onPaste}>
+    <div className="po-sourcing-grid-inner" onPaste={onPaste} onContextMenu={onContextMenu}>
+      {ctxMenu ? (
+        <Dropdown
+          key={`${ctxMenu.x}:${ctxMenu.y}`}
+          open
+          trigger={['contextMenu']}
+          onOpenChange={(open) => {
+            if (!open) setCtxMenu(null);
+          }}
+          menu={{
+            ...ctxMenu.menu,
+            onClick: (info) => {
+              setCtxMenu(null);
+              ctxMenu.menu.onClick?.(info);
+            },
+          }}
+        >
+          <span className="po-ctx-anchor" style={{ left: ctxMenu.x, top: ctxMenu.y }} />
+        </Dropdown>
+      ) : null}
       <AgGridReact<SourcingRow>
         theme={sourcingTheme(density, mode)}
         localeText={GRID_LOCALE}

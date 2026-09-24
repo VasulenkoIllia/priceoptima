@@ -59,7 +59,7 @@ function clientColumns(mode: EditorMode): SourcingColDef[] {
       width: 52,
       pinned: 'left',
       cellClass: 'po-num po-cell-pos',
-      headerTooltip: 'Правий клік по номеру відкриває меню рядка',
+      headerTooltip: '«+» біля номера (видно при наведенні): вставити рядок нижче. Правий клік по рядку: меню рядка',
       valueGetter: (p) => (isLineRow(p.data) ? p.data.line.position : null),
       cellRenderer: PosCell,
     },
