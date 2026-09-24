@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// сервіс заявок тягне конфіг сервера, а той читає змінні середовища вже при імпорті: без них файл падав, якщо запускався окремо
+vi.hoisted(() => {
+  process.env.DATABASE_URL ||= 'postgresql://u:p@localhost:5432/test';
+  process.env.SESSION_SECRET ||= '0123456789abcdef0123';
+});
+
 import { requestListOrderBy, requestListWhere } from '../modules/requests/requests.service';
 
 const actor = { id: 'u-me' };
