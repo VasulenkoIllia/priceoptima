@@ -203,7 +203,7 @@ export default function ApprovalTab() {
   };
 
   const columns: TableColumnsType<ApprovalRow> = [
-    { key: 'n', title: '№', width: 48, align: 'center', render: (_, r) => r.kp.n },
+    { key: 'n', title: '№', width: 48, render: (_, r) => r.kp.n },
     { key: 'code', title: 'Код', width: 118, render: (_, r) => <span className="po-num">{r.kp.code ?? ''}</span> },
     {
       key: 'name',
@@ -221,13 +221,12 @@ export default function ApprovalTab() {
         </>
       ),
     },
-    { key: 'unit', title: 'Од.', width: 56, align: 'center', render: (_, r) => r.kp.unit },
-    { key: 'qty', title: 'К-сть у КП', width: 96, align: 'right', render: (_, r) => <span className="po-num">{formatQty(r.kp.qty)}</span> },
+    { key: 'unit', title: 'Од.', width: 56, render: (_, r) => r.kp.unit },
+    { key: 'qty', title: 'К-сть у КП', width: 96, render: (_, r) => <span className="po-num">{formatQty(r.kp.qty)}</span> },
     {
       key: 'approved',
       title: 'Погоджено',
       width: 100,
-      align: 'center',
       render: (_, r) => (
         <Checkbox
           checked={!!r.line?.approval.approved}
@@ -248,12 +247,11 @@ export default function ApprovalTab() {
           </Space>
         ) : null,
     },
-    { key: 'price', title: base.snapshot.columns.priceHeader, width: 132, align: 'right', render: (_, r) => <span className="po-num">{formatMoney(r.kp.price)}</span> },
+    { key: 'price', title: base.snapshot.columns.priceHeader, width: 132, render: (_, r) => <span className="po-num">{formatMoney(r.kp.price)}</span> },
     {
       key: 'sum',
       title: 'Сума',
       width: 132,
-      align: 'right',
       render: (_, r) =>
         r.line?.approval.approved ? (
           <b className="po-num">{formatMoney(round2(r.kp.price * (r.line.approval.approvedQty ?? r.kp.qty)))}</b>

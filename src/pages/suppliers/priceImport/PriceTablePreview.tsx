@@ -68,7 +68,8 @@ export function SheetPreview({ rows, mapping, limit = 8 }: SheetPreviewProps) {
             ))}
           </span>
         ),
-        className: roles.length ? 'po-pi-mapped' : undefined,
+        // назва — зліва, як довгі тексти в інших таблицях
+        className: [roles.length ? 'po-pi-mapped' : '', roles.includes('name') ? 'po-cell-text' : ''].filter(Boolean).join(' ') || undefined,
         ellipsis: true,
         width: roles.includes('name') ? 260 : 130,
         render: (_: unknown, r: SheetRow) => r.cells[c] ?? '',
@@ -123,7 +124,6 @@ export function RowsPreview({ preview, limit = 50 }: RowsPreviewProps) {
       key: 'price',
       title: 'Ціна без ПДВ',
       width: 120,
-      align: 'right' as const,
       render: (_: unknown, r: PreviewRow) => <span className="po-num">{formatMoney(r.row.purchasePrice)}</span>,
     },
     {
@@ -136,7 +136,6 @@ export function RowsPreview({ preview, limit = 50 }: RowsPreviewProps) {
       key: 'rrp',
       title: 'РРЦ з ПДВ',
       width: 110,
-      align: 'right' as const,
       render: (_: unknown, r: PreviewRow) => <span className="po-num">{formatMoney(r.row.rrp)}</span>,
     },
     {

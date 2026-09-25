@@ -21,10 +21,9 @@ function historyColumns(vatRatePct: number): TableColumnsType<PriceHistoryEntry>
     {
       title: 'Вхід з ПДВ',
       key: 'price',
-      align: 'right',
       render: (_, h) => <span className="po-num">{priceCur(grossPrice(h.purchasePrice, vatRatePct), h.currency)}</span>,
     },
-    { title: 'РРЦ', key: 'rrp', align: 'right', render: (_, h) => <span className="po-num po-rrp">{priceCur(h.rrp, h.currency)}</span> },
+    { title: 'РРЦ', key: 'rrp', render: (_, h) => <span className="po-num po-rrp">{priceCur(h.rrp, h.currency)}</span> },
     { title: 'Наявність', key: 'stock', render: (_, h) => (h.availability ? <Availability status={h.availability} qty={h.stockQty} /> : null) },
     {
       title: 'Джерело',

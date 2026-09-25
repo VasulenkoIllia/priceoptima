@@ -250,7 +250,6 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
       key: 'mult',
       title: 'Кратн.',
       width: 58,
-      align: 'right',
       render: (_, r) => (
         <span className={r.product.multiplicity !== 1 ? 'po-num po-picker-mult' : 'po-num po-muted'}>{formatQty(r.product.multiplicity)}</span>
       ),
@@ -259,7 +258,6 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
       key: 'net',
       title: 'Вхід без ПДВ, грн',
       width: 104,
-      align: 'right',
       sorter: (a, b) => (a.unitNetUah ?? Number.POSITIVE_INFINITY) - (b.unitNetUah ?? Number.POSITIVE_INFINITY),
       render: (_, r) => (
         <span className={r.cheapestInGroup ? 'po-num po-picker-min' : 'po-num'} title={priceTitle(r)}>
@@ -267,7 +265,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
         </span>
       ),
     },
-    { key: 'rrp', title: 'РРЦ з ПДВ, грн', width: 96, align: 'right', render: (_, r) => <span className="po-num po-rrp">{formatMoney(r.rrpGrossUah)}</span> },
+    { key: 'rrp', title: 'РРЦ з ПДВ, грн', width: 96, render: (_, r) => <span className="po-num po-rrp">{formatMoney(r.rrpGrossUah)}</span> },
     {
       key: 'stock',
       title: 'Наявність',

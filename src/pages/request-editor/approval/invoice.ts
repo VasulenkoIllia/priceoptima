@@ -3,7 +3,7 @@
 // запросити її в постачальника.
 import { formatDate, formatRequestNumber } from '@shared/format';
 import { approvedTotalsFromKp } from '@shared/pricing';
-import type { DocumentRefs, KpSnapshot, RequestComputed, RequestDocument } from '@shared/types';
+import type { DocumentRefs, KpSnapshot, Offer, RequestComputed, RequestDocument } from '@shared/types';
 import { loadExcelJs, saveBlob, XLSX_MIME } from '@/lib/files';
 
 export interface InvoiceRow {
@@ -43,10 +43,11 @@ export function buildInvoice(
   if (!approved) return null;
   const blocks = new Map(doc.blocks.map((b) => [b.id, b]));
   const rows = approved.rows.map((r, i): InvoiceRow => {
-    // пропозиція з КП: той самий артикул у рядку; якщо вибір потім змінили — поточна обрана
-    const effectiveId = computed.markup.rows[r.lineId]?.effectiveOfferId;
-    const offer =
-      doc.offers.find((o) => o.lineId === r.lineId && r.code != null && o.sku === r.code) ?? doc.offers.find((o) => o.id === effectiveId);
+    // пропозиція з КП — з тим самим артикулом у рядку (поточна обрана, якщо підходить). Немає такої (прибрали після КП) —
+    // постачальника не вгадуємо: чужа назва біля артикула з КП у рахунку гірша за порожню клітинку
+    const sameSku = (o: Offer) => o.lineId === r.lineId && (o.sku ?? null) === r.code;
+    const effective = doc.offers.find((o) => o.id === computed.markup.rows[r.lineId]?.effectiveOfferId);
+    const offer = effective && sameSku(effective) ? effective : doc.offers.find(sameSku);
     const supplierId = offer ? blocks.get(offer.blockId)?.supplierId : null;
     const name1c = offer?.catalog?.name1c?.trim() || offer?.name1c?.trim() || null;
     return {

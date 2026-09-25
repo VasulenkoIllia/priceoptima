@@ -42,4 +42,26 @@ describe('uiPrefsStore: вибір колонок імпорту', () => {
     expect(keys).toHaveLength(IMPORT_MAPS_LIMIT);
     expect(keys[0]).toBe('h5');
   });
+
+  it('дуже довгий заголовок не запам\'ятовуємо (сервер не прийняв би налаштування цілком)', async () => {
+    const long = 'x'.repeat(600);
+    localStorage.setItem('po-request-import-maps', JSON.stringify({ [long]: { name: 0, unit: null, qty: 1, note: null }, 'назва': { name: 0, unit: null, qty: null, note: null } }));
+    const { useUiPrefs } = await import('../uiPrefsStore');
+    expect(Object.keys(useUiPrefs.getState().importMaps)).toEqual(['назва']);
+    useUiPrefs.getState().setImportMap(long, { name: 1, unit: null, qty: 2, note: null });
+    expect(Object.keys(useUiPrefs.getState().importMaps)).toEqual(['назва']);
+  });
+});
+
+describe('uiPrefsStore: ширина колонок', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.resetModules();
+  });
+
+  it('ціле число в межах, які приймає сервер (20–4000)', async () => {
+    const { useUiPrefs } = await import('../uiPrefsStore');
+    useUiPrefs.getState().setColumnWidths({ a: 12, b: 150.6, c: 9000 });
+    expect(useUiPrefs.getState().columnWidths).toEqual({ a: 20, b: 151, c: 4000 });
+  });
 });

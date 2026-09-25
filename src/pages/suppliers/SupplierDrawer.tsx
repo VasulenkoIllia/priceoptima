@@ -49,12 +49,11 @@ const LOG_COLUMNS: TableColumnsType<PriceUpdateDto> = [
         </Tag>
       ),
   },
-  { title: 'Товарів', dataIndex: 'productsTotal', align: 'right', render: (v: number) => <span className="po-num">{v}</span> },
+  { title: 'Товарів', dataIndex: 'productsTotal', render: (v: number) => <span className="po-num">{v}</span> },
   {
     title: 'Змінилось',
     key: 'changed',
     width: 130,
-    align: 'right',
     render: (_, u) => (
       <span className="po-num">
         {u.changed}
@@ -70,13 +69,11 @@ const LOG_COLUMNS: TableColumnsType<PriceUpdateDto> = [
   {
     title: 'Нові',
     dataIndex: 'added',
-    align: 'right',
     render: (v: number) => <span className="po-num">{v || null}</span>,
   },
   {
     title: 'Зникли',
     dataIndex: 'missing',
-    align: 'right',
     render: (v: number) => <span className="po-num">{v || null}</span>,
   },
   {

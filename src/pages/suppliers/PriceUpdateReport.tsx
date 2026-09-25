@@ -29,12 +29,11 @@ const num = (v: number) => <span className="po-num">{formatQty(v)}</span>;
 const BIG_COLUMNS: TableColumnsType<PriceBigChange> = [
   { title: 'Код', dataIndex: 'code', width: 150 },
   { title: 'Ціна', dataIndex: 'field', width: 90, render: (f: PriceBigChange['field']) => (f === 'rrp' ? 'РРЦ' : 'Вхідна') },
-  { title: 'Було', dataIndex: 'old', align: 'right', render: (v: number) => <span className="po-num">{formatMoney(v)}</span> },
-  { title: 'Стане', dataIndex: 'new', align: 'right', render: (v: number) => <span className="po-num">{formatMoney(v)}</span> },
+  { title: 'Було', dataIndex: 'old', render: (v: number) => <span className="po-num">{formatMoney(v)}</span> },
+  { title: 'Стане', dataIndex: 'new', render: (v: number) => <span className="po-num">{formatMoney(v)}</span> },
   {
     title: 'Зміна',
     dataIndex: 'pct',
-    align: 'right',
     render: (v: number) => (
       <span className={`po-num ${v > 0 ? 'po-sup-up' : 'po-sup-down'}`}>
         {v > 0 ? '+' : ''}
@@ -52,13 +51,13 @@ const DIFF_COLUMNS: TableColumnsType<PriceDetailDiff> = [
 ];
 
 const NOT_FOUND_COLUMNS: TableColumnsType<PriceNotFoundRow> = [
-  { title: 'Рядок', dataIndex: 'row', width: 70, align: 'right', render: num },
+  { title: 'Рядок', dataIndex: 'row', width: 70, render: num },
   { title: 'Код', dataIndex: 'code', width: 150 },
   { title: 'Назва', dataIndex: 'name', className: 'po-cell-text', render: (v: string | null) => v ?? null },
 ];
 
 const SKIPPED_COLUMNS: TableColumnsType<PriceSkippedRow> = [
-  { title: 'Рядок', dataIndex: 'row', width: 70, align: 'right', render: num },
+  { title: 'Рядок', dataIndex: 'row', width: 70, render: num },
   { title: 'Код', dataIndex: 'code', width: 150, render: (v: string) => v || null },
   { title: 'Причина', dataIndex: 'reason', className: 'po-cell-text' },
 ];

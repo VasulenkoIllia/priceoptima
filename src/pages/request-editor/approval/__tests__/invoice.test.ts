@@ -60,6 +60,13 @@ describe('рахунок (п.14 правок 25.09)', () => {
     expect(invoice).toMatchObject({ withVat: true, totalNet: 1960, vat: 392, totalGross: 2352 });
   });
 
+  it('пропозицію з КП прибрали з рядка — постачальника й назву 1С не підставляємо з іншої', () => {
+    const gone = { ...doc, refs, offers: doc.offers.filter((o) => o.sku !== 'A-1') };
+    const row = buildInvoice(gone, computeRequest(gone, makeCtx(suppliers)), base)!.rows[0]!;
+    expect(row).toMatchObject({ sku: 'A-1', supplierName: '', name1c: null, price: 120 });
+    expect(missing1cText(row)).toBe('Немає назви 1С: запросити в постачальника (артикул A-1)');
+  });
+
   it('немає погоджених — рахунку немає', () => {
     const none = { ...doc, refs, lines: doc.lines.map((l) => ({ ...l, approval: { approved: false, approvedQty: null } })) };
     expect(buildInvoice(none, computed, base)).toBeNull();

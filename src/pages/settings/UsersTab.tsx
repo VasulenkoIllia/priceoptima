@@ -168,7 +168,6 @@ export function UsersTab() {
     {
       key: 'actions',
       width: 48,
-      align: 'right',
       render: (_: unknown, u) => (
         <Dropdown trigger={['click']} menu={menuFor(u)}>
           <Button size="small" type="text" icon={<EllipsisOutlined />} aria-label="Дії з користувачем" />
@@ -204,7 +203,6 @@ export function UsersTab() {
     {
       key: 'actions',
       width: 110,
-      align: 'right',
       render: (_: unknown, l) =>
         l.state === 'valid' ? (
           <Button size="small" type="link" danger onClick={() => act.mutate(() => ds.revokeAccessLink(l.id))}>

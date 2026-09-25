@@ -124,8 +124,8 @@ const rateCell = (cell: DayCell) => (
 
 const NBU_COLUMNS: TableColumnsType<DayRow> = [
   { title: 'Дата', dataIndex: 'date', render: (v: ISODate) => <span className="po-num">{formatDate(v)}</span> },
-  { title: 'USD', dataIndex: 'USD', align: 'right', render: rateCell },
-  { title: 'EUR', dataIndex: 'EUR', align: 'right', render: rateCell },
+  { title: 'USD', dataIndex: 'USD', render: rateCell },
+  { title: 'EUR', dataIndex: 'EUR', render: rateCell },
 ];
 
 interface ManualRateValues {
@@ -287,7 +287,6 @@ function supplierColumns(
     {
       title: 'Курс у прайсі',
       key: 'listed',
-      align: 'right',
       render: (_, s) => {
         const usd = pair(s.priceListRates.USD, s.manualRateUsd);
         const eur = pair(s.priceListRates.EUR, s.manualRateEur);
@@ -309,7 +308,6 @@ function supplierColumns(
     {
       title: '',
       key: 'actions',
-      align: 'right',
       render: (_, s) => (
         <Button size="small" type="link" icon={<EditOutlined />} onClick={() => onEdit(s)}>
           Ручний курс

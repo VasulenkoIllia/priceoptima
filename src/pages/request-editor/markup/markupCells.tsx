@@ -99,12 +99,13 @@ export function MethodCell({ data, context }: P) {
         size="small"
         variant="borderless"
         value={inherited ? context.defaultMethod() : value}
-        title={inherited ? 'Спосіб заявки. Оберіть інший — лише для цього рядка' : undefined}
+        title={inherited ? 'Спосіб заявки. Обраний тут діє лише для цього рядка' : undefined}
         disabled={context.readOnly() || !data.offer}
         popupMatchSelectWidth={false}
         className={inherited ? 'po-mk-method po-mk-method-default' : 'po-mk-method'}
         options={MARKUP_METHODS.map((x) => ({ value: x, label: MARKUP_METHOD_LABELS[x] }))}
-        onChange={(v) => context.setMethod(data, v)}
+        // onSelect, а не onChange: вибір того самого способу, що в заявці, теж закріплює його за рядком
+        onSelect={(v) => context.setMethod(data, v)}
       />
       <FillHandle row={data} colId="method" context={context} />
     </>
@@ -190,19 +191,17 @@ export function SupplierProfitBreakdown({ doc, computed }: { doc: RequestDocumen
           title: 'Постачальник',
           render: (_, r) => <SupplierLogo name={r.supplier?.name ?? 'Постачальник'} logoUrl={r.supplier?.logoUrl} color={r.supplier?.color} size={16} showName />,
         },
-        { title: 'Обрано рядків', align: 'right', render: (_, r) => r.selected.lines },
-        { title: 'Вхід з ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.costGross) },
-        { title: fop ? 'Продаж як у КП' : 'Продаж з ПДВ', align: 'right', className: 'po-num', render: (_, r) => formatMoney(r.selected.saleGross) },
+        { title: 'Обрано рядків', render: (_, r) => r.selected.lines },
+        { title: 'Вхід з ПДВ', className: 'po-num', render: (_, r) => formatMoney(r.selected.costGross) },
+        { title: fop ? 'Продаж як у КП' : 'Продаж з ПДВ', className: 'po-num', render: (_, r) => formatMoney(r.selected.saleGross) },
         {
           title: fop ? 'Прибуток' : 'Прибуток з ПДВ',
-          align: 'right',
           className: 'po-num',
           render: (_, r) => <b className="po-mk-stat-good">{formatMoney(r.selected.profitGross)}</b>,
         },
-        { title: 'Націнка', align: 'right', className: 'po-num', render: (_, r) => formatPct(r.selected.markupPct, 1) },
+        { title: 'Націнка', className: 'po-num', render: (_, r) => formatPct(r.selected.markupPct, 1) },
         {
           title: <Tooltip title="Якби всі рядки з ціною в цього постачальника брали в нього">Якщо все тут</Tooltip>,
-          align: 'right',
           className: 'po-num',
           render: (_, r) => `${formatMoney(r.allIn.profitGross)} (${r.allIn.lines} рядк.)`,
         },

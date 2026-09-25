@@ -122,7 +122,6 @@ export function RequestImportDialog({ open, onClose }: RequestImportDialogProps)
       title: 'К-сть',
       key: 'qty',
       width: 90,
-      align: 'right' as const,
       render: (_: unknown, r: RequestPreviewRow) => <span className="po-num">{r.line ? formatQty(r.line.qty ?? 0) : r.rawQty}</span>,
     },
     { title: 'Примітка', key: 'note', width: 180, className: 'po-cell-text', ellipsis: true, render: (_: unknown, r: RequestPreviewRow) => r.line?.clientNote ?? '' },

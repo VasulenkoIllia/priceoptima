@@ -10,6 +10,11 @@ export type EditorMode = 'sourcing' | 'comparison';
 
 /** Скільки виборів колонок імпорту пам'ятаємо (найстаріші забуваються). */
 export const IMPORT_MAPS_LIMIT = 50;
+/** Довший підпис заголовка (дуже широкий файл) не запам'ятовуємо: сервер не прийняв би налаштування цілком. */
+export const IMPORT_SIGNATURE_MAX = 500;
+/** Межі ширини колонки, як на сервері (server/modules/users/users.schemas.ts). */
+const COLUMN_WIDTH_MIN = 20;
+const COLUMN_WIDTH_MAX = 4000;
 /** Де вибір колонок імпорту лежав до 25.09.2026 (переноситься в налаштування один раз). */
 const LEGACY_IMPORT_MAPS_KEY = 'po-request-import-maps';
 
@@ -83,13 +88,21 @@ export function syncedPrefsOf(s: UiPrefsState): Required<UiPrefsDto> {
   };
 }
 
+/** Лише останні IMPORT_MAPS_LIMIT виборів (порядок ключів — порядок збереження). */
+function latestImportMaps(maps: Record<string, ImportColumnMapDto>): Record<string, ImportColumnMapDto> {
+  const keys = Object.keys(maps);
+  if (keys.length <= IMPORT_MAPS_LIMIT) return maps;
+  return Object.fromEntries(keys.slice(-IMPORT_MAPS_LIMIT).map((k) => [k, maps[k]!]));
+}
+
 function legacyImportMaps(): Record<string, ImportColumnMapDto> {
   try {
     const raw = localStorage.getItem(LEGACY_IMPORT_MAPS_KEY);
     if (!raw) return {};
     localStorage.removeItem(LEGACY_IMPORT_MAPS_KEY);
     const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, ImportColumnMapDto>) : {};
+    if (!parsed || typeof parsed !== 'object') return {};
+    return Object.fromEntries(Object.entries(parsed as Record<string, ImportColumnMapDto>).filter(([k]) => k.length <= IMPORT_SIGNATURE_MAX));
   } catch {
     return {};
   }
@@ -100,6 +113,8 @@ export const useUiPrefs = create<UiPrefsState>()(
     (set) => ({
       density: 'normal',
       ...SYNCED_DEFAULTS,
+      // вибір, збережений до 25.09 окремо (переноситься один раз, навіть якщо інших налаштувань у браузері ще немає)
+      importMaps: legacyImportMaps(),
       collapsedBlocks: {},
       prefsUserId: null,
       layoutEpoch: 0,
@@ -123,18 +138,22 @@ export const useUiPrefs = create<UiPrefsState>()(
       toggleScenariosPanel: () => set((s) => ({ scenariosPanelOpen: !s.scenariosPanelOpen })),
       setHeaderNotesOpen: (headerNotesOpen) => set({ headerNotesOpen }),
       setSiderCollapsed: (siderCollapsed) => set({ siderCollapsed }),
-      setColumnWidths: (widths) => set((s) => ({ columnWidths: { ...s.columnWidths, ...widths } })),
+      setColumnWidths: (widths) =>
+        set((s) => {
+          const next = { ...s.columnWidths };
+          for (const [key, width] of Object.entries(widths)) next[key] = Math.min(COLUMN_WIDTH_MAX, Math.max(COLUMN_WIDTH_MIN, Math.round(width)));
+          return { columnWidths: next };
+        }),
       setColumnOrder: (key, order, rebuild = false) =>
         set((s) => ({ columnOrder: { ...s.columnOrder, [key]: order }, ...(rebuild ? { layoutEpoch: s.layoutEpoch + 1 } : {}) })),
       resetColumnLayout: () => set((s) => ({ columnWidths: {}, columnOrder: {}, layoutEpoch: s.layoutEpoch + 1 })),
       setImportMap: (signature, map) =>
         set((s) => {
+          if (signature.length > IMPORT_SIGNATURE_MAX) return {};
           const next = { ...s.importMaps };
           delete next[signature];
           next[signature] = map;
-          const keys = Object.keys(next);
-          for (const k of keys.slice(0, Math.max(0, keys.length - IMPORT_MAPS_LIMIT))) delete next[k];
-          return { importMaps: next };
+          return { importMaps: latestImportMaps(next) };
         }),
       applyServerPrefs: (prefs) =>
         set((s) => {
@@ -158,20 +177,21 @@ export const useUiPrefs = create<UiPrefsState>()(
       version: 3,
       storage: createJSONStorage(() => localStorage),
       // v2: «Сценарії» закриті за замовчуванням — один раз закриваємо й у тих, у кого вони були відкриті за старим замовчуванням
-      // v3: вибір колонок імпорту переїхав сюди з окремого ключа (і разом з рештою — на сервер)
-      migrate: (persisted, version) => {
-        let state = { ...(persisted as object) } as Partial<UiPrefsState>;
-        if (version < 2) state = { ...state, scenariosPanelOpen: false };
-        if (version < 3) state = { ...state, importMaps: legacyImportMaps() };
-        return state as UiPrefsState;
-      },
+      // v3: вибір колонок імпорту переїхав сюди з окремого ключа (і разом з рештою — на сервер); переносить його
+      // початковий стан і merge
+      migrate: (persisted, version) =>
+        (version < 2 ? { ...(persisted as object), scenariosPanelOpen: false } : persisted) as UiPrefsState,
       partialize: (s) => ({
         ...syncedPrefsOf(s),
         collapsedBlocks: s.collapsedBlocks,
         prefsUserId: s.prefsUserId,
       }),
       // збережена раніше щільність («Компактно») більше не діє
-      merge: (persisted, current) => ({ ...current, ...(persisted as Partial<UiPrefsState>), density: 'normal', layoutEpoch: 0 }),
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<UiPrefsState>;
+        const importMaps = latestImportMaps({ ...current.importMaps, ...saved.importMaps });
+        return { ...current, ...saved, importMaps, density: 'normal', layoutEpoch: 0 };
+      },
     },
   ),
 );

@@ -12,7 +12,7 @@ const REQUEST_COLUMNS: TableColumnsType<RequestListItem> = [
   { title: '№', dataIndex: 'numberLabel', width: 84, render: (v: string) => <Typography.Link className="po-num">{v}</Typography.Link> },
   { title: 'Дата', dataIndex: 'requestDate', width: 96, render: (v: string) => <span className="po-num">{formatDate(v)}</span> },
   { title: 'Статус', dataIndex: 'status', render: (_, r) => <StatusTag status={r.status} /> },
-  { title: 'Сума з ПДВ', dataIndex: 'totalSaleGross', align: 'right', render: (v: number) => <span className="po-num">{formatMoney(v)}</span> },
+  { title: 'Сума з ПДВ', dataIndex: 'totalSaleGross', render: (v: number) => <span className="po-num">{formatMoney(v)}</span> },
 ];
 
 function ClientCard({ client }: { client: ClientDetail }) {
