@@ -36,6 +36,17 @@ for (const [net, prefix] of [
   PRIVATE_NETS.addSubnet(net, prefix, 'ipv6');
 }
 
+const LINK_LOCAL_V6 = new BlockList();
+LINK_LOCAL_V6.addSubnet('fe80::', 10, 'ipv6');
+
+/**
+ * IPv6 link-local (fe80::…) з DNS: без зони інтерфейсу до неї не під'єднатися, тож вона нікуди не веде.
+ * Буває помилкою в DNS постачальника поруч зі звичайною адресою (sigma.ua, 25.09.2026) — таку адресу пропускаємо.
+ */
+function isLinkLocalV6(address: string): boolean {
+  return isIP(address) === 6 && LINK_LOCAL_V6.check(address, 'ipv6');
+}
+
 /** Локальна, приватна чи службова адреса. Не IP — теж «так». */
 export function isPrivateAddress(address: string): boolean {
   const mappedV4 = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/iu.exec(address)?.[1];
@@ -68,7 +79,7 @@ async function assertPublicHost(url: URL, lookup: HostLookup): Promise<void> {
     addresses = [host];
   } else {
     try {
-      addresses = await lookup(host);
+      addresses = (await lookup(host)).filter((address) => !isLinkLocalV6(address));
     } catch (e) {
       throw new PublicFetchError('not_found', url.host, `Сервер ${url.host} не знайдено`, { cause: e });
     }

@@ -227,6 +227,21 @@ describe('лише публічні адреси', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('IPv6 link-local у DNS поруч із публічною адресою пропускаємо; інші приватні — ні', async () => {
+    // так відповідав DNS sigma.ua 25.09.2026: A 65.109.72.223 і AAAA fe80::…
+    const sigma = async () => ['fe80::31da:f79f:b653:26b5', '65.109.72.223'];
+    expect(await downloadFeed(feed(), secrets, { fetch: fakeFetch(new Response('<yml/>')), lookup: sigma })).toBe('<yml/>');
+
+    const fetchMock = fakeFetch(new Response('x'));
+    const onlyLinkLocal = await errorOf(downloadFeed(feed(), secrets, { fetch: fetchMock, lookup: async () => ['fe80::1'] }));
+    expect(onlyLinkLocal.message).toMatch(/внутрішню адресу/u);
+    const literal = await errorOf(downloadFeed(feed({ url: 'http://[fe80::1]/price.xml' }), secrets, { fetch: fetchMock, lookup: publicHost }));
+    expect(literal.message).toMatch(/внутрішню адресу/u);
+    const mixedPrivate = await errorOf(downloadFeed(feed(), secrets, { fetch: fetchMock, lookup: async () => ['fe80::1', '10.0.0.5', '65.109.72.223'] }));
+    expect(mixedPrivate.message).toMatch(/внутрішню адресу/u);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('переадресація на внутрішню адресу — помилка; на інший сервер — без токена', async () => {
     const redirectTo = (location: string) => new Response(null, { status: 302, headers: { location } });
     const toLocal = vi.fn().mockResolvedValueOnce(redirectTo('http://127.0.0.1:3000/api/users'));
