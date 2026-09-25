@@ -255,7 +255,8 @@ export default function MarkupTab() {
         colId: 'saleGross',
         width: 104,
         type: 'rightAligned',
-        cellClass: 'po-num po-mk-editable',
+        // жирним — лише ціна з ПДВ (правки замовника 25.09 п.12)
+        cellClass: 'po-num po-mk-editable po-mk-strong',
         headerTooltip: 'Ціна продажу з ПДВ (G). Введіть ціну, і рядок перейде на «Вручну»',
         editable: canEdit,
         cellEditor: 'agTextCellEditor',
@@ -267,7 +268,7 @@ export default function MarkupTab() {
         colId: 'sum',
         width: 112,
         type: 'rightAligned',
-        cellClass: 'po-num po-mk-sum',
+        cellClass: 'po-num',
         valueGetter: (p) => (sumGross ? p.data?.mr.sumGross : p.data?.mr.sumNet),
         valueFormatter: (p) => money(p.value),
       },

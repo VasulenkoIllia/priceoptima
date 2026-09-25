@@ -57,7 +57,7 @@
 .ag-cell.po-mk-editable {
   cursor: text;
 }
-.ag-cell.po-mk-sum {
+.ag-cell.po-mk-strong {
   font-weight: 600;
 }
 .ag-row.po-mk-row-empty .ag-cell {

@@ -81,7 +81,7 @@ describe('історія заявки', () => {
   });
 
   it('спосіб націнки заявки: назва без «, %», коли далі значення (правки замовника 25.09 п.11)', () => {
-    const s0 = { ...state(), markup: { ...MARKUP, method: 'rrp' as const, value: null } };
+    const s0: RequestDocState = { ...state(), markup: { ...MARKUP, method: 'rrp' } };
     const log = createEventLog(null);
     const patch = { baseVersion: 1, sessionId: 's', markup: { method: 'markup_on_cost' as const, value: 25 } };
     recordDocumentEvents(log, applyDocumentPatch(s0, patch), documentEventsBefore(s0), patch, ctx('2026-09-18T10:00:00Z'));
