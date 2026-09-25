@@ -6,7 +6,7 @@ import type { UnitDto } from '@shared/types';
 const COLUMNS: TableColumnsType<UnitDto> = [
   { title: 'Код', dataIndex: 'code', width: 110, render: (v: string) => <strong>{v}</strong> },
   { title: 'Назва', dataIndex: 'name', width: 220 },
-  { title: 'Синоніми', dataIndex: 'aliases', render: (v: string[]) => v.join(', ') },
+  { title: 'Синоніми', dataIndex: 'aliases', className: 'po-cell-text', render: (v: string[]) => v.join(', ') },
 ];
 
 export function UnitsTab() {

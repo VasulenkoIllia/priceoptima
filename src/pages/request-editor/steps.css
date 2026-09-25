@@ -39,10 +39,11 @@
   min-width: 0;
   max-width: 100%;
 }
+/* логотип постачальника й ціна — разом по центру клітинки (правки замовника 25.09) */
 .po-mk-cost {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 6px;
   width: 100%;
 }
@@ -54,6 +55,9 @@
 }
 .po-mk-method {
   width: 100%;
+}
+.po-mk-method .ant-select-selection-item {
+  text-align: center;
 }
 .po-mk-method-default .ant-select-selection-item {
   color: rgba(0, 0, 0, 0.45);

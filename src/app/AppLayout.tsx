@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  ColumnWidthOutlined,
   DollarOutlined,
   DownOutlined,
   FileTextOutlined,
@@ -19,6 +20,7 @@ import { initialsOf } from '@/lib/initials';
 import { getRequestDocStore } from '@/stores/requestDocStore';
 import { useTabs } from '@/stores/tabsStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
+import { flushUiPrefs } from '@/stores/uiPrefsSync';
 import { BRAND_COLOR } from '@/theme';
 import { AppTabBar, AppTabPanes, useOpenTab } from './AppTabs';
 import { ProfileDialog } from './ProfileDialog';
@@ -35,7 +37,7 @@ const NAV_ITEMS: { key: string; label: string; icon: React.ReactNode; adminOnly?
 
 export function AppLayout() {
   const { user } = useSession();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [profileOpen, setProfileOpen] = useState(false);
   const navigate = useNavigate();
   const openTab = useOpenTab();
@@ -59,6 +61,7 @@ export function AppLayout() {
   const logout = async () => {
     try {
       await getRequestDocStore().getState().flush();
+      await flushUiPrefs();
       await ds.logout();
     } catch (e) {
       message.error(errorMessage(e));
@@ -69,16 +72,31 @@ export function AppLayout() {
     navigate('/login', { replace: true });
   };
 
+  // ширина й порядок колонок зберігаються для користувача на сервері — повернути стандартні в усіх таблицях
+  const resetLayout = () =>
+    modal.confirm({
+      title: 'Скинути вигляд таблиць?',
+      content: 'У всіх таблицях колонки повернуться до стандартної ширини й порядку (на всіх ваших комп’ютерах).',
+      okText: 'Скинути',
+      cancelText: 'Скасувати',
+      onOk: () => {
+        useUiPrefs.getState().resetColumnLayout();
+        message.success('Вигляд таблиць скинуто');
+      },
+    });
+
   const userMenu: MenuProps = {
     items: [
       { key: 'who', label: `${user.fullName} · ${USER_ROLE_LABELS[user.role]}`, disabled: true },
       { type: 'divider' },
       { key: 'profile', icon: <UserOutlined />, label: 'Мій профіль' },
+      { key: 'layout', icon: <ColumnWidthOutlined />, label: 'Скинути вигляд таблиць' },
       { key: 'logout', icon: <LogoutOutlined />, label: 'Вийти' },
     ],
     onClick: ({ key }) => {
       if (key === 'logout') void logout();
       if (key === 'profile') setProfileOpen(true);
+      if (key === 'layout') resetLayout();
     },
   };
 

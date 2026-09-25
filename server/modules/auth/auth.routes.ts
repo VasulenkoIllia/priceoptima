@@ -1,4 +1,4 @@
-// /api/auth — вхід, поточний користувач, вихід, мій профіль і пароль, разові посилання (запрошення, скидання пароля).
+// /api/auth — вхід, поточний користувач, вихід, мій профіль, пароль і налаштування інтерфейсу, разові посилання (запрошення, скидання пароля).
 import { Router } from 'express';
 import type { Request } from 'express';
 import type { User } from '@prisma/client';
@@ -12,8 +12,8 @@ import { getLinkInfo, registerByInvite, resetPasswordByLink } from '../access/ac
 import { linkTokenSchema, registerSchema, resetSchema } from '../access/access.schemas';
 import { audit } from '../audit/audit.service';
 import { toUserDto } from '../users/users.mapper';
-import { passwordChangeSchema, profileSchema } from '../users/users.schemas';
-import { changePassword, updateProfile } from '../users/users.service';
+import { passwordChangeSchema, profileSchema, uiPrefsSchema } from '../users/users.schemas';
+import { changePassword, getUiPrefs, saveUiPrefs, updateProfile } from '../users/users.service';
 import { authenticate, endSession, startSession } from './auth.service';
 import { loginSchema } from './auth.schemas';
 import { clearSessionCookie, currentUser, requireAuth, sessionTokenOf, setSessionCookie } from './middleware';
@@ -38,10 +38,12 @@ async function withLinkLimit<T>(req: Request, fn: () => Promise<T>): Promise<T> 
 }
 
 async function meResponse(user: User): Promise<MeResponse> {
+  const [settings, uiPrefs] = await Promise.all([getSettings(), getUiPrefs(user.id)]);
   return {
     user: toUserDto(user),
-    settings: await getSettings(),
+    settings,
     serverTime: new Date().toISOString(),
+    uiPrefs,
   };
 }
 
@@ -84,6 +86,16 @@ authRouter.put(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.json(await updateProfile(currentUser(req), parseBody(profileSchema, req)));
+  }),
+);
+
+// налаштування інтерфейсу (ширина колонок тощо) — однакові на всіх комп'ютерах користувача
+authRouter.put(
+  '/ui-prefs',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await saveUiPrefs(currentUser(req), parseBody(uiPrefsSchema, req));
+    res.status(204).end();
   }),
 );
 

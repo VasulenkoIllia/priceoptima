@@ -71,6 +71,7 @@ import type {
   PasswordChangeInput,
   ProfileInput,
   RegisterInput,
+  UiPrefsDto,
 } from '@shared/types';
 import type { ForeignCurrency, UserRole } from '@shared/enums';
 import type { CallOptions, DataSource, LockAcquireResult } from '../DataSource';
@@ -152,6 +153,10 @@ export class HttpDataSource implements DataSource {
 
   updateProfile(input: ProfileInput): Promise<UserDto> {
     return api<UserDto>('/auth/profile', { method: 'PUT', body: input });
+  }
+
+  saveUiPrefs(prefs: UiPrefsDto, options: { keepalive?: boolean } = {}): Promise<void> {
+    return api<void>('/auth/ui-prefs', { method: 'PUT', body: prefs, keepalive: options.keepalive });
   }
 
   changePassword(input: PasswordChangeInput): Promise<UserDto> {

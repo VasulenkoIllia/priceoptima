@@ -9,6 +9,7 @@ import type { ClientDetail, ClientListItem, UUID } from '@shared/types';
 import { LoadError, PageHeader } from '@/components';
 import { ds, qk } from '@/data';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
+import { columnLayoutHandlers, withSavedLayout } from '@/lib/gridColumnLayout';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { ClientDrawer } from './ClientDrawer';
 import { ClientFormDialog } from './ClientFormDialog';
@@ -18,17 +19,21 @@ const counterpartiesLabel = (c: ClientListItem) =>
   c.counterparties.map((cp) => (cp.edrpou ? `${cp.nameShort} (${cp.edrpou})` : cp.nameShort)).join(', ');
 
 const COLUMNS: ColDef<ClientListItem>[] = [
-  { headerName: 'Клієнт', field: 'name', width: 200, cellStyle: { fontWeight: 600 } },
-  { headerName: 'Контрагенти', colId: 'counterparties', valueGetter: (p) => (p.data ? counterpartiesLabel(p.data) : ''), flex: 1, minWidth: 260, tooltipValueGetter: (p) => p.value },
+  { headerName: 'Клієнт', field: 'name', width: 200, cellClass: 'po-cell-text', cellStyle: { fontWeight: 600 } },
+  { headerName: 'Контрагенти', colId: 'counterparties', valueGetter: (p) => (p.data ? counterpartiesLabel(p.data) : ''), flex: 1, minWidth: 260, cellClass: 'po-cell-text', tooltipValueGetter: (p) => p.value },
   { headerName: 'Контакти', field: 'contactsCount', width: 100, type: 'rightAligned', cellClass: 'po-num' },
   { headerName: 'Відповідальний', colId: 'responsible', valueGetter: (p) => p.data?.responsible?.shortName ?? '', width: 150 },
   { headerName: 'Заявок', field: 'requestsCount', width: 90, type: 'rightAligned', cellClass: 'po-num' },
   { headerName: 'Остання заявка', field: 'lastRequestDate', width: 132, cellClass: 'po-num', valueFormatter: (p) => formatDate(p.value) },
 ];
+const CLIENTS_LAYOUT = columnLayoutHandlers<ClientListItem>('clients');
 
 /** Клієнти: пошук, картка з контрагентами, контактами й заявками; створення і редагування. */
 export default function ClientsPage() {
   const density = useUiPrefs((s) => s.density);
+  // ширина, задана користувачем, — зі збережених (правки замовника 25.09 п.1)
+  const layoutEpoch = useUiPrefs((s) => s.layoutEpoch);
+  const columns = useMemo(() => withSavedLayout(COLUMNS, 'clients'), [layoutEpoch]);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<{ id: UUID; name?: string } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -84,8 +89,10 @@ export default function ClientsPage() {
             localeText={GRID_LOCALE}
             containerStyle={{ height: '100%' }}
             rowData={rows}
-            columnDefs={COLUMNS}
-            defaultColDef={{ sortable: true, resizable: true, suppressMovable: true, wrapHeaderText: true, autoHeaderHeight: true }}
+            columnDefs={columns}
+            onColumnResized={CLIENTS_LAYOUT.onColumnResized}
+            onColumnMoved={CLIENTS_LAYOUT.onColumnMoved}
+            defaultColDef={{ sortable: true, resizable: true, lockPinned: true, wrapHeaderText: true, autoHeaderHeight: true }}
             getRowId={(p) => p.data.id}
             rowClass="po-cli-row"
             loading={clients.isPending}

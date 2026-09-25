@@ -18,6 +18,7 @@ import type {
   CellEditRequestEvent,
   CellKeyDownEvent,
   ColDef,
+  ColumnMovedEvent,
   FullWidthCellKeyDownEvent,
   GetRowIdParams,
   GridApi,
@@ -32,6 +33,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import type { UUID } from '@shared/types';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
+import { orderByPreference, rememberColumnWidths, reorderSubset, withSavedWidths } from '@/lib/gridColumnLayout';
 import { startFillDrag } from '@/lib/gridFillDrag';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
@@ -39,7 +41,7 @@ import type { EditorMode } from '@/stores/uiPrefsStore';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import type { Density } from '@/theme';
 import { NoRowsOverlay } from './cells';
-import { COL, parseColId, type BlockField } from './colIds';
+import { BLOCK_FIELDS, BLOCK_ORDER_KEY, COL, columnWidthKey, parseColId, type BlockField } from './colIds';
 import { buildColumnDefs } from './columns';
 import { fillDownTargets, fillFieldOf } from './fill';
 import type { SourcingGridContext } from './gridContext';
@@ -120,7 +122,9 @@ function suppressKeyboardEvent(p: SuppressKeyboardEventParams<SourcingRow>): boo
 const DEFAULT_COL_DEF: ColDef<SourcingRow> = {
   sortable: false,
   resizable: true,
+  // переставляються лише колонки блоків (у межах блоку); закріпити колонку перетягуванням не можна
   suppressMovable: true,
+  lockPinned: true,
   suppressHeaderMenuButton: true,
   // довгі заголовки («Сума без ПДВ», «РРЦ з ПДВ») переносяться, а не обрізаються
   wrapHeaderText: true,
@@ -203,6 +207,7 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
   const focusRequest = useSourcingUi((s) => s.focusRequest);
   const density = useUiPrefs((s) => s.density);
   const collapsedMap = useUiPrefs((s) => s.collapsedBlocks);
+  const layoutEpoch = useUiPrefs((s) => s.layoutEpoch);
   const apiRef = useRef<GridApi<SourcingRow> | null>(null);
   const pasteFallback = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -219,14 +224,20 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
     .filter((b) => collapsedMap[b.id])
     .map((b) => b.id)
     .join('|');
+  // ширина, задана користувачем, — зі збережених (сітка будується заново при кожному поверненні на вкладку)
+  const widthKey = useCallback((colId: string) => columnWidthKey(mode, colId), [mode]);
   const columnDefs = useMemo(
     () =>
-      buildColumnDefs({
-        mode,
-        blockIds: blockKey ? blockKey.split('|') : [],
-        collapsed: new Set(collapsedKey ? collapsedKey.split('|') : []),
-      }),
-    [mode, blockKey, collapsedKey],
+      withSavedWidths(
+        buildColumnDefs({
+          mode,
+          blockIds: blockKey ? blockKey.split('|') : [],
+          collapsed: new Set(collapsedKey ? collapsedKey.split('|') : []),
+          blockOrder: useUiPrefs.getState().columnOrder[BLOCK_ORDER_KEY],
+        }),
+        widthKey,
+      ),
+    [mode, blockKey, collapsedKey, widthKey, layoutEpoch],
   );
 
   // ── контекст для рендерів (стабільний; дані — наживо зі стору) ──────
@@ -570,6 +581,20 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
     applyFocusRequest();
   }, [applyPendingScroll, applyFocusRequest]);
 
+  // колонку переставили в одному блоці — такий самий порядок полів у всіх блоках (таблиця перебудовується)
+  const onColumnMoved = useCallback((e: ColumnMovedEvent<SourcingRow>) => {
+    if (!e.finished || e.source !== 'uiColumnMoved') return;
+    const moved = parseColId(e.columns?.[0]?.getColId());
+    if (moved.kind !== 'block') return;
+    const shown = e.api.getAllGridColumns().flatMap((c) => {
+      const col = parseColId(c.getColId());
+      return col.kind === 'block' && col.blockId === moved.blockId ? [col.field] : [];
+    });
+    const prefs = useUiPrefs.getState();
+    const full = orderByPreference(BLOCK_FIELDS, prefs.columnOrder[BLOCK_ORDER_KEY]);
+    prefs.setColumnOrder(BLOCK_ORDER_KEY, reorderSubset(full, shown), true);
+  }, []);
+
   const onGridReady = useCallback(
     (e: GridReadyEvent<SourcingRow>) => {
       apiRef.current = e.api;
@@ -632,10 +657,11 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
         onCellKeyDown={onCellKeyDown}
         onGridReady={onGridReady}
         onRowDataUpdated={onRowDataUpdated}
+        onColumnResized={(e) => rememberColumnWidths(e, widthKey)}
+        onColumnMoved={onColumnMoved}
         onBodyScrollEnd={(e) => useSourcingUi.getState().rememberScroll(e.api.getFirstDisplayedRowIndex())}
         stopEditingWhenCellsLoseFocus
         enterNavigatesVerticallyAfterEdit
-        suppressMovableColumns
         suppressDragLeaveHidesColumns
         suppressScrollOnNewData
         animateRows={false}

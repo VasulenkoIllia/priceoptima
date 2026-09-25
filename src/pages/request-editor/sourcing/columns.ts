@@ -23,6 +23,7 @@ import {
   StockCell,
   UnitCell,
 } from './cells';
+import { orderByPreference } from '@/lib/gridColumnLayout';
 import { BLOCK_FIELDS, COL, COLLAPSED_BLOCK_FIELDS, type BlockField } from './colIds';
 import type { SourcingGridContext } from './gridContext';
 import { isLineRow, isNotApproved, type BlockCell, type SourcingRow } from './rows';
@@ -37,6 +38,8 @@ export interface BuildColumnsInput {
   blockIds: readonly UUID[];
   /** Згорнуті блоки (лише для «Підбору»). */
   collapsed: ReadonlySet<UUID>;
+  /** Порядок полів блоку, заданий користувачем (однаковий для всіх блоків); без нього — стандартний. */
+  blockOrder?: readonly string[];
 }
 
 type Ctx = { context: SourcingGridContext };
@@ -76,6 +79,7 @@ function clientColumns(mode: EditorMode): SourcingColDef[] {
       cellRenderer: ClientNameCell,
       // перенос по словах: довга назва видна повністю, рядок стає вищим (правки замовника 23.09 п.3)
       autoHeight: true,
+      cellClass: 'po-cell-text',
       cellClassRules: { 'po-totals-label': (p) => p.data?.kind === 'totals' },
     },
     {
@@ -172,6 +176,8 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
     width: h.width,
     cellClass: cls(),
     headerClass: cls(),
+    // колонки переставляються в межах блоку; «✔» стоїть на місці — через неї не перетягнути й весь блок
+    suppressMovable: field === 'pick',
     cellClassRules: blockCellClassRules(blockId, field, collapsed),
     cellRendererParams: { blockId, allWarnings: collapsed && field === 'net' },
   };
@@ -187,7 +193,7 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         cellRenderer: SkuCell,
       };
     case 'name':
-      return { ...base, valueGetter: (p) => offerOf(p)?.nameWork ?? '', cellRenderer: OfferNameCell, autoHeight: true };
+      return { ...base, cellClass: cls('po-cell-text'), valueGetter: (p) => offerOf(p)?.nameWork ?? '', cellRenderer: OfferNameCell, autoHeight: true };
     case 'unit':
       return { ...base, valueGetter: (p) => offerOf(p)?.unitCode ?? '', cellRenderer: UnitCell };
     case 'qty':
@@ -249,7 +255,7 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         ...base,
         editable: (p) => canEditRow(p) && !!cellOf(p.data, blockId)?.offer,
         cellEditor: 'agTextCellEditor',
-        cellClass: cls('po-note-cell'),
+        cellClass: cls('po-note-cell', 'po-cell-text'),
         valueGetter: (p) => offerOf(p)?.note ?? '',
         cellRenderer: NoteCell,
         autoHeight: true,
@@ -266,8 +272,8 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
   }
 }
 
-function blockGroup(blockId: UUID, collapsed: boolean): ColGroupDef<SourcingRow> {
-  const fields = collapsed ? COLLAPSED_BLOCK_FIELDS : BLOCK_FIELDS;
+function blockGroup(blockId: UUID, collapsed: boolean, order: readonly string[] | undefined): ColGroupDef<SourcingRow> {
+  const fields = orderByPreference(BLOCK_FIELDS, order).filter((f) => !collapsed || COLLAPSED_BLOCK_FIELDS.includes(f));
   return {
     groupId: COL.group(blockId),
     headerName: '',
@@ -314,7 +320,7 @@ function compareColumn(blockId: UUID, first: boolean): SourcingColDef {
 }
 
 /** Колонки сітки для режиму: «Підбір» — повні блоки (групи), «Порівняння» — по колонці на блок + «Обрано» праворуч. */
-export function buildColumnDefs({ mode, blockIds, collapsed }: BuildColumnsInput): SourcingColumn[] {
+export function buildColumnDefs({ mode, blockIds, collapsed, blockOrder }: BuildColumnsInput): SourcingColumn[] {
   const client = clientColumns(mode);
   if (mode === 'comparison') {
     return [
@@ -342,7 +348,7 @@ export function buildColumnDefs({ mode, blockIds, collapsed }: BuildColumnsInput
       cellRenderer: ChosenCell,
       valueGetter: (p) => (isLineRow(p.data) ? (p.data.chosen?.oc.unitNetUah ?? null) : null),
     },
-    ...blockIds.map((id) => blockGroup(id, collapsed.has(id))),
+    ...blockIds.map((id) => blockGroup(id, collapsed.has(id), blockOrder)),
   ];
 }
 

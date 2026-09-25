@@ -42,3 +42,31 @@ export const userIdSchema = z.object({ id: z.uuid('Невірний іденти
 
 export type UserUpdateBody = z.infer<typeof userUpdateSchema>;
 export type ProfileBody = z.infer<typeof profileSchema>;
+
+// ── налаштування інтерфейсу (ширина колонок тощо), однакові на всіх комп'ютерах користувача ──
+/** Межа розміру всього набору налаштувань (символів JSON). */
+export const UI_PREFS_MAX_CHARS = 64_000;
+const importColumn = z.number().int().min(0).max(1000).nullable();
+
+/** Налаштування інтерфейсу: лише відомі поля з межами; невідомі поля відкидаються. */
+export const uiPrefsSchema = z
+  .object({
+    columnWidths: z
+      .record(z.string().min(1).max(160), z.number().min(20).max(4000).transform(Math.round))
+      .refine((v) => Object.keys(v).length <= 500, 'Забагато збережених колонок')
+      .optional(),
+    columnOrder: z
+      .record(z.string().min(1).max(160), z.array(z.string().min(1).max(160)).max(100))
+      .refine((v) => Object.keys(v).length <= 50, 'Забагато збережених таблиць')
+      .optional(),
+    editorMode: z.enum(['sourcing', 'comparison']).optional(),
+    siderCollapsed: z.boolean().optional(),
+    scenariosPanelOpen: z.boolean().optional(),
+    headerNotesOpen: z.boolean().optional(),
+    importMaps: z
+      .record(z.string().min(1).max(2000), z.object({ name: importColumn, unit: importColumn, qty: importColumn, note: importColumn }))
+      .refine((v) => Object.keys(v).length <= 50, 'Забагато збережених виборів колонок імпорту')
+      .optional(),
+  })
+  .refine((v) => JSON.stringify(v).length <= UI_PREFS_MAX_CHARS, 'Завеликі налаштування інтерфейсу');
+

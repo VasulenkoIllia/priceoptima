@@ -70,6 +70,7 @@ import type {
   InviteCreateInput,
   PasswordChangeInput,
   ProfileInput,
+  UiPrefsDto,
   RegisterInput,
   UserUpdateInput,
 } from '@shared/types';
@@ -117,6 +118,8 @@ export interface DataSource {
   /** Мій профіль. */
   updateProfile(input: ProfileInput): Promise<UserDto>;
   changePassword(input: PasswordChangeInput): Promise<UserDto>;
+  /** Налаштування інтерфейсу поточного користувача — весь набір (keepalive — при закритті вкладки). */
+  saveUiPrefs(prefs: UiPrefsDto, options?: { keepalive?: boolean }): Promise<void>;
   /** Журнал дій (лише адміністратор), від найновішого. */
   listAudit(query?: AuditQuery): Promise<AuditPage>;
   getSettings(): Promise<AppSettings>;

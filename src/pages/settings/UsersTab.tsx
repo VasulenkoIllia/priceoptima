@@ -133,6 +133,7 @@ export function UsersTab() {
     {
       title: 'ПІБ',
       dataIndex: 'fullName',
+      className: 'po-cell-text',
       render: (v: string, u) => (
         <span>
           {v}

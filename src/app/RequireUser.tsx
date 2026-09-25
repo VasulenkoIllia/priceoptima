@@ -1,7 +1,9 @@
 import { Button, Result, Spin } from 'antd';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { errorMessage } from '@/data';
+import type { MeResponse } from '@shared/types';
+import { ds, errorMessage } from '@/data';
+import { startUiPrefsSync } from '@/stores/uiPrefsSync';
 import { ForcePasswordChange } from './ProfileDialog';
 import { SessionProvider, useMeQuery, useSession } from './session';
 
@@ -33,7 +35,20 @@ export function RequireUser({ children }: { children: ReactNode }) {
     return <Navigate to={from && from !== '/' ? `/login?from=${encodeURIComponent(from)}` : '/login'} replace />;
   }
   if (me.data.user.mustChangePassword) return <ForcePasswordChange user={me.data.user} />;
-  return <SessionProvider value={me.data}>{children}</SessionProvider>;
+  return (
+    <SessionProvider value={me.data}>
+      <UiPrefsSync me={me.data} />
+      {children}
+    </SessionProvider>
+  );
+}
+
+/** Налаштування інтерфейсу користувача (ширина колонок тощо) — з сервера й на сервер. */
+function UiPrefsSync({ me }: { me: MeResponse }) {
+  const userId = me.user.id;
+  // налаштування з сервера беруться раз на користувача (далі джерело — браузер), тож перезапуск лише зі зміною користувача
+  useEffect(() => startUiPrefsSync(userId, me.uiPrefs, (prefs, options) => ds.saveUiPrefs(prefs, options)), [userId]);
+  return null;
 }
 
 export function RequireAdmin({ children }: { children: ReactNode }) {

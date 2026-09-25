@@ -229,6 +229,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
     {
       key: 'name',
       title: 'Назва',
+      className: 'po-cell-text',
       ellipsis: { showTitle: false },
       render: (_, r) => (
         <Tooltip title={r.product.matchKind === 'fuzzy' ? `${r.product.nameWork} (частковий збіг)` : r.product.nameWork} placement="topLeft" mouseEnterDelay={0.5}>

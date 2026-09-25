@@ -21,7 +21,7 @@ const ENTITY_OPTIONS = [
 const columns: TableColumnsType<AuditEventDto> = [
   { title: 'Коли', dataIndex: 'at', width: 150, render: (v: string) => <span className="po-num">{formatDateTime(v)}</span> },
   { title: 'Хто', key: 'user', width: 170, render: (_: unknown, e) => e.user?.shortName ?? 'система' },
-  { title: 'Що', dataIndex: 'summary' },
+  { title: 'Що', dataIndex: 'summary', className: 'po-cell-text' },
 ];
 
 export function AuditTab() {

@@ -191,6 +191,7 @@ export default function ApprovalTab() {
     {
       key: 'name',
       title: 'Назва',
+      className: 'po-cell-text',
       render: (_, r) => (
         <>
           {r.kp.name}

@@ -25,6 +25,8 @@ import { addManualRate, cancelManualRates, getEffectiveRates, saveNbuRate } from
 import { getSettings } from '../../modules/settings/settings.service';
 import { supplierInputSchema } from '../../modules/suppliers/suppliers.schemas';
 import { createSupplier, getSupplier } from '../../modules/suppliers/suppliers.service';
+import { uiPrefsSchema } from '../../modules/users/users.schemas';
+import { getUiPrefs, saveUiPrefs } from '../../modules/users/users.service';
 
 let admin: User;
 let koval: User;
@@ -258,6 +260,25 @@ describe('загальний курс: більший із НБУ й ручно�
     await addManualRate({ currency: 'EUR', rateDate: '2099-03-10', rate: 61.5, note: null }, admin);
     expect((await getEffectiveRates('2099-03-11')).EUR?.source).toBe('manual');
     await cancelManualRates({ currency: 'EUR' }, admin);
+  });
+});
+
+describe('налаштування інтерфейсу користувача (правки замовника 25.09 п.1)', () => {
+  it('немає — null; збереження замінює весь набір; картку користувача не чіпає; зіпсоване — null', async () => {
+    expect(await getUiPrefs(koval.id)).toBeNull();
+    const before = await prisma.user.findUniqueOrThrow({ where: { id: koval.id } });
+
+    await saveUiPrefs(koval, parse(uiPrefsSchema, { columnWidths: { 'markup:client': 360.4 }, editorMode: 'comparison' }));
+    expect(await getUiPrefs(koval.id)).toEqual({ columnWidths: { 'markup:client': 360 }, editorMode: 'comparison' });
+    await saveUiPrefs(koval, parse(uiPrefsSchema, { siderCollapsed: true }));
+    expect(await getUiPrefs(koval.id)).toEqual({ siderCollapsed: true });
+    expect(await getUiPrefs(bondar.id)).toBeNull();
+
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: koval.id } });
+    expect(after.updatedAt).toEqual(before.updatedAt);
+
+    await prisma.userUiPrefs.update({ where: { userId: koval.id }, data: { prefs: { columnWidths: { x: 'широка' } } } });
+    expect(await getUiPrefs(koval.id)).toBeNull();
   });
 });
 

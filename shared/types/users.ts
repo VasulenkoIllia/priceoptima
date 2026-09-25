@@ -173,10 +173,38 @@ export interface AppSettings {
 }
 export type AppSettingsPatch = Partial<AppSettings>;
 
+/** Колонки файлу заявки, обрані при імпорті з Excel (номер колонки з 0; null — немає). */
+export interface ImportColumnMapDto {
+  name: number | null;
+  unit: number | null;
+  qty: number | null;
+  note: number | null;
+}
+
+/**
+ * Налаштування інтерфейсу користувача, що зберігаються на сервері й однакові на всіх його комп'ютерах
+ * (правки замовника 25.09 п.1). Усі поля необов'язкові: нове налаштування додається полем без міграції.
+ */
+export interface UiPrefsDto {
+  /** Ширина колонок таблиць, px (ключ — сітка й колонка, див. src/lib/gridColumnLayout.ts). */
+  columnWidths?: Record<string, number>;
+  /** Порядок колонок, заданий перетягуванням: ключ — сітка (чи «поля блоку» в «Підборі»), значення — id колонок. */
+  columnOrder?: Record<string, string[]>;
+  /** Вкладка «Позиції і підбір»: «Підбір» чи «Порівняння». */
+  editorMode?: 'sourcing' | 'comparison';
+  siderCollapsed?: boolean;
+  scenariosPanelOpen?: boolean;
+  headerNotesOpen?: boolean;
+  /** Вибір колонок імпорту з Excel за заголовком файлу (ключ — підпис заголовка). */
+  importMaps?: Record<string, ImportColumnMapDto>;
+}
+
 export interface MeResponse {
   user: UserDto;
   settings: AppSettings;
   serverTime: ISODateTime;
+  /** null — користувач ще нічого не зберігав на сервері. */
+  uiPrefs: UiPrefsDto | null;
 }
 
 export interface OwnCompanyDto {

@@ -48,6 +48,29 @@ body {
   justify-content: center;
   text-align: center;
 }
+/* межа колонки ширша: колонки тепер і перетягуються, тож промах повз вузьку межу переставляв колонку замість зміни
+   ширини (правки замовника 25.09). Працює частина всередині заголовка (праворуч його закриває сусідній) — ~10 px */
+.ag-header-cell-resize {
+  width: 12px;
+  right: -2px;
+}
+/* дані — теж по центру, під заголовком (правки замовника 25.09); довгі тексти (назви, примітки) — зліва: po-cell-text */
+.ag-cell,
+.ag-cell.ag-right-aligned-cell {
+  text-align: center;
+}
+.ag-cell.po-cell-text {
+  text-align: left;
+}
+/* звичайні таблиці (antd) — так само: дані по центру під заголовком (вирівнювання з колонок не діє), тексти — зліва */
+.ant-table-wrapper .ant-table-tbody > tr > td,
+.ant-table-wrapper .ant-table-summary td {
+  text-align: center !important;
+}
+.ant-table-wrapper .ant-table-tbody > tr > td.po-cell-text,
+.ant-table-wrapper .ant-table-summary td.po-cell-text {
+  text-align: left !important;
+}
 .ant-table-wrapper .ant-table-thead > tr > th {
   text-align: center !important;
 }

@@ -20,6 +20,7 @@ import { parseLocaleNumber } from '@shared/parse';
 import { isActiveLine, kpChecks, markupValueMax } from '@shared/pricing';
 import type { UUID } from '@shared/types';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
+import { columnLayoutHandlers, withSavedLayout } from '@/lib/gridColumnLayout';
 import { startFillDrag } from '@/lib/gridFillDrag';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { setOfferPriceFromInput, setOfferRrpFromInput } from '../offerCellInput';
@@ -47,10 +48,13 @@ import {
   WarnCell,
 } from './markupCells';
 
+const MARKUP_LAYOUT = columnLayoutHandlers<MarkupRow>('markup');
+
 export default function MarkupTab() {
   const { modal, message } = App.useApp();
   const navigate = useNavigate();
   const density = useUiPrefs((s) => s.density);
+  const layoutEpoch = useUiPrefs((s) => s.layoutEpoch);
   const requestId = useRequestDoc((s) => s.requestId);
   const doc = useRequestDoc((s) => s.doc);
   const readOnly = useRequestDoc((s) => s.readOnly);
@@ -159,6 +163,7 @@ export default function MarkupTab() {
         flex: 1,
         minWidth: 170,
         pinned: 'left',
+        cellClass: 'po-cell-text',
         // перенос по словах, як у «Підборі»: довга назва видна повністю
         cellRenderer: (p: ICellRendererParams<MarkupRow>) => <span className="po-wrap">{p.value as string}</span>,
         autoHeight: true,
@@ -296,11 +301,11 @@ export default function MarkupTab() {
         valueGetter: (p) => p.data?.mr.rrpVsCostPct,
         valueFormatter: (p) => pct(p.value),
       },
-      { headerName: 'Товар постачальника', colId: 'product', width: 280, cellRenderer: ProductCell, autoHeight: true },
+      { headerName: 'Товар постачальника', colId: 'product', width: 280, cellClass: 'po-cell-text', cellRenderer: ProductCell, autoHeight: true },
       { headerName: '', colId: 'warn', width: 48, cellRenderer: WarnCell, pinned: 'right' },
     ];
-    return defs;
-  }, [vatMode, fopBasis]);
+    return withSavedLayout(defs, 'markup');
+  }, [vatMode, fopBasis, layoutEpoch]);
 
   const onCellEditRequest = (e: CellEditRequestEvent<MarkupRow>) => {
     const row = e.data;
@@ -431,7 +436,7 @@ export default function MarkupTab() {
             rowData={rows}
             columnDefs={columns}
             context={context}
-            defaultColDef={{ sortable: false, resizable: true, suppressMovable: true, wrapHeaderText: true, autoHeaderHeight: true }}
+            defaultColDef={{ sortable: false, resizable: true, lockPinned: true, wrapHeaderText: true, autoHeaderHeight: true }}
             getRowId={(p) => p.data.id}
             readOnlyEdit
             onCellEditRequest={onCellEditRequest}
@@ -439,6 +444,8 @@ export default function MarkupTab() {
             onGridReady={(e) => {
               apiRef.current = e.api;
             }}
+            onColumnResized={MARKUP_LAYOUT.onColumnResized}
+            onColumnMoved={MARKUP_LAYOUT.onColumnMoved}
             singleClickEdit={false}
             stopEditingWhenCellsLoseFocus
             rowClass="po-mk-row"

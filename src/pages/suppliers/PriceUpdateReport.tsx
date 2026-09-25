@@ -47,20 +47,20 @@ const BIG_COLUMNS: TableColumnsType<PriceBigChange> = [
 const DIFF_COLUMNS: TableColumnsType<PriceDetailDiff> = [
   { title: 'Код', dataIndex: 'code', width: 150 },
   { title: 'Поле', dataIndex: 'field', width: 100, render: (f: PriceDetailField) => DETAIL_FIELD_LABELS[f] ?? f },
-  { title: 'У каталозі (лишається)', dataIndex: 'catalog' },
-  { title: 'У прайсі', dataIndex: 'price', render: (v: string) => <span className="po-muted">{v}</span> },
+  { title: 'У каталозі (лишається)', dataIndex: 'catalog', className: 'po-cell-text' },
+  { title: 'У прайсі', dataIndex: 'price', className: 'po-cell-text', render: (v: string) => <span className="po-muted">{v}</span> },
 ];
 
 const NOT_FOUND_COLUMNS: TableColumnsType<PriceNotFoundRow> = [
   { title: 'Рядок', dataIndex: 'row', width: 70, align: 'right', render: num },
   { title: 'Код', dataIndex: 'code', width: 150 },
-  { title: 'Назва', dataIndex: 'name', render: (v: string | null) => v ?? null },
+  { title: 'Назва', dataIndex: 'name', className: 'po-cell-text', render: (v: string | null) => v ?? null },
 ];
 
 const SKIPPED_COLUMNS: TableColumnsType<PriceSkippedRow> = [
   { title: 'Рядок', dataIndex: 'row', width: 70, align: 'right', render: num },
   { title: 'Код', dataIndex: 'code', width: 150, render: (v: string) => v || null },
-  { title: 'Причина', dataIndex: 'reason' },
+  { title: 'Причина', dataIndex: 'reason', className: 'po-cell-text' },
 ];
 
 const RELINKED_COLUMNS: TableColumnsType<PriceRelinkedItem> = [

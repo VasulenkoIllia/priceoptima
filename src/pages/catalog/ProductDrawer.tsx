@@ -34,6 +34,7 @@ function historyColumns(vatRatePct: number): TableColumnsType<PriceHistoryEntry>
     {
       title: 'Примітка / хто',
       key: 'note',
+      className: 'po-cell-text',
       render: (_, h) => (
         <span>
           {h.note ?? ''}

@@ -1,12 +1,12 @@
 // Користувачі: довідник для всіх; дані, роль і доступ змінює адміністратор, свій профіль — кожен.
-import type { User, UserRole } from '@prisma/client';
-import type { UserDto } from '@shared/types';
+import type { Prisma, User, UserRole } from '@prisma/client';
+import type { UiPrefsDto, UserDto } from '@shared/types';
 import { prisma } from '../../db';
 import { ApiError, duplicate, notFound } from '../../http/errors';
 import { audit, userRefs } from '../audit/audit.service';
 import { hashPassword, verifyPassword } from '../auth/password';
 import { ROLE_LABEL, toUserDto } from './users.mapper';
-import type { ProfileBody, UserUpdateBody } from './users.schemas';
+import { uiPrefsSchema, type ProfileBody, type UserUpdateBody } from './users.schemas';
 
 /** Хто зняв блокування заявок заблокованого користувача (модуль заявок підставляє свою функцію). */
 let releaseUserLocks: (userId: string) => Promise<void> = async () => undefined;
@@ -112,3 +112,20 @@ async function assertAdminLeft(userId: string, role: string, isActive: boolean):
   const others = await prisma.user.count({ where: { role: 'admin', isActive: true, NOT: { id: userId } } });
   if (others === 0) throw new ApiError('VALIDATION_ERROR', 'Потрібен хоча б один активний адміністратор');
 }
+
+// ── налаштування інтерфейсу ──────────────────────────────────────────
+
+/** Налаштування інтерфейсу користувача; null — ще нічого не зберігав (чи збережене вже не відповідає правилам). */
+export async function getUiPrefs(userId: string): Promise<UiPrefsDto | null> {
+  const row = await prisma.userUiPrefs.findUnique({ where: { userId } });
+  if (!row) return null;
+  const parsed = uiPrefsSchema.safeParse(row.prefs);
+  return parsed.success ? parsed.data : null;
+}
+
+/** Зберегти налаштування інтерфейсу (весь набір; діє останнє збереження). Без журналу дій: це не дані системи. */
+export async function saveUiPrefs(actor: User, prefs: UiPrefsDto): Promise<void> {
+  const value = prefs as Prisma.InputJsonObject;
+  await prisma.userUiPrefs.upsert({ where: { userId: actor.id }, create: { userId: actor.id, prefs: value }, update: { prefs: value } });
+}
+

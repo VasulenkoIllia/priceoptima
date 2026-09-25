@@ -237,7 +237,7 @@ export function Name1cImportDialog({ supplierId, supplierName, open, onClose }: 
             dataSource={prepared.rows.slice(0, 100)}
             columns={[
               { title: 'Артикул', dataIndex: 'sku', width: 180, render: (v: string) => <span className="po-num">{v}</span> },
-              { title: 'Назва 1С', dataIndex: 'name1c' },
+              { title: 'Назва 1С', dataIndex: 'name1c', className: 'po-cell-text' },
             ]}
           />
           {prepared.rows.length > 100 ? (

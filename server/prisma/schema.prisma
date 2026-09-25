@@ -116,6 +116,16 @@ model User {
   importRuns   PriceImportRun[]
   priceHistory PriceHistory[]
   clients      Client[]
+  uiPrefs      UserUiPrefs?
+}
+
+/// Налаштування інтерфейсу користувача (ширина колонок, режими) — однакові на всіх його комп'ютерах.
+/// Окремо від картки користувача: зміна ширини колонки не чіпає картку (її версію й «змінено»).
+model UserUiPrefs {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prefs     Json
+  updatedAt DateTime @updatedAt
 }
 
 model Session {

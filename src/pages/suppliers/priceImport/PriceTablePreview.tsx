@@ -116,7 +116,7 @@ export function RowsPreview({ preview, limit = 50 }: RowsPreviewProps) {
       render: (_: unknown, r: PreviewRow) => <span className="po-num">{r.row.code || ''}</span>,
     },
     { key: 'sku', title: 'Артикул', width: 130, ellipsis: true, render: (_: unknown, r: PreviewRow) => r.row.sku ?? '' },
-    { key: 'name', title: 'Назва', ellipsis: true, render: (_: unknown, r: PreviewRow) => r.row.name ?? '' },
+    { key: 'name', title: 'Назва', className: 'po-cell-text', ellipsis: true, render: (_: unknown, r: PreviewRow) => r.row.name ?? '' },
     { key: 'brand', title: 'Бренд', width: 110, ellipsis: true, render: (_: unknown, r: PreviewRow) => r.row.brand ?? '' },
     { key: 'unit', title: 'Од.', width: 64, render: (_: unknown, r: PreviewRow) => r.row.unitCode ?? '' },
     {
@@ -153,6 +153,7 @@ export function RowsPreview({ preview, limit = 50 }: RowsPreviewProps) {
     {
       key: 'issues',
       title: 'Проблеми',
+      className: 'po-cell-text',
       width: 190,
       render: (_: unknown, r: PreviewRow) => (
         <span className="po-pi-issues">

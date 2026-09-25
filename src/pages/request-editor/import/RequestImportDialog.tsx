@@ -7,6 +7,7 @@ import { formatQty } from '@shared/format';
 import { errorMessage } from '@/data';
 import { columnLetter, readSpreadsheetFile, SpreadsheetError, type SheetData } from '@/lib/spreadsheet';
 import { useRequestDoc } from '@/stores/requestDocStore';
+import { useUiPrefs } from '@/stores/uiPrefsStore';
 import {
   buildRequestRows,
   detectRequestColumns,
@@ -23,37 +24,13 @@ import { downloadRequestTemplate } from './requestTemplate';
 
 const NO_ROWS: string[][] = [];
 
-const STORAGE_KEY = 'po-request-import-maps';
 const PREVIEW_LIMIT = 200;
 
-type SavedMaps = Record<string, Record<RequestColumnRole, number | null>>;
-
-/** Вибір колонок для файлів з таким самим заголовком (у цьому браузері). */
-function loadSaved(): SavedMaps {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as SavedMaps;
-  } catch {
-    return {};
-  }
-}
-
-function saveMap(signature: string, map: RequestColumnMap): void {
-  try {
-    const all = loadSaved();
-    all[signature] = { name: map.name, unit: map.unit, qty: map.qty, note: map.note };
-    const keys = Object.keys(all);
-    for (const k of keys.slice(0, Math.max(0, keys.length - 50))) delete all[k];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-  } catch {
-    // без збереження вибору імпорт працює так само
-  }
-}
-
-/** Колонки: автопошук, поверх — запам'ятований вибір для такого самого заголовка. */
+/** Колонки: автопошук, поверх — запам'ятований вибір для такого самого заголовка (у налаштуваннях користувача). */
 function initialMap(rows: string[][]): RequestColumnMap {
   const detected = detectRequestColumns(rows);
   const signature = headerSignature(rows, detected.headerRow);
-  const saved = signature ? loadSaved()[signature] : undefined;
+  const saved = signature ? useUiPrefs.getState().importMaps[signature] : undefined;
   return saved ? { ...detected, ...saved } : detected;
 }
 
@@ -128,7 +105,7 @@ export function RequestImportDialog({ open, onClose }: RequestImportDialogProps)
   const apply = () => {
     if (!result?.lines.length || !map) return;
     const signature = headerSignature(rows, map.headerRow);
-    if (signature && !template) saveMap(signature, map);
+    if (signature && !template) useUiPrefs.getState().setImportMap(signature, { name: map.name, unit: map.unit, qty: map.qty, note: map.note });
     addLines(result.lines, 'append');
     const extra = result.badQty ? `; к-сть не розпізнано в ${result.badQty}, заповніть вручну` : '';
     message.success(`Додано позицій: ${result.lines.length}${extra}. Скасувати: Ctrl+Z`);
@@ -139,7 +116,7 @@ export function RequestImportDialog({ open, onClose }: RequestImportDialogProps)
 
   const previewColumns = [
     { title: 'Рядок', dataIndex: 'rowNumber', width: 64, render: (v: number) => <span className="po-num po-muted">{v}</span> },
-    { title: 'Найменування', key: 'name', render: (_: unknown, r: RequestPreviewRow) => r.line?.clientName ?? '' },
+    { title: 'Найменування', key: 'name', className: 'po-cell-text', render: (_: unknown, r: RequestPreviewRow) => r.line?.clientName ?? '' },
     { title: 'Од.', key: 'unit', width: 70, render: (_: unknown, r: RequestPreviewRow) => r.line?.clientUnit ?? '' },
     {
       title: 'К-сть',
@@ -148,7 +125,7 @@ export function RequestImportDialog({ open, onClose }: RequestImportDialogProps)
       align: 'right' as const,
       render: (_: unknown, r: RequestPreviewRow) => <span className="po-num">{r.line ? formatQty(r.line.qty ?? 0) : r.rawQty}</span>,
     },
-    { title: 'Примітка', key: 'note', width: 180, ellipsis: true, render: (_: unknown, r: RequestPreviewRow) => r.line?.clientNote ?? '' },
+    { title: 'Примітка', key: 'note', width: 180, className: 'po-cell-text', ellipsis: true, render: (_: unknown, r: RequestPreviewRow) => r.line?.clientNote ?? '' },
     {
       title: '',
       key: 'status',

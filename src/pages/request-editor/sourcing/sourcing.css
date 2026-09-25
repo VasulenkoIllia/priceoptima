@@ -57,13 +57,9 @@
   min-width: 0;
   vertical-align: middle;
 }
+/* значення зі значками (▲▼, «!») — разом по центру клітинки, як і заголовок (правки замовника 25.09) */
 .po-cell-grow {
-  flex: 1;
-  text-align: right;
-}
-.ag-right-aligned-cell .po-cell-flex {
-  width: 100%;
-  justify-content: flex-end;
+  text-align: center;
 }
 .po-cell-center {
   display: flex;
@@ -279,6 +275,16 @@
   white-space: nowrap;
   overflow: hidden;
 }
+/* «Порівняння»: шапка колонки постачальника — по центру, як і ціни під нею (правки замовника 25.09) */
+.ag-header-cell-comp-wrapper:has(.po-bh-compact) {
+  justify-content: center;
+}
+.po-bh-compact {
+  align-items: center;
+}
+.po-bh-compact .po-bh-row {
+  justify-content: center;
+}
 .po-bh-name {
   font-weight: 700;
   font-size: 13px;
@@ -356,12 +362,11 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  /* ціна й рядок під нею — по центру клітинки, як і заголовок (правки замовника 25.09) */
+  align-items: center;
   line-height: 1.25;
   height: 100%;
   min-width: 0;
-}
-.ag-right-aligned-cell .po-cmp-cell {
-  align-items: flex-end;
 }
 .po-cmp-price {
   font-weight: 600;

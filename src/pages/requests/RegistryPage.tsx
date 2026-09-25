@@ -25,6 +25,7 @@ import { ds, errorMessage, qk } from '@/data';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { CopyRequestDialog, type CopySource } from '@/pages/request-editor/CopyRequestDialog';
+import { columnLayoutHandlers, withSavedLayout } from '@/lib/gridColumnLayout';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { CreateRequestDialog } from './CreateRequestDialog';
 import { hasFilters, useRegistryFilters, type StatusFilter } from './registryFilters';
@@ -33,6 +34,7 @@ type Cell = ICellRendererParams<RequestListItem>;
 
 /** Скільки заявок підвантажуємо за раз під час гортання. */
 const PAGE_SIZE = 100;
+const REGISTRY_LAYOUT = columnLayoutHandlers<RequestListItem>('registry');
 
 /** Колонка → поле сортування на сервері (за іншими колонками реєстр не сортується). */
 const SORT_FIELDS: Record<string, string> = {
@@ -242,8 +244,12 @@ export default function RegistryPage() {
     [navigate],
   );
 
+  // ширина, задана користувачем, — зі збережених (правки замовника 25.09 п.1)
+  const layoutEpoch = useUiPrefs((s) => s.layoutEpoch);
   const columns = useMemo<ColDef<RequestListItem>[]>(
-    () => [
+    () =>
+      withSavedLayout<ColDef<RequestListItem>>(
+        [
       {
         headerName: 'Номер',
         field: 'number',
@@ -272,9 +278,10 @@ export default function RegistryPage() {
         valueGetter: (p) => p.data?.client?.name ?? '',
         flex: 1,
         minWidth: 130,
+        cellClass: 'po-cell-text',
         tooltipValueGetter: (p) => p.data?.title ?? null,
       },
-      { headerName: 'Контрагент', colId: 'counterparty', valueGetter: (p) => p.data?.counterparty?.nameShort ?? '', flex: 1.3, minWidth: 160 },
+      { headerName: 'Контрагент', colId: 'counterparty', valueGetter: (p) => p.data?.counterparty?.nameShort ?? '', flex: 1.3, minWidth: 160, cellClass: 'po-cell-text' },
       { headerName: 'ЄДРПОУ', colId: 'edrpou', valueGetter: (p) => p.data?.counterparty?.edrpou ?? '', width: 104, cellClass: 'po-num' },
       {
         headerName: 'Сума з ПДВ',
@@ -313,8 +320,10 @@ export default function RegistryPage() {
         cellStyle: { padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: ({ data }: Cell) => (data ? <RowMenuButton onAction={(key) => runRowAction(data, key)} /> : null),
       },
-    ],
-    [navigate, runRowAction],
+        ],
+        'registry',
+      ),
+    [navigate, runRowAction, layoutEpoch],
   );
 
   const open = (id: string) => navigate(`/requests/${id}`);
@@ -404,11 +413,13 @@ export default function RegistryPage() {
           cacheBlockSize={PAGE_SIZE}
           maxBlocksInCache={20}
           columnDefs={columns}
-          defaultColDef={{ sortable: false, resizable: true, suppressMovable: true, wrapHeaderText: true, autoHeaderHeight: true }}
+          defaultColDef={{ sortable: false, resizable: true, lockPinned: true, wrapHeaderText: true, autoHeaderHeight: true }}
           getRowId={(p) => p.data.id}
           onGridReady={(e) => {
             gridApi.current = e.api;
           }}
+          onColumnResized={REGISTRY_LAYOUT.onColumnResized}
+          onColumnMoved={REGISTRY_LAYOUT.onColumnMoved}
           overlayNoRowsTemplate="<span>Заявок не знайдено</span>"
           onRowDoubleClicked={(e) => {
             // подвійний клік по «⋯» не відкриває заявку

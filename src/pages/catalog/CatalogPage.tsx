@@ -14,6 +14,7 @@ import { ds, errorMessage, qk } from '@/data';
 import { saveBlob } from '@/lib/files';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { columnLayoutHandlers, withSavedLayout } from '@/lib/gridColumnLayout';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { PriceImportDialog } from '../suppliers/priceImport';
 import { Name1cImportDialog } from './Name1cImportDialog';
@@ -34,6 +35,7 @@ const AVAILABILITY_OPTIONS: { value: AvailabilityFilter; label: string }[] = [
 
 /** Скільки рядків підвантажуємо за раз під час гортання. */
 const PAGE_SIZE = 100;
+const CATALOG_LAYOUT = columnLayoutHandlers<ProductDetail>('catalog');
 
 /** Колонка таблиці → поле сортування на сервері. */
 const SORT_FIELDS: Record<string, ProductSortField> = {
@@ -186,12 +188,13 @@ export default function CatalogPage() {
         },
       },
       { headerName: 'Артикул', field: 'sku', width: 130, cellClass: 'po-num' },
-      { headerName: 'Найменування робоче', field: 'nameWork', flex: 1, minWidth: 260, tooltipField: 'nameWork' },
+      { headerName: 'Найменування робоче', field: 'nameWork', flex: 1, minWidth: 260, cellClass: 'po-cell-text', tooltipField: 'nameWork' },
       {
         headerName: 'Найменування 1С',
         field: 'name1c',
         flex: 1,
         minWidth: 200,
+        cellClass: 'po-cell-text',
         tooltipField: 'name1c',
         valueFormatter: (p) => (p.value as string | null) ?? '',
         headerTooltip: 'Назва як у бухгалтерії: заповнюється в картці товару',
@@ -268,15 +271,20 @@ export default function CatalogPage() {
 
   // сортувати весь каталог можна за артикулом, назвою й ціною входу; за рештою колонок — коли вибрано постачальника чи є пошук
   const narrowed = supplierId !== 'all' || q !== '';
+  // ширина, задана користувачем, — зі збережених: колонки будуються наново й при зміні пошуку (правки замовника 25.09 п.1)
+  const layoutEpoch = useUiPrefs((s) => s.layoutEpoch);
   const sortableColumns = useMemo<ColDef<ProductDetail>[]>(
     () =>
-      columns.map((c) => {
-        const field = SORT_FIELDS[c.colId ?? c.field ?? ''];
-        if (c.sortable === false || !field || catalogSortAllowed(field, narrowed)) return c;
-        const hint = 'Сортування за цією колонкою доступне, коли вибрано постачальника або введено пошук';
-        return { ...c, sortable: false, headerTooltip: c.headerTooltip ? `${c.headerTooltip}. ${hint}` : hint };
-      }),
-    [columns, narrowed],
+      withSavedLayout(
+        columns.map((c) => {
+          const field = SORT_FIELDS[c.colId ?? c.field ?? ''];
+          if (c.sortable === false || !field || catalogSortAllowed(field, narrowed)) return c;
+          const hint = 'Сортування за цією колонкою доступне, коли вибрано постачальника або введено пошук';
+          return { ...c, sortable: false, headerTooltip: c.headerTooltip ? `${c.headerTooltip}. ${hint}` : hint };
+        }),
+        'catalog',
+      ),
+    [columns, narrowed, layoutEpoch],
   );
   // пошук чи постачальника прибрали — сортування за «вузькою» колонкою скидаємо (сервер його вже не застосує)
   useEffect(() => {
@@ -411,13 +419,15 @@ export default function CatalogPage() {
           cacheBlockSize={PAGE_SIZE}
           maxBlocksInCache={20}
           columnDefs={sortableColumns}
-          defaultColDef={{ sortable: true, resizable: true, suppressMovable: true, wrapHeaderText: true, autoHeaderHeight: true }}
+          defaultColDef={{ sortable: true, resizable: true, lockPinned: true, wrapHeaderText: true, autoHeaderHeight: true }}
           getRowId={(p) => p.data.id}
           rowClass="po-cat-row"
           overlayNoRowsTemplate="<span>Товарів не знайдено</span>"
           onGridReady={(e) => {
             gridApi.current = e.api;
           }}
+          onColumnResized={CATALOG_LAYOUT.onColumnResized}
+          onColumnMoved={CATALOG_LAYOUT.onColumnMoved}
           onRowClicked={(e) => e.data && openProduct(e.data)}
           onCellKeyDown={(e) => {
             const ev = e.event as KeyboardEvent | undefined;
