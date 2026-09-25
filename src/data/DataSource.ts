@@ -137,6 +137,8 @@ export interface DataSource {
 
   // ── Постачальники ───────────────────────────────────────────────
   listSuppliers(): Promise<SupplierListItem[]>;
+  /** Новий порядок постачальників: усі id у потрібній послідовності (VERSION_CONFLICT — список тим часом змінився). */
+  reorderSuppliers(ids: UUID[]): Promise<void>;
   getSupplier(id: UUID): Promise<SupplierDetail>;
   saveSupplier(id: UUID | null, input: SupplierInput): Promise<SupplierDetail>;
   /** Налаштування вигрузки прайсу: посилання й токен назовні не віддаються — лише «збережено». */

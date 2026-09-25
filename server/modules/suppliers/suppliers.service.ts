@@ -50,7 +50,10 @@ export async function createSupplier(input: SupplierInputBody, actor: User): Pro
   const id = randomUUID();
   const nested = prepareNested(input);
   await prisma.$transaction(async (tx) => {
-    await tx.supplier.create({ data: { id, ...toRow(input), createdById: actor.id, updatedById: actor.id } });
+    // новий постачальник — у кінець списку (порядок змінюють перетягуванням карток)
+    const last = await tx.supplier.aggregate({ _max: { sortOrder: true } });
+    const sortOrder = (last._max.sortOrder ?? -1) + 1;
+    await tx.supplier.create({ data: { id, ...toRow(input), sortOrder, createdById: actor.id, updatedById: actor.id } });
     await saveNested(tx, id, nested);
   });
   await audit({ userId: actor.id, action: 'supplier.create', entityType: 'supplier', entityId: id, summary: `Додано постачальника ${input.name}` });
@@ -75,6 +78,23 @@ export async function updateSupplier(id: string, input: SupplierInputBody, actor
   });
   await audit({ userId: actor.id, action: 'supplier.update', entityType: 'supplier', entityId: id, summary: `Змінено картку постачальника ${input.name}` });
   return getSupplier(id);
+}
+
+/**
+ * Новий порядок постачальників — у списках, на сторінці й у виборі постачальника для заявки (правки замовника 25.09 п.3).
+ * Передають усіх: якщо тим часом когось додали, просимо оновити сторінку. Картку не змінює (ні версію, ні «змінено»).
+ */
+export async function reorderSuppliers(ids: string[], actor: User): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.supplier.findMany({ select: { id: true } });
+    const known = new Set(existing.map((s) => s.id));
+    if (existing.length !== ids.length || ids.some((id) => !known.has(id))) {
+      throw new ApiError('VERSION_CONFLICT', 'Список постачальників змінився. Оновіть сторінку й перетягніть ще раз');
+    }
+    const orders = ids.map((_, i) => i);
+    await tx.$executeRaw`UPDATE "Supplier" AS s SET "sortOrder" = v.ord FROM unnest(${ids}::text[], ${orders}::int[]) AS v(id, ord) WHERE s.id = v.id`;
+  });
+  await audit({ userId: actor.id, action: 'supplier.order', entityType: 'supplier', entityId: null, summary: 'Змінено порядок постачальників' });
 }
 
 export async function getPriceSource(id: string): Promise<SupplierPriceSourceSettings> {
@@ -217,7 +237,6 @@ function toRow(input: SupplierInputBody) {
     notes: input.notes,
     deliveryInfo: input.deliveryInfo,
     isActive: input.isActive,
-    sortOrder: input.sortOrder,
   };
 }
 

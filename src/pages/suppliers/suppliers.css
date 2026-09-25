@@ -8,6 +8,28 @@
   gap: 16px;
   align-items: stretch;
 }
+/* порядок постачальників перетягуванням карток за ⠿ (правки замовника 25.09 п.3) */
+.po-sup-card-wrap {
+  display: flex;
+  min-width: 0;
+}
+.po-sup-card-wrap > .po-sup-card.ant-card {
+  flex: 1;
+  min-width: 0;
+}
+.po-sup-dragging {
+  opacity: 0.45;
+}
+.po-sup-drag {
+  margin-left: auto;
+  align-self: flex-start;
+  padding: 4px;
+  color: rgba(0, 0, 0, 0.35);
+  cursor: grab;
+}
+.po-sup-drag:hover {
+  color: rgba(0, 0, 0, 0.75);
+}
 .po-sup-card.ant-card {
   display: flex;
   flex-direction: column;

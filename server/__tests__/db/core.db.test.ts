@@ -24,7 +24,7 @@ import { changeStatus, createRequest, getRequestDocument, saveRequestDocument } 
 import { addManualRate, cancelManualRates, getEffectiveRates, saveNbuRate } from '../../modules/rates/rates.service';
 import { getSettings } from '../../modules/settings/settings.service';
 import { supplierInputSchema } from '../../modules/suppliers/suppliers.schemas';
-import { createSupplier, getSupplier } from '../../modules/suppliers/suppliers.service';
+import { createSupplier, getSupplier, listSuppliers, reorderSuppliers } from '../../modules/suppliers/suppliers.service';
 import { uiPrefsSchema } from '../../modules/users/users.schemas';
 import { getUiPrefs, saveUiPrefs } from '../../modules/users/users.service';
 
@@ -260,6 +260,22 @@ describe('загальний курс: більший із НБУ й ручно�
     await addManualRate({ currency: 'EUR', rateDate: '2099-03-10', rate: 61.5, note: null }, admin);
     expect((await getEffectiveRates('2099-03-11')).EUR?.source).toBe('manual');
     await cancelManualRates({ currency: 'EUR' }, admin);
+  });
+});
+
+describe('порядок постачальників (правки замовника 25.09 п.3)', () => {
+  it('новий — у кінці; перетягування задає порядок усім; список змінився — VERSION_CONFLICT', async () => {
+    const extra = await createSupplier(parse(supplierInputSchema, { name: `Аааа перший за алфавітом ${RUN}`, defaultCurrency: 'UAH' }), admin);
+    const ids = (await listSuppliers()).map((s) => s.id);
+    expect(ids.at(-1)).toBe(extra.id);
+
+    const reversed = [...ids].reverse();
+    await reorderSuppliers(reversed, admin);
+    expect((await listSuppliers()).map((s) => s.id)).toEqual(reversed);
+    // картку не змінює: версія та сама
+    expect((await getSupplier(extra.id)).version).toBe(extra.version);
+
+    expect(await errorCode(() => reorderSuppliers(reversed.slice(1), admin))).toBe('VERSION_CONFLICT');
   });
 });
 

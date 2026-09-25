@@ -70,12 +70,20 @@ export const supplierInputSchema = z.object({
   notes: optionalText(4000),
   deliveryInfo: optionalText(2000),
   isActive: z.boolean().default(true),
-  sortOrder: z.number().int('Порядок: вкажіть ціле число').min(0, 'Порядок: не менше 0').max(9999, 'Порядок: не більше 9999').default(0),
   legalEntities: z.array(legalEntityInputSchema).max(20, 'Забагато юросіб (до 20)').optional(),
   contacts: z.array(supplierContactInputSchema).max(50, 'Забагато контактів (до 50)').optional(),
 });
 
 export const supplierIdSchema = z.object({ id: z.uuid('Невірний ідентифікатор постачальника') });
+
+/** Новий порядок постачальників: усі id у потрібній послідовності (правки замовника 25.09 п.3). */
+export const supplierOrderSchema = z.object({
+  ids: z
+    .array(z.uuid('Невірний ідентифікатор постачальника'))
+    .min(1, 'Порожній список постачальників')
+    .max(1000, 'Забагато постачальників')
+    .refine((ids) => new Set(ids).size === ids.length, 'Постачальник у списку двічі'),
+});
 
 export const priceSourceSchema = z
   .object({

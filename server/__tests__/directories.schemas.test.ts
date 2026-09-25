@@ -5,7 +5,7 @@ import { parse } from '../http/validate';
 import { clientInputSchema } from '../modules/clients/clients.schemas';
 import { ownCompanyInputSchema } from '../modules/own-companies/ownCompanies.schemas';
 import { manualRateSchema, ratesQuerySchema } from '../modules/rates/rates.schemas';
-import { isHttpUrl, priceMappingSchema, priceSourceSchema, supplierInputSchema } from '../modules/suppliers/suppliers.schemas';
+import { isHttpUrl, priceMappingSchema, priceSourceSchema, supplierInputSchema, supplierOrderSchema } from '../modules/suppliers/suppliers.schemas';
 import { unitPatchSchema } from '../modules/units/units.schemas';
 
 /** Повідомлення, яке побачить користувач. */
@@ -82,10 +82,19 @@ describe('постачальник', () => {
     expect(out.ratePolicy).toBe('price_list');
     expect(out.supplierMarkupPct).toBe(0);
     expect(out.rateAdjustPct).toBe(0);
-    expect(out.sortOrder).toBe(0);
+    // порядок — не з картки, а перетягуванням карток (окремий запит)
+    expect(out).not.toHaveProperty('sortOrder');
     expect(out.isActive).toBe(true);
     expect(out.priceListRates).toBeUndefined();
     expect(out.manualRateUsd).toBeNull();
+  });
+
+  it('порядок постачальників: непорожній список унікальних id', () => {
+    const [a, b] = ['0b9e8c1e-6a7d-4d0e-9a51-2f1f1c1f0a01', '0b9e8c1e-6a7d-4d0e-9a51-2f1f1c1f0a02'];
+    expect(parse(supplierOrderSchema, { ids: [b, a] })).toEqual({ ids: [b, a] });
+    expect(() => parse(supplierOrderSchema, { ids: [] })).toThrow(ApiError);
+    expect(() => parse(supplierOrderSchema, { ids: [a, a] })).toThrow(ApiError);
+    expect(() => parse(supplierOrderSchema, { ids: ['не-id'] })).toThrow(ApiError);
   });
 
   it('посилання: лише http(s); адреса без схеми доповнюється https://', () => {

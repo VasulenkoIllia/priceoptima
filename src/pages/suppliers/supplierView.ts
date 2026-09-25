@@ -59,3 +59,12 @@ export function hostOf(url: string): string {
     return url;
   }
 }
+
+/** Перетягнута картка стає перед чи після картки, над якою її відпустили (порядок постачальників, правки 25.09 п.3). */
+export function moveSupplier(ids: readonly string[], dragId: string, targetId: string, after: boolean): string[] {
+  if (dragId === targetId || !ids.includes(dragId) || !ids.includes(targetId)) return [...ids];
+  const rest = ids.filter((id) => id !== dragId);
+  const at = rest.indexOf(targetId) + (after ? 1 : 0);
+  return [...rest.slice(0, at), dragId, ...rest.slice(at)];
+}
+

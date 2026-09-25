@@ -138,9 +138,10 @@ export interface SupplierDetail extends SupplierListItem {
   contacts: SupplierContactDto[];
 }
 
+/** Порядок постачальників (у списках і на сторінці) змінюється окремо — перетягуванням карток, не в картці. */
 export type SupplierInput = Omit<
   SupplierDetail,
-  'id' | 'version' | 'productsCount' | 'lastImportAt' | 'priceSource' | 'priceListRates' | 'legalEntities' | 'contacts'
+  'id' | 'version' | 'productsCount' | 'lastImportAt' | 'priceSource' | 'priceListRates' | 'legalEntities' | 'contacts' | 'sortOrder'
 > & {
   /** Версія відкритої картки; для нової не передається. */
   version?: number;

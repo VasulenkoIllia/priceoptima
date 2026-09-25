@@ -171,7 +171,6 @@ function buildInput(v: FormValues, prev: SupplierDetail | null, today: string): 
     notes: text(v.notes),
     deliveryInfo: text(v.deliveryInfo),
     isActive: !!v.isActive,
-    sortOrder: prev?.sortOrder ?? 0,
     legalEntities,
     contacts,
   };

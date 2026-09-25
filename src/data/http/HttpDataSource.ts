@@ -192,6 +192,10 @@ export class HttpDataSource implements DataSource {
     return api<SupplierListItem[]>('/suppliers');
   }
 
+  reorderSuppliers(ids: UUID[]): Promise<void> {
+    return api<void>('/suppliers/order', { method: 'PUT', body: { ids } });
+  }
+
   getSupplier(id: UUID): Promise<SupplierDetail> {
     return api<SupplierDetail>(`/suppliers/${id}`);
   }

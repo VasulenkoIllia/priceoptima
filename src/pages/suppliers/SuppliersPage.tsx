@@ -1,7 +1,7 @@
-import { FileExcelOutlined, PlusOutlined, RightOutlined, SyncOutlined, UploadOutlined } from '@ant-design/icons';
+import { FileExcelOutlined, HolderOutlined, PlusOutlined, RightOutlined, SyncOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Space, Spin, Tag, Tooltip } from 'antd';
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatDateTime, formatMoneyUah, formatQty, toIsoDate } from '@shared/format';
 import type { EffectiveRates, SupplierListItem } from '@shared/types';
@@ -12,7 +12,7 @@ import { downloadPriceTemplate, PriceImportDialog } from './priceImport';
 import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierDrawer } from './SupplierDrawer';
 import { SupplierFormDialog } from './SupplierFormDialog';
-import { pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, pricesFromFile, ratePolicyLabel, viaLink } from './supplierView';
+import { moveSupplier, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, pricesFromFile, ratePolicyLabel, viaLink } from './supplierView';
 import './suppliers.css';
 
 interface SupplierCardProps {
@@ -25,9 +25,11 @@ interface SupplierCardProps {
   onRefresh: () => void;
   onImport: () => void;
   onOpen: () => void;
+  /** Натиснули на ⠿ — картку можна перетягнути (порядок постачальників). */
+  onGrab: () => void;
 }
 
-function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onImport, onOpen }: SupplierCardProps) {
+function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onImport, onOpen, onGrab }: SupplierCardProps) {
   return (
     <Card className="po-sup-card" styles={{ body: { padding: 16 } }}>
       <div className="po-sup-head">
@@ -38,6 +40,11 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onImport, o
           </div>
           <div className="po-sup-count">Товарів: {formatQty(s.productsCount)}</div>
         </div>
+        <HolderOutlined
+          className="po-sup-drag"
+          title="Перетягніть, щоб змінити порядок постачальників (так само в списках і виборі постачальника)"
+          onMouseDown={onGrab}
+        />
       </div>
       <dl className="po-sup-facts">
         <dt>Валюта прайсу</dt>
@@ -121,6 +128,40 @@ export default function SuppliersPage() {
   const rates = useQuery({ queryKey: qk.rates(today), queryFn: () => ds.getRates(today) });
   const maxAgeDays = usePriceListRateMaxAge();
 
+  // порядок перетягуванням карток (правки замовника 25.09 п.3): картку тягнуть за ⠿, порядок видно одразу
+  const [grabbed, setGrabbed] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string[] | null>(null);
+  const reorder = useMutation({
+    mutationFn: (ids: string[]) => ds.reorderSuppliers(ids),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: qk.suppliers }),
+    onError: (e) => message.error(errorMessage(e)),
+  });
+  const list = suppliers.data ?? [];
+  const byId = new Map(list.map((s) => [s.id, s]));
+  const shown = preview ? preview.flatMap((id) => byId.get(id) ?? []) : list;
+  const endDrag = () => {
+    setGrabbed(null);
+    setDragging(null);
+    setPreview(null);
+  };
+  const dragOver = (e: DragEvent<HTMLDivElement>, targetId: string) => {
+    if (!dragging) return;
+    e.preventDefault();
+    const box = e.currentTarget.getBoundingClientRect();
+    const next = moveSupplier(preview ?? list.map((s) => s.id), dragging, targetId, e.clientX > box.left + box.width / 2);
+    if (next.join() !== (preview ?? []).join()) setPreview(next);
+  };
+  const drop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const ids = preview;
+    endDrag();
+    if (!ids || ids.join() === list.map((s) => s.id).join()) return;
+    // одразу в новому порядку; сервер підтвердить (або поверне як було, якщо список тим часом змінився)
+    queryClient.setQueryData<SupplierListItem[]>(qk.suppliers, ids.flatMap((id) => byId.get(id) ?? []));
+    reorder.mutate(ids);
+  };
+
   const refresh = useMutation({
     mutationFn: (s: SupplierListItem) => ds.refreshSupplierPrices(s.id),
     onSuccess: (r, s) => {
@@ -152,7 +193,7 @@ export default function SuppliersPage() {
     <div className="po-page po-sup-page">
       <PageHeader
         title="Постачальники"
-        subtitle="Прайси з вигрузкою оновлюються щоранку автоматично; решту завантажуємо файлом"
+        subtitle="Прайси з вигрузкою оновлюються щоранку автоматично; решту завантажуємо файлом. Порядок карток — перетягуванням за ⠿"
         extra={
           <Space>
             <Button
@@ -182,21 +223,35 @@ export default function SuppliersPage() {
           }
         />
       ) : (
-        <div className="po-sup-grid">
-          {suppliers.data.map((s) => (
-            <SupplierCard
+        <div className="po-sup-grid" onMouseUp={() => setGrabbed(null)}>
+          {shown.map((s) => (
+            <div
               key={s.id}
-              s={s}
-              rates={rates.data}
-              maxAgeDays={maxAgeDays}
-              refreshing={refresh.isPending && refresh.variables?.id === s.id}
-              onRefresh={() => refresh.mutate(s)}
-              onImport={() => setImportFor(s)}
-              onOpen={() => {
-                setSelected(s);
-                setDrawerOpen(true);
+              className={dragging === s.id ? 'po-sup-card-wrap po-sup-dragging' : 'po-sup-card-wrap'}
+              draggable={grabbed === s.id}
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', s.name);
+                setDragging(s.id);
               }}
-            />
+              onDragOver={(e) => dragOver(e, s.id)}
+              onDrop={drop}
+              onDragEnd={endDrag}
+            >
+              <SupplierCard
+                s={s}
+                rates={rates.data}
+                maxAgeDays={maxAgeDays}
+                refreshing={refresh.isPending && refresh.variables?.id === s.id}
+                onRefresh={() => refresh.mutate(s)}
+                onImport={() => setImportFor(s)}
+                onOpen={() => {
+                  setSelected(s);
+                  setDrawerOpen(true);
+                }}
+                onGrab={() => setGrabbed(s.id)}
+              />
+            </div>
           ))}
         </div>
       )}

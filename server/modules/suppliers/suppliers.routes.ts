@@ -3,13 +3,14 @@ import { Router } from 'express';
 import { asyncHandler } from '../../http/asyncHandler';
 import { parseBody, parseParams } from '../../http/validate';
 import { currentUser, requireAdmin, requireAuth } from '../auth/middleware';
-import { priceMappingSchema, priceSourceSchema, supplierIdSchema, supplierInputSchema } from './suppliers.schemas';
+import { priceMappingSchema, priceSourceSchema, supplierIdSchema, supplierInputSchema, supplierOrderSchema } from './suppliers.schemas';
 import {
   createSupplier,
   getPriceMapping,
   getPriceSource,
   getSupplier,
   listSuppliers,
+  reorderSuppliers,
   savePriceMapping,
   updatePriceSource,
   updateSupplier,
@@ -39,6 +40,16 @@ suppliersRouter.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     res.status(201).json(await createSupplier(parseBody(supplierInputSchema, req), currentUser(req)));
+  }),
+);
+
+// порядок постачальників — до '/:id', інакше «order» сприйметься як id
+suppliersRouter.put(
+  '/order',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    await reorderSuppliers(parseBody(supplierOrderSchema, req).ids, currentUser(req));
+    res.status(204).end();
   }),
 );
 
