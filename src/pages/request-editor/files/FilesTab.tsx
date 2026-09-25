@@ -3,6 +3,7 @@
 import {
   DeleteOutlined,
   DownloadOutlined,
+  EyeOutlined,
   FileExcelOutlined,
   FilePdfOutlined,
   FileTextOutlined,
@@ -11,13 +12,14 @@ import {
   PaperClipOutlined,
 } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Button, List, Popconfirm, Result, Spin, Tag, Typography, Upload } from 'antd';
+import { App, Button, List, Modal, Popconfirm, Result, Spin, Tag, Typography, Upload } from 'antd';
 import { useState } from 'react';
 import { formatDateTime } from '@shared/format';
 import type { AttachmentDto, KpDocumentDto } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
 import { useRequestDoc } from '@/stores/requestDocStore';
 import { downloadKpExcel } from '../kp/kpExcel';
+import { KpDocumentView } from '../kp/KpDocumentView';
 import { downloadKpPdf } from '../kp/kpPdf';
 
 const MAX_MB = 20;
@@ -41,6 +43,8 @@ export default function FilesTab() {
   const kps = useQuery({ queryKey: qk.kps(requestId ?? ''), queryFn: () => ds.listKps(requestId!), enabled: !!requestId });
   const files = useQuery({ queryKey: qk.attachments(requestId ?? ''), queryFn: () => ds.listAttachments(requestId!), enabled: !!requestId });
   const [busy, setBusy] = useState<string | null>(null);
+  // перегляд КП без завантаження — у вікні, з того самого знімка, що й PDF (правки замовника 25.09 п.13)
+  const [viewing, setViewing] = useState<KpDocumentDto | null>(null);
   const [uploading, setUploading] = useState(0);
 
   if (!doc || !requestId) return null;
@@ -129,6 +133,9 @@ export default function FilesTab() {
               actions={
                 r.kind === 'kp'
                   ? [
+                      <Button key="view" size="small" icon={<EyeOutlined />} title="Подивитися КП, нічого не завантажуючи" onClick={() => setViewing(r.kp)}>
+                        Переглянути
+                      </Button>,
                       <Button key="pdf" size="small" icon={<FilePdfOutlined />} loading={busy === `${r.key}:pdf`} onClick={() => void downloadKp(r.kp, 'pdf')}>
                         PDF
                       </Button>,
@@ -181,6 +188,30 @@ export default function FilesTab() {
           )}
         />
       )}
+      <Modal
+        open={!!viewing}
+        title={viewing ? `КП № ${viewing.numberLabel}` : ''}
+        width={1000}
+        onCancel={() => setViewing(null)}
+        footer={
+          viewing
+            ? [
+                <Button key="pdf" icon={<FilePdfOutlined />} loading={busy === `${viewing.id}:pdf`} onClick={() => void downloadKp(viewing, 'pdf')}>
+                  PDF
+                </Button>,
+                <Button key="xlsx" icon={<FileExcelOutlined />} loading={busy === `${viewing.id}:xlsx`} onClick={() => void downloadKp(viewing, 'xlsx')}>
+                  Excel
+                </Button>,
+                <Button key="close" type="primary" onClick={() => setViewing(null)}>
+                  Закрити
+                </Button>,
+              ]
+            : null
+        }
+        destroyOnHidden
+      >
+        {viewing ? <KpDocumentView snapshot={viewing.snapshot} /> : null}
+      </Modal>
     </div>
   );
 }
