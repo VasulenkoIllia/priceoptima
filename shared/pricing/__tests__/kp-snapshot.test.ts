@@ -39,7 +39,7 @@ const rows: KpRow[] = [
   { n: 2, lineId: 'L2', code: 'B2', imagePath: null, name: 'Труба', nameSecondary: null, unit: 'м', qty: 120, price: 10.5, sum: 1260 },
 ];
 
-const base = buildKpSnapshot({
+const BASE_INPUT: Parameters<typeof buildKpSnapshot>[0] = {
   kpNumber: 2114,
   requestNumber: 1,
   date: '2026-09-11',
@@ -53,9 +53,17 @@ const base = buildKpSnapshot({
     { label: ' Умови оплати ', value: ' Передоплата 50 % ' },
     { label: 'Гарантійний термін', value: '' },
   ],
-});
+};
+const base = buildKpSnapshot(BASE_INPUT);
 
 describe('знімок КП', () => {
+  it('строк дії не вказано (0 днів) — «Пропозиція дійсна до…» у КП немає (правки замовника 25.09 п.6)', () => {
+    const noTerm = buildKpSnapshot({ ...BASE_INPUT, settings: { ...BASE_INPUT.settings, validityDays: 0 } });
+    expect(noTerm.validUntil).toBeNull();
+    const lines = [{ id: 'L2', approval: { approved: true, approvedQty: 80 } }];
+    expect(buildFinalKpSnapshot(noTerm, lines, { kpNumber: 2115, date: '2026-09-12', validityDays: 0 }).validUntil).toBeNull();
+  });
+
   it('номер, дата, строк дії, підсумки «ТОВ без ПДВ», сума прописом, сторони', () => {
     expect(base.numberLabel).toBe('2114 / 000001');
     expect(base.final).toBe(false);

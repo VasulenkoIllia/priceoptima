@@ -95,6 +95,9 @@ describe('перевірка налаштувань', () => {
     expect(errorOf(() => parse(settingsPatchSchema, { vatRatePct: 120 })).code).toBe('VALIDATION_ERROR');
     expect(errorOf(() => parse(settingsPatchSchema, { priceStaleDays: 0 })).code).toBe('VALIDATION_ERROR');
     expect(errorOf(() => parse(settingsPatchSchema, { kpValidityDays: 1.5 })).code).toBe('VALIDATION_ERROR');
+    // 0 — термін дії КП не вказано (правки замовника 25.09 п.6)
+    expect(parse(settingsPatchSchema, { kpValidityDays: 0 })).toEqual({ kpValidityDays: 0 });
+    expect(errorOf(() => parse(settingsPatchSchema, { kpValidityDays: -1 })).code).toBe('VALIDATION_ERROR');
     expect(errorOf(() => parse(settingsPatchSchema, { priceRounding: 'hundreds' })).message).toBe(
       'Невідоме значення: округлення ціни',
     );

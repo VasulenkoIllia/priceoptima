@@ -34,7 +34,8 @@ export const settingsPatchSchema = z
     kpDefaultVatMode: enumOf(KP_VAT_MODES, 'режим ПДВ у КП'),
     kpNameSource: enumOf(KP_NAME_SOURCES, 'назва в КП'),
     kpShowImages: z.boolean(),
-    kpValidityDays: int(1, 365, 'Строк дії КП, днів'),
+    // 0 — термін дії не вказано: рядка «Пропозиція дійсна до…» у КП немає (правки замовника 25.09 п.6)
+    kpValidityDays: int(0, 365, 'Строк дії КП, днів'),
     /** Типові умови КП: без назви — не зберігаються; порожнє значення — не друкується. */
     kpTerms: z
       .array(

@@ -29,14 +29,16 @@ type FormValues = Pick<
   | 'defaultMarkupValue'
   | 'discountFormula'
   | 'priceRounding'
-  | 'kpValidityDays'
   | 'kpNameSource'
   | 'kpDefaultVatMode'
   | 'fopPriceBasis'
   | 'kpTerms'
   | 'nextRequestNumber'
   | 'nextKpNumber'
->;
+> & {
+  /** Порожньо — термін дії не вказано (зберігається як 0): рядка «Пропозиція дійсна до…» у КП немає. */
+  kpValidityDays: number | null;
+};
 
 const options = <T extends string>(values: readonly T[], labels: Record<T, string>) => values.map((value) => ({ value, label: labels[value] }));
 /** ФОП-режим «без ПДВ» обирається в заявці автоматично — за замовчуванням лише ці два. */
@@ -59,7 +61,7 @@ function pickValues(s: AppSettings): FormValues {
     defaultMarkupValue: s.defaultMarkupValue,
     discountFormula: s.discountFormula,
     priceRounding: s.priceRounding,
-    kpValidityDays: s.kpValidityDays,
+    kpValidityDays: s.kpValidityDays || null,
     kpNameSource: s.kpNameSource,
     kpDefaultVatMode: s.kpDefaultVatMode,
     fopPriceBasis: s.fopPriceBasis,
@@ -79,9 +81,13 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
     mutationFn: async (v: FormValues) => {
       // лічильники лише збільшуються: порівнюємо зі свіжими значеннями (заявку могли створити, поки форма відкрита)
       const current = await ds.getSettings();
-      const { nextRequestNumber, nextKpNumber, kpTerms, ...rest } = v;
+      const { nextRequestNumber, nextKpNumber, kpTerms, kpValidityDays, ...rest } = v;
       // умова без назви не зберігається; без значення — зберігається, але в КП не друкується
-      const patch: AppSettingsPatch = { ...rest, kpTerms: kpTerms.map((t) => ({ label: t.label.trim(), value: t.value.trim() })).filter((t) => t.label) };
+      const patch: AppSettingsPatch = {
+        ...rest,
+        kpValidityDays: kpValidityDays ?? 0,
+        kpTerms: kpTerms.map((t) => ({ label: t.label.trim(), value: t.value.trim() })).filter((t) => t.label),
+      };
       if (nextRequestNumber > current.nextRequestNumber) patch.nextRequestNumber = nextRequestNumber;
       // номер КП — стала частина «2114 / номер заявки», його можна змінити будь-коли
       if (nextKpNumber !== current.nextKpNumber) patch.nextKpNumber = nextKpNumber;
@@ -134,8 +140,8 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
           </Form.Item>
         </Card>
         <Card title="Комерційні пропозиції (КП)" size="small">
-          <Form.Item name="kpValidityDays" label="КП: термін дії, днів" rules={[{ required: true, message: 'Вкажіть термін' }]}>
-            <InputNumber {...NUM} min={1} max={365} precision={0} />
+          <Form.Item name="kpValidityDays" label="КП: термін дії, днів" extra="Порожньо — у КП немає рядка «Пропозиція дійсна до…»">
+            <InputNumber {...NUM} min={0} max={365} precision={0} />
           </Form.Item>
           <Form.Item name="kpNameSource" label="Назва товару в КП">
             <Select options={options(KP_NAME_SOURCES, KP_NAME_SOURCE_LABELS)} />
