@@ -91,19 +91,19 @@ export function MethodCell({ data, context }: P) {
   if (!data) return null;
   const m = data.line.markup;
   const value: MethodChoice = m.manualPriceNet != null || m.manualPriceGross != null ? 'manual' : (m.method ?? 'default');
+  // одразу видно спосіб (правки замовника 25.09 п.11): рядок без власного — спосіб заявки, сірим
+  const inherited = value === 'default';
   return (
     <>
       <Select<MethodChoice>
         size="small"
         variant="borderless"
-        value={value}
+        value={inherited ? context.defaultMethod() : value}
+        title={inherited ? 'Спосіб заявки. Оберіть інший — лише для цього рядка' : undefined}
         disabled={context.readOnly() || !data.offer}
         popupMatchSelectWidth={false}
-        className={value === 'default' ? 'po-mk-method po-mk-method-default' : 'po-mk-method'}
-        options={[
-          { value: 'default', label: 'Як у заявці', title: `Як у заявці: ${MARKUP_METHOD_LABELS[context.defaultMethod()]}` },
-          ...MARKUP_METHODS.map((x) => ({ value: x, label: MARKUP_METHOD_LABELS[x] })),
-        ]}
+        className={inherited ? 'po-mk-method po-mk-method-default' : 'po-mk-method'}
+        options={MARKUP_METHODS.map((x) => ({ value: x, label: MARKUP_METHOD_LABELS[x] }))}
         onChange={(v) => context.setMethod(data, v)}
       />
       <FillHandle row={data} colId="method" context={context} />

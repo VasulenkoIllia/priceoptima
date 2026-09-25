@@ -61,10 +61,19 @@ export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
   cancelled: 'Скасовано',
 };
 
+// назви способів — як у правках замовника 25.09 п.11
 export const MARKUP_METHOD_LABELS: Record<MarkupMethod, string> = {
   rrp: 'Продаж по РРЦ',
-  markup_on_cost: 'Націнка % на вхід',
-  discount_from_rrp: 'Знижка % від РРЦ',
+  markup_on_cost: 'Націнка на вхід, %',
+  discount_from_rrp: 'Знижка від РРЦ, %',
+  manual: 'Вручну',
+};
+
+/** Те саме без «, %» — коли далі йде саме значення: «Націнка на вхід 25 %». */
+export const MARKUP_METHOD_SHORT_LABELS: Record<MarkupMethod, string> = {
+  rrp: 'Продаж по РРЦ',
+  markup_on_cost: 'Націнка на вхід',
+  discount_from_rrp: 'Знижка від РРЦ',
   manual: 'Вручну',
 };
 

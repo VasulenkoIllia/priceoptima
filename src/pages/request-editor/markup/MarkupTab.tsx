@@ -14,7 +14,7 @@ import type {
 import { AgGridReact } from 'ag-grid-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { DISCOUNT_FORMULAS, DISCOUNT_FORMULA_LABELS, MARKUP_METHOD_LABELS, type DiscountFormula, type KpVatMode, type MarkupMethod } from '@shared/enums';
+import { DISCOUNT_FORMULAS, DISCOUNT_FORMULA_LABELS, MARKUP_METHOD_LABELS, MARKUP_METHOD_SHORT_LABELS, type DiscountFormula, type KpVatMode, type MarkupMethod } from '@shared/enums';
 import { formatMoney, formatPct, formatQty } from '@shared/format';
 import { parseLocaleNumber } from '@shared/parse';
 import { isActiveLine, kpChecks, markupValueMax } from '@shared/pricing';
@@ -103,8 +103,10 @@ export default function MarkupTab() {
     if (!ids.length) return;
     s.setLinesMarkup(ids, patch);
     const what = patch.method
-      ? `${MARKUP_METHOD_LABELS[patch.method]}${isPctMethod(patch.method) && patch.value != null ? ` ${formatPct(patch.value, 1)}` : ''}`
-      : 'Як у заявці';
+      ? isPctMethod(patch.method) && patch.value != null
+        ? `${MARKUP_METHOD_SHORT_LABELS[patch.method]} ${formatPct(patch.value, 1)}`
+        : MARKUP_METHOD_LABELS[patch.method]
+      : `Спосіб заявки (${MARKUP_METHOD_LABELS[latest.current.method]})`;
     message.success(`${what}: ${ids.length} рядк. Скасувати: Ctrl+Z`);
   };
   const applyFillRef = useRef(applyFill);
@@ -365,7 +367,7 @@ export default function MarkupTab() {
   return (
     <div className="po-tab">
       <div className="po-tab-toolbar">
-        <span className="po-muted">Спосіб для заявки:</span>
+        <span className="po-muted">Спосіб націнки:</span>
         <Select<MarkupMethod>
           size="small"
           value={markup.method}

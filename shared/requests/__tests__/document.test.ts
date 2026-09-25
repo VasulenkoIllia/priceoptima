@@ -80,6 +80,15 @@ describe('історія заявки', () => {
     expect(insert.map((e) => e.summary)).toEqual(['Позиції: додано 1', 'Підбір: ✔ затверджено 1', 'Погоджено позицій: 1 з 3']);
   });
 
+  it('спосіб націнки заявки: назва без «, %», коли далі значення (правки замовника 25.09 п.11)', () => {
+    const s0 = { ...state(), markup: { ...MARKUP, method: 'rrp' as const, value: null } };
+    const log = createEventLog(null);
+    const patch = { baseVersion: 1, sessionId: 's', markup: { method: 'markup_on_cost' as const, value: 25 } };
+    recordDocumentEvents(log, applyDocumentPatch(s0, patch), documentEventsBefore(s0), patch, ctx('2026-09-18T10:00:00Z'));
+    const summary = log.changes().insert.find((e) => e.kind === 'markup_change')?.summary.replace(/\u00a0/g, ' ');
+    expect(summary).toBe('Спосіб націнки заявки: Продаж по РРЦ → Націнка на вхід 25 %');
+  });
+
   it('змінено лише к-сть: без події «Націнка», хоч ключі націнки з бази в іншому порядку', () => {
     const s0 = state();
     s0.lines = s0.lines.map((l) => ({ ...l, markup: { value: l.markup.value, method: l.markup.method, manualPriceNet: l.markup.manualPriceNet } }));

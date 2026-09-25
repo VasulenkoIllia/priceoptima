@@ -1,6 +1,6 @@
 // Історія заявки: створення, статус, позиції, підбір (постачальники, курси, ✔, виключення), націнка, ціни з прайсу,
 // КП, погодження, копія, передача редагування. Дрібні сусідні зміни одного користувача (до 10 хв) зливаються в одну подію.
-import { CURRENCY_LABELS, MARKUP_METHOD_LABELS, REQUEST_STATUS_LABELS, type RequestStatus } from '../enums';
+import { CURRENCY_LABELS, MARKUP_METHOD_LABELS, MARKUP_METHOD_SHORT_LABELS, REQUEST_STATUS_LABELS, type RequestStatus } from '../enums';
 import { formatPct, formatRate } from '../format';
 import { approvalBaseKp, isActiveLine } from '../pricing';
 import type { DocumentPatch, ISODateTime, KpDocumentDto, MarkupSettings, RequestEventDto, RequestLine, UserRef, UUID } from '../types';
@@ -74,7 +74,7 @@ export function statusEventSummary(from: RequestStatus, to: RequestStatus, reaso
 
 const markupLabel = (m: Pick<MarkupSettings, 'method' | 'value'>) =>
   m.method === 'markup_on_cost' || m.method === 'discount_from_rrp'
-    ? `${MARKUP_METHOD_LABELS[m.method]} ${formatPct(m.value, Number.isInteger(m.value) ? 0 : 2)}`
+    ? `${MARKUP_METHOD_SHORT_LABELS[m.method]} ${formatPct(m.value, Number.isInteger(m.value) ? 0 : 2)}`
     : MARKUP_METHOD_LABELS[m.method];
 
 const lineKey = (l: Pick<RequestLine, 'clientName' | 'qty' | 'clientUnit'>) => `${l.clientName}|${l.qty}|${l.clientUnit ?? ''}`;
