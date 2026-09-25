@@ -138,7 +138,8 @@ const HEADER: Record<BlockField, { name: string; tooltip?: string; width: number
     width: 100,
   },
   gross: { name: 'З ПДВ', tooltip: 'Ціна входу з ПДВ, грн за од. Введіть нову ціну, щоб змінити її лише в цій заявці', width: 96 },
-  sum: { name: 'Сума без ПДВ', tooltip: 'Ціна без ПДВ × кількість у постачальника, грн', width: 112 },
+  // сума з ПДВ, як і в «Націнці» (правки замовника 25.09 п.5)
+  sum: { name: 'Сума з ПДВ', tooltip: 'Ціна з ПДВ × кількість у постачальника, грн', width: 112 },
   rrp: {
     name: 'РРЦ з ПДВ',
     tooltip: 'Рекомендована роздрібна ціна з ПДВ, грн за од. Введіть нову, щоб змінити її лише в цій заявці',
@@ -248,9 +249,9 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         ...base,
         type: 'rightAligned',
         cellClass: cls('po-num'),
-        valueGetter: (p) => (p.data?.kind === 'totals' ? (p.data.blocks[blockId]?.totalNet ?? null) : (ocOf(p)?.sumNetUah ?? null)),
+        valueGetter: (p) => (p.data?.kind === 'totals' ? (p.data.blocks[blockId]?.totalGross ?? null) : (ocOf(p)?.sumGrossUah ?? null)),
         valueFormatter: (p) => money(p.value as number | null),
-        tooltipValueGetter: (p) => (p.data?.kind === 'totals' ? 'Всього без ПДВ по блоку' : null),
+        tooltipValueGetter: (p) => (p.data?.kind === 'totals' ? 'Всього з ПДВ по блоку' : null),
       };
     case 'rrp':
       return {

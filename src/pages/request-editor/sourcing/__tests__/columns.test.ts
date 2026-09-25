@@ -100,6 +100,20 @@ describe('buildColumnDefs — «Підбір»', () => {
     expect(editable(COL.block('b1', 'sku'), NEW_ROW)).toBe(false);
   });
 
+  it('«Сума з ПДВ»: у рядку — ціна з ПДВ × к-сть, у підсумку — всього з ПДВ по блоку (правки замовника 25.09 п.5)', () => {
+    const doc = makeDoc({ lines: [makeLine('l1', 2)], blocks: [makeBlock('b1', 1)], offers: [uah('l1', 'b1', 100)] });
+    const computed = computeRequest(doc, makeCtx([makeSupplier('b1')]));
+    const [row] = buildLineRows({ doc, computed, misses: {} });
+    const totals = buildTotalsRow(doc, computed);
+    const sum = findCol(buildColumnDefs({ mode: 'sourcing', blockIds: ['b1'], collapsed: none }), COL.block('b1', 'sum'));
+    const value = (data: SourcingRow) => (sum.valueGetter as (p: { data: SourcingRow }) => unknown)({ data });
+    expect(sum.headerName).toBe('Сума з ПДВ');
+    const oc = Object.values(computed.offers)[0];
+    expect(value(row)).toBe(oc.sumGrossUah);
+    expect(oc.sumGrossUah).toBeGreaterThan(oc.sumNetUah ?? 0);
+    expect(value(totals)).toBe(computed.blocks.b1.totalGross);
+  });
+
   it('кольори: мінімум, затверджено, «не затверджено», виключено, порожньо', () => {
     const doc = makeDoc({
       lines: [makeLine('l1', 1), makeLine('l2', 1, { selection: { blockId: 'b2' } }), makeLine('l3', 1)],

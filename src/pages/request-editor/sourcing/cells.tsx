@@ -210,8 +210,8 @@ export function OfferNameCell(p: P<BlockCellParams>) {
   if (row?.kind === 'totals') {
     const t = row.blocks[p.blockId];
     return t ? (
-      <span className="po-muted" title="Сума без ПДВ по рядках, де обрано цього постачальника">
-        Обрано без ПДВ: <span className="po-num">{formatMoney(t.selectedNet)}</span> ({t.selectedCount})
+      <span className="po-muted" title="Сума з ПДВ по рядках, де обрано цього постачальника">
+        Обрано з ПДВ: <span className="po-num">{formatMoney(t.selectedGross)}</span> ({t.selectedCount})
       </span>
     ) : null;
   }
@@ -221,13 +221,13 @@ export function OfferNameCell(p: P<BlockCellParams>) {
   return <span className="po-wrap">{offerDisplayName(offer) ?? ''}</span>;
 }
 
-/** «Примітка» до пропозиції: переноситься по словах, як назви. */
 /** «Примітка клієнта»: з імпорту Excel чи введена в клітинці; переноситься по словах (правки замовника 25.09 п.4). */
 export function ClientNoteCell(p: P) {
   const note = isLineRow(p.data) ? p.data.line.clientNote : null;
   return note ? <span className="po-wrap">{note}</span> : null;
 }
 
+/** «Примітка» до пропозиції: переноситься по словах, як назви. */
 export function NoteCell(p: P<BlockCellParams>) {
   if (!isLineRow(p.data)) return null;
   const note = cellOf(p.data, p.blockId)?.offer?.note;
