@@ -151,6 +151,18 @@ export const productPatchSchema = z
   })
   .partial();
 
+/** Масова зміна одиниці й кратності вибраних товарів (правки замовника 25.09 п.8). */
+export const PRODUCTS_UNIT_MAX = 500;
+export const productsUnitSchema = z.object({
+  ids: z
+    .array(z.uuid('Невірний ідентифікатор товару'))
+    .min(1, 'Не вибрано жодного товару')
+    .max(PRODUCTS_UNIT_MAX, `Забагато товарів за раз (до ${PRODUCTS_UNIT_MAX})`)
+    .refine((ids) => new Set(ids).size === ids.length, 'Товар у списку двічі'),
+  unitCode: z.string().trim().min(1, 'Вкажіть одиницю виміру').max(20, 'Задовга одиниця виміру'),
+  multiplicity: z.number({ message: 'Кратність: вкажіть число' }).gt(0, 'Кратність: більше нуля').max(100_000, 'Кратність: завелике значення'),
+});
+
 export const productPriceUpdateSchema = z.object({
   currency,
   purchasePrice: money('Вхідна ціна'),

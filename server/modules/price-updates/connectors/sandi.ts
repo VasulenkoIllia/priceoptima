@@ -5,6 +5,9 @@
 // Код — main.sku, артикул — main.vendorCode (у частини позицій порожній — тоді характеристика «Артикул»).
 // Вхідна ціна — prices.purchase.cash.current, РРЦ — prices.retail.current, залишок — balance; усе в гривні.
 // Фото: images.main (буває null) і images.additional — об'єкт {"2": url, …} або порожній масив; головне першим.
+// Одиниці виміру у вигрузці немає; труби САНДІ продає метрами (ціна за м, «Вага нетто 1 м/п») відрізками — характеристика
+// «Довжина труби, м»: тоді одиниця «м», кратність — довжина відрізка (4 / 3,9). Беруться лише для нових товарів: у наявних
+// оновлення змінює тільки ціну й наявність, різницю показує у звіті (правки замовника 25.09 п.8).
 import type { AdapterOptions, AdapterResult, Dict, PriceRow } from './types';
 import { adapterOptions, availabilityForQty, emptyRow, imageList, isRecord, numberOrNull, positiveOrNull, textOf } from './types';
 import { finishRows } from './collect';
@@ -13,6 +16,8 @@ import { finishRows } from './collect';
 const MAX_CATEGORY_DEPTH = 10;
 
 const SKU_ATTRIBUTE = 'артикул';
+const PIPE_LENGTH_ATTRIBUTE = 'довжина труби, м';
+const METRE = 'м';
 
 /** Довідники вигрузки, потрібні для рядка товару. */
 interface SandiRefs {
@@ -20,6 +25,8 @@ interface SandiRefs {
   categories: Dict;
   /** Id характеристики «Артикул» (у кожній вигрузці свій хеш). */
   skuAttributeId: string | null;
+  /** Id характеристики «Довжина труби, м». */
+  pipeLengthAttributeId: string | null;
 }
 
 /** Назва з двомовного поля: беремо українську, інакше російську. */
@@ -49,11 +56,12 @@ function brandName(brands: Dict, ref: unknown): string | null {
   return isRecord(node) ? textOf(node.name) : null;
 }
 
-function skuAttributeId(attributes: Dict): string | null {
+/** Id характеристики за назвою (у кожній вигрузці свій хеш). */
+function attributeId(attributes: Dict, wanted: string): string | null {
   for (const [id, names] of Object.entries(attributes)) {
     if (!isRecord(names)) continue;
     const name = localized(names)?.toLocaleLowerCase('uk');
-    if (name === SKU_ATTRIBUTE) return id;
+    if (name === wanted) return id;
   }
   return null;
 }
@@ -75,12 +83,15 @@ function priceRow(item: unknown, refs: SandiRefs, options: AdapterOptions): Pric
   const cash = isRecord(purchase.cash) ? purchase.cash : {};
   const attributes = isRecord(item.attributes) ? item.attributes : {};
   const stockQty = numberOrNull(main.balance);
+  const pipeLength = refs.pipeLengthAttributeId ? positiveOrNull(localized(attributes[refs.pipeLengthAttributeId])) : null;
 
   return {
     ...emptyRow(code),
     sku: textOf(main.vendorCode) ?? (refs.skuAttributeId ? localized(attributes[refs.skuAttributeId]) : null),
     name: localized(main.name),
     brand: brandName(refs.brands, main.brand),
+    unitCode: pipeLength != null ? METRE : null,
+    multiplicity: pipeLength,
     // «у прайсі немає закупівельних цін» у налаштуваннях джерела — беремо лише РРЦ
     purchasePrice: options.hasPurchasePrice ? positiveOrNull(cash.current) : null,
     // ціни у вигрузці САНДІ завжди в гривні
@@ -111,7 +122,8 @@ export function parseSandiJson(body: string, options: Partial<AdapterOptions> = 
   const refs: SandiRefs = {
     brands: isRecord(data.brands) ? data.brands : {},
     categories: isRecord(data.categories) ? data.categories : {},
-    skuAttributeId: isRecord(data.attributes) ? skuAttributeId(data.attributes) : null,
+    skuAttributeId: isRecord(data.attributes) ? attributeId(data.attributes, SKU_ATTRIBUTE) : null,
+    pipeLengthAttributeId: isRecord(data.attributes) ? attributeId(data.attributes, PIPE_LENGTH_ATTRIBUTE) : null,
   };
   return finishRows(candidates(data.products, refs, adapterOptions(options)));
 }

@@ -3,6 +3,7 @@ import type { ForeignCurrency, UserRole } from '@shared/enums';
 import type {
   AttachmentDto,
   ProductListQuery,
+  ProductsUnitInput,
   AppSettings,
   AppSettingsPatch,
   ClientDetail,
@@ -159,6 +160,8 @@ export interface DataSource {
   // ── Каталог ─────────────────────────────────────────────────────
   /** Сторінка номенклатури з загальною кількістю: пошук, фільтри й сортування виконує сервер. */
   listProductsPage(query: ProductPageQuery): Promise<ProductPage>;
+  /** Одиниця й кратність для вибраних товарів одразу (до 500). */
+  setProductsUnit(input: ProductsUnitInput): Promise<{ updated: number }>;
   /** Excel із номенклатурою за поточними фільтрами (до 100 000 позицій). */
   exportProducts(query: ProductListQuery): Promise<Blob>;
   searchProducts(query: ProductSearchQuery): Promise<ProductPickDto[]>;

@@ -14,6 +14,7 @@ import {
   productPatchSchema,
   productPriceUpdateSchema,
   productSearchQuerySchema,
+  productsUnitSchema,
   skuLookupSchema,
 } from './products.schemas';
 import {
@@ -24,6 +25,7 @@ import {
   listProductsPage,
   lookupSkus,
   searchProducts,
+  setProductsUnit,
   updateProduct,
   updateProductPrice,
 } from './products.service';
@@ -67,6 +69,14 @@ productsRouter.post(
   '/name1c',
   asyncHandler(async (req, res) => {
     res.json(await importName1c(parseBody(name1cImportSchema, req), currentUser(req)));
+  }),
+);
+
+// одиниця й кратність для вибраних товарів одразу (правки замовника 25.09 п.8)
+productsRouter.post(
+  '/unit',
+  asyncHandler(async (req, res) => {
+    res.json(await setProductsUnit(parseBody(productsUnitSchema, req), currentUser(req)));
   }),
 );
 

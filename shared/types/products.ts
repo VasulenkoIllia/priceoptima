@@ -112,6 +112,13 @@ export type ProductSortField =
   | 'priceSource';
 
 /** Сторінка номенклатури: каталог на десятки тисяч позицій читається шматками. */
+/** Масова зміна одиниці й кратності (правки замовника 25.09 п.8): напр., труби, які постачальник продає метрами. */
+export interface ProductsUnitInput {
+  ids: UUID[];
+  unitCode: string;
+  multiplicity: number;
+}
+
 export interface ProductPageQuery extends ProductListQuery {
   offset: number;
   limit: number;

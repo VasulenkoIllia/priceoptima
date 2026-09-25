@@ -14,6 +14,7 @@ import type {
   ProductPage,
   ProductPickDto,
   ProductPriceUpdateResult,
+  ProductsUnitInput,
   RatesPair,
   SkuLookupResult,
   UUID,
@@ -630,6 +631,25 @@ const NOT_FOUND_LIMIT = 500;
  * Назви 1С з Excel (п.9.2 правок): «артикул → назва 1С» у товари постачальника.
  * Оновлення прайсів цю назву не чіпають; пошук каталогу враховує її (searchText).
  */
+/**
+ * Одиниця й кратність для вибраних товарів одразу (правки замовника 25.09 п.8): напр., труби, які постачальник продає
+ * метрами відрізками по 4 м. Оновлення прайсу одиницю й кратність наявних товарів не змінює — задане лишається.
+ */
+export async function setProductsUnit(input: ProductsUnitInput, actor: User): Promise<{ updated: number }> {
+  const { count } = await prisma.product.updateMany({
+    where: { id: { in: input.ids } },
+    data: { unitCode: input.unitCode, multiplicity: input.multiplicity, version: { increment: 1 }, updatedById: actor.id },
+  });
+  await audit({
+    userId: actor.id,
+    action: 'product.unit',
+    entityType: 'product',
+    entityId: null,
+    summary: `Одиниця «${input.unitCode}», кратність ${input.multiplicity}: товарів ${count}`,
+  });
+  return { updated: count };
+}
+
 export async function importName1c(input: Name1cImportInput, actor: User): Promise<Name1cImportResult> {
   const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true } });
   if (!supplier) throw notFound('Постачальника не знайдено');

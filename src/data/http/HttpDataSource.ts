@@ -72,6 +72,7 @@ import type {
   ProfileInput,
   RegisterInput,
   UiPrefsDto,
+  ProductsUnitInput,
 } from '@shared/types';
 import type { ForeignCurrency, UserRole } from '@shared/enums';
 import type { CallOptions, DataSource, LockAcquireResult } from '../DataSource';
@@ -304,6 +305,10 @@ export class HttpDataSource implements DataSource {
       },
     });
   }
+  setProductsUnit(input: ProductsUnitInput): Promise<{ updated: number }> {
+    return api<{ updated: number }>('/products/unit', { body: input });
+  }
+
 
   searchProducts(query: ProductSearchQuery): Promise<ProductPickDto[]> {
     return api<ProductPickDto[]>('/products/search', {

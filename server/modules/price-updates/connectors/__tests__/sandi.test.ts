@@ -52,6 +52,17 @@ describe('вигрузка САНДІ (JSON)', () => {
     });
   });
 
+  it('труба з «Довжина труби, м»: одиниця «м», кратність — довжина відрізка; решта товарів — без одиниці (правки 25.09 п.8)', () => {
+    const body = feedWith((feed) => {
+      const f = feed as unknown as { attributes: Record<string, unknown>; products: Record<string, { attributes?: Record<string, unknown> }> };
+      f.attributes.pipeLength = { ru: 'Длина трубы, м', uk: 'Довжина труби, м' };
+      f.products.TS10045302.attributes = { ...f.products.TS10045302.attributes, pipeLength: { ru: '3,9', uk: '3,9' } };
+    });
+    const rows = parseSandiJson(body).rows;
+    expect(byCode(rows, 'TS10045302')).toMatchObject({ unitCode: 'м', multiplicity: 3.9 });
+    expect(byCode(rows, 'TS10045201')).toMatchObject({ unitCode: null, multiplicity: null });
+  });
+
   it('порожній vendorCode — артикул із характеристики «Артикул»; additional буває порожнім масивом', () => {
     const row = byCode(parseSandiJson(FIXTURE).rows, 'TS10045302');
     expect(row).toMatchObject({

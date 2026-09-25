@@ -14,8 +14,8 @@ import { createOwnCompany } from '../../modules/own-companies/ownCompanies.servi
 import { ownCompanyInputSchema } from '../../modules/own-companies/ownCompanies.schemas';
 import { importBodySchema } from '../../modules/price-updates/priceUpdates.schemas';
 import { importPriceRows } from '../../modules/price-updates/priceUpdates.service';
-import { productInputSchema, productPatchSchema, productPriceUpdateSchema } from '../../modules/products/products.schemas';
-import { createProduct, getPriceHistory, getProduct, updateProduct, updateProductPrice } from '../../modules/products/products.service';
+import { productInputSchema, productPatchSchema, productPriceUpdateSchema, productsUnitSchema } from '../../modules/products/products.schemas';
+import { createProduct, getPriceHistory, getProduct, setProductsUnit, updateProduct, updateProductPrice } from '../../modules/products/products.service';
 import { kpCreateSchema, createRequestSchema, documentPatchSchema } from '../../modules/requests/requests.schemas';
 import { createKp, listKps } from '../../modules/requests/kp.service';
 import { acquireLock, activeLock, forceLock, releaseLock } from '../../modules/requests/locks.service';
@@ -130,6 +130,28 @@ describe('новий товар вручну (правки замовника 23
     const [c, d] = await Promise.all([createProduct(input({}), admin), createProduct(input({}), admin)]);
     expect(new Set([c.sku, d.sku])).toEqual(new Set(['ВР-00003', 'ВР-00004']));
     expect(await errorCode(() => createProduct(input({ sku: 'ВР-00001' }), admin))).toBe('DUPLICATE');
+  });
+});
+
+describe('одиниця й кратність кільком товарам одразу (правки замовника 25.09 п.8)', () => {
+  it('змінює лише вибрані, піднімає версію; наступний прайс їх не перезаписує', async () => {
+    await importFile([
+      { code: `PIPE-${RUN}-1`, name: 'Труба PPR 20', purchasePrice: 30 },
+      { code: `PIPE-${RUN}-2`, name: 'Труба PPR 25', purchasePrice: 45 },
+    ]);
+    const all = await prisma.product.findMany({ where: { supplierId, sku: { startsWith: `PIPE-${RUN}` } }, orderBy: { sku: 'asc' } });
+    const [p1, p2] = all;
+    expect(await setProductsUnit(parse(productsUnitSchema, { ids: [p1.id], unitCode: 'м', multiplicity: 3.9 }), admin)).toEqual({ updated: 1 });
+    const after = await getProduct(p1.id);
+    expect(after).toMatchObject({ unitCode: 'м', multiplicity: 3.9, version: p1.version + 1 });
+    expect((await getProduct(p2.id)).unitCode).toBe('шт');
+
+    // прайс із «шт» і кратністю 1: ціна оновилась, одиниця й кратність лишились
+    await importFile([
+      { code: `PIPE-${RUN}-1`, name: 'Труба PPR 20', purchasePrice: 31, unitCode: 'шт', multiplicity: 1 },
+      { code: `PIPE-${RUN}-2`, name: 'Труба PPR 25', purchasePrice: 45 },
+    ]);
+    expect(await getProduct(p1.id)).toMatchObject({ unitCode: 'м', multiplicity: 3.9 });
   });
 });
 

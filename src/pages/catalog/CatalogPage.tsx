@@ -1,7 +1,7 @@
-import { DownOutlined, FileExcelOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { ColumnHeightOutlined, DownOutlined, FileExcelOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Checkbox, Dropdown, Input, Select, Space, Tag } from 'antd';
-import type { ColDef, GridApi, ICellRendererParams, IDatasource } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams, IDatasource, RowSelectionOptions, SelectionColumnDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { catalogSortAllowed } from '@shared/catalog/limits';
@@ -19,6 +19,7 @@ import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { PriceImportDialog } from '../suppliers/priceImport';
 import { Name1cImportDialog } from './Name1cImportDialog';
 import { ProductDrawer } from './ProductDrawer';
+import { UnitBulkDialog } from './UnitBulkDialog';
 import { Availability, grossPrice, PriceSourceTag, priceCur, useVatRate } from './productView';
 import './catalog.css';
 
@@ -35,6 +36,11 @@ const AVAILABILITY_OPTIONS: { value: AvailabilityFilter; label: string }[] = [
 
 /** Скільки рядків підвантажуємо за раз під час гортання. */
 const PAGE_SIZE = 100;
+/** «Од. і кратність» для всіх знайдених — якщо їх не більше (інакше — виділити галочками). */
+const UNIT_FOUND_MAX = 500;
+// галочки — для масової зміни одиниці й кратності (правки замовника 25.09 п.8); клік по рядку, як і раніше, відкриває картку
+const ROW_SELECTION: RowSelectionOptions = { mode: 'multiRow', checkboxes: true, headerCheckbox: false, enableClickSelection: false };
+const SELECTION_COLUMN: SelectionColumnDef = { pinned: 'left', width: 36, maxWidth: 36, resizable: false, suppressHeaderMenuButton: true };
 const CATALOG_LAYOUT = columnLayoutHandlers<ProductDetail>('catalog');
 
 /** Колонка таблиці → поле сортування на сервері. */
@@ -90,6 +96,8 @@ export default function CatalogPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [importFor, setImportFor] = useState<SupplierListItem | null>(null);
   const [name1cFor, setName1cFor] = useState<SupplierListItem | null>(null);
+  const [selectedIds, setSelectedIds] = useState<UUID[]>([]);
+  const [unitOpen, setUnitOpen] = useState(false);
   // одна літера на великому каталозі — майже весь каталог; шукаємо від 2 символів
   const q = useDebouncedValue(search.trim().length >= 2 ? search.trim() : '', 300);
 
@@ -148,6 +156,11 @@ export default function CatalogPage() {
   useLayoutEffect(() => {
     activeSource.current = datasource;
   }, [datasource]);
+  // інший пошук чи фільтр — виділення з попереднього списку не переносимо
+  useEffect(() => {
+    gridApi.current?.deselectAll();
+    setSelectedIds([]);
+  }, [filters]);
 
   // каталог змінився деінде (прайс, новий товар, ціна) — інвалідується весь ['products'], разом із цією позначкою;
   // перечитуємо підвантажені сторінки, не скидаючи прокрутку
@@ -271,6 +284,12 @@ export default function CatalogPage() {
 
   // сортувати весь каталог можна за артикулом, назвою й ціною входу; за рештою колонок — коли вибрано постачальника чи є пошук
   const narrowed = supplierId !== 'all' || q !== '';
+  // масова зміна одиниці: вибрані галочками, інакше — усі знайдені, якщо пошук звужено до UNIT_FOUND_MAX
+  const unitScope: 'selected' | 'found' | null = selectedIds.length
+    ? 'selected'
+    : narrowed && total != null && total > 0 && total <= UNIT_FOUND_MAX
+      ? 'found'
+      : null;
   // ширина, задана користувачем, — зі збережених: колонки будуються наново й при зміні пошуку (правки замовника 25.09 п.1)
   const layoutEpoch = useUiPrefs((s) => s.layoutEpoch);
   const sortableColumns = useMemo<ColDef<ProductDetail>[]>(
@@ -349,6 +368,20 @@ export default function CatalogPage() {
               </Button>
             </Dropdown>
             <Button
+              icon={<ColumnHeightOutlined />}
+              disabled={!unitScope}
+              title={
+                unitScope === 'selected'
+                  ? 'Одиниця й кратність для вибраних товарів'
+                  : unitScope === 'found'
+                    ? `Одиниця й кратність для всіх знайдених (${formatQty(total ?? 0)})`
+                    : `Виділіть товари галочками або звузьте пошук (до ${UNIT_FOUND_MAX} знайдених)`
+              }
+              onClick={() => setUnitOpen(true)}
+            >
+              {selectedIds.length ? `Од. і кратність (${formatQty(selectedIds.length)})` : 'Од. і кратність'}
+            </Button>
+            <Button
               icon={<FileExcelOutlined />}
               loading={exporting}
               title="Excel із позиціями за поточними фільтрами"
@@ -421,6 +454,9 @@ export default function CatalogPage() {
           columnDefs={sortableColumns}
           defaultColDef={{ sortable: true, resizable: true, lockPinned: true, wrapHeaderText: true, autoHeaderHeight: true }}
           getRowId={(p) => p.data.id}
+          rowSelection={ROW_SELECTION}
+          selectionColumnDef={SELECTION_COLUMN}
+          onSelectionChanged={(e) => setSelectedIds(e.api.getSelectedRows().map((p) => p.id))}
           rowClass="po-cat-row"
           overlayNoRowsTemplate="<span>Товарів не знайдено</span>"
           onGridReady={(e) => {
@@ -428,7 +464,11 @@ export default function CatalogPage() {
           }}
           onColumnResized={CATALOG_LAYOUT.onColumnResized}
           onColumnMoved={CATALOG_LAYOUT.onColumnMoved}
-          onRowClicked={(e) => e.data && openProduct(e.data)}
+          onRowClicked={(e) => {
+            // клік по галочці лише виділяє рядок
+            if ((e.event?.target as Element | null | undefined)?.closest('[col-id="ag-Grid-SelectionColumn"]')) return;
+            if (e.data) openProduct(e.data);
+          }}
           onCellKeyDown={(e) => {
             const ev = e.event as KeyboardEvent | undefined;
             if (ev?.key === 'Enter' && e.data) openProduct(e.data);
@@ -454,6 +494,24 @@ export default function CatalogPage() {
         onCreated={onProductCreated}
       />
       {name1cFor ? <Name1cImportDialog supplierId={name1cFor.id} supplierName={name1cFor.name} open onClose={() => setName1cFor(null)} /> : null}
+      {unitOpen && unitScope ? (
+        <UnitBulkDialog
+          open
+          scope={unitScope}
+          count={unitScope === 'selected' ? selectedIds.length : (total ?? 0)}
+          resolveIds={async () =>
+            unitScope === 'selected'
+              ? selectedIds
+              : (await ds.listProductsPage({ ...filters, offset: 0, limit: UNIT_FOUND_MAX })).items.map((p) => p.id)
+          }
+          onClose={() => setUnitOpen(false)}
+          onDone={() => {
+            setUnitOpen(false);
+            gridApi.current?.deselectAll();
+            setSelectedIds([]);
+          }}
+        />
+      ) : null}
       {importFor ? (
         <PriceImportDialog supplierId={importFor.id} supplierName={importFor.name} open onClose={() => setImportFor(null)} />
       ) : null}
