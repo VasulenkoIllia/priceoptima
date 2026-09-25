@@ -20,6 +20,8 @@ const counterpartiesLabel = (c: ClientListItem) =>
 
 const COLUMNS: ColDef<ClientListItem>[] = [
   { headerName: 'Клієнт', field: 'name', width: 200, cellClass: 'po-cell-text', cellStyle: { fontWeight: 600 } },
+  // скільки юросіб у клієнта — числом (правки замовника 25.09 п.9); архівні не рахуються
+  { headerName: 'Юросіб', colId: 'counterpartiesCount', valueGetter: (p) => p.data?.counterparties.length ?? null, width: 90, type: 'rightAligned', cellClass: 'po-num' },
   { headerName: 'Контрагенти', colId: 'counterparties', valueGetter: (p) => (p.data ? counterpartiesLabel(p.data) : ''), flex: 1, minWidth: 260, cellClass: 'po-cell-text', tooltipValueGetter: (p) => p.value },
   { headerName: 'Контакти', field: 'contactsCount', width: 100, type: 'rightAligned', cellClass: 'po-num' },
   { headerName: 'Відповідальний', colId: 'responsible', valueGetter: (p) => p.data?.responsible?.shortName ?? '', width: 150 },
