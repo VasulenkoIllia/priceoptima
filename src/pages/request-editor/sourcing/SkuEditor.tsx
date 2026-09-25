@@ -20,7 +20,10 @@ function SuggestOption({ product }: { product: ProductPickDto }) {
   return (
     <span className="po-sku-opt">
       <b className="po-num">{product.sku}</b>
-      <span className="po-sku-opt-name">{product.nameWork}</span>
+      {/* повна назва — підказкою при наведенні; рядок не розгортається, щоб список не стрибав (правки замовника 25.09 п.7) */}
+      <span className="po-sku-opt-name" title={product.nameWork}>
+        {product.nameWork}
+      </span>
       <span className="po-num po-muted">{product.purchasePriceUah != null ? `${formatMoney(product.purchasePriceUah)} грн` : ''}</span>
     </span>
   );
