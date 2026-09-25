@@ -57,9 +57,32 @@
   min-width: 0;
   vertical-align: middle;
 }
-/* значення зі значками (▲▼, «!») — разом по центру клітинки, як і заголовок (правки замовника 25.09) */
-.po-cell-grow {
-  text-align: center;
+/* місце під значок біля значення (▲▼, «!»): є завжди, тож значення в колонці не зсуваються (правки замовника 25.09) */
+.po-icon-slot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+}
+/* «Обрано»: логотип | ціна | затверджено | попередження — однакові місця в усіх рядках, ціни праворуч стовпчиком */
+.ag-cell.po-cell-chosen {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.po-chosen {
+  display: inline-grid;
+  grid-template-columns: 28px minmax(8ch, auto) 14px 12px;
+  align-items: center;
+  column-gap: 3px;
+  vertical-align: middle;
+}
+.po-chosen-logo {
+  display: inline-flex;
+  justify-content: center;
+}
+.po-chosen-price {
+  text-align: right;
 }
 .po-cell-center {
   display: flex;

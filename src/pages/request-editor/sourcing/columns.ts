@@ -9,6 +9,7 @@ import {
   cellWarnings,
   ChosenCell,
   ClientNameCell,
+  ClientNoteCell,
   CompareCell,
   CompareChosenCell,
   EXCLUDE_HINT,
@@ -108,6 +109,20 @@ function clientColumns(mode: EditorMode): SourcingColDef[] {
       valueFormatter: (p) => (p.value == null ? '' : formatQty(p.value as number)),
       cellRenderer: FillCell,
     },
+    {
+      // примітка з заявки клієнта (колір, підключення…): з імпорту Excel чи введена тут (правки замовника 25.09 п.4)
+      colId: COL.line('clientNote'),
+      headerName: 'Примітка клієнта',
+      headerTooltip: 'Примітка з заявки клієнта: береться з колонки «Примітка» при імпорті з Excel, можна ввести й тут',
+      width: 140,
+      pinned: 'left',
+      editable: canEditClient,
+      cellEditor: 'agTextCellEditor',
+      cellClass: ['po-note-cell', 'po-cell-text'],
+      valueGetter: (p) => (isLineRow(p.data) ? (p.data.line.clientNote ?? '') : ''),
+      cellRenderer: ClientNoteCell,
+      autoHeight: true,
+    },
   ];
 }
 
@@ -144,8 +159,8 @@ function blockCellClassRules(blockId: UUID, field: BlockField, collapsed: boolea
     'po-cell-excluded': (p: CellClassParams<SourcingRow>) => !!cellOf(p.data, blockId)?.offer?.excluded,
   };
   if (priceField) rules['po-cell-min'] = (p) => !!cellOf(p.data, blockId)?.oc?.isMin;
-  // рамка обраної пропозиції — на обох цінах, без ПДВ і з ПДВ (правки замовника 23.09 п.2)
-  if (field === 'net' || field === 'gross') {
+  // рамка обраної пропозиції — на ціні з ПДВ (правки замовника 25.09); у згорнутому блоці її немає — тоді на ціні без ПДВ
+  if (field === 'gross' || (field === 'net' && collapsed)) {
     rules['po-cell-approved'] = (p) =>
       isLineRow(p.data) && p.data.line.selection.blockId === blockId && !!cellOf(p.data, blockId)?.oc?.isSelected;
     rules['po-cell-not-approved'] = (p) => isLineRow(p.data) && isNotApproved(p.data.cmp) && p.data.cmp?.effectiveBlockId === blockId;
@@ -343,7 +358,8 @@ export function buildColumnDefs({ mode, blockIds, collapsed, blockOrder }: Build
       colId: COL.chosen,
       headerName: 'Обрано',
       headerTooltip: 'Затверджена (або рекомендована, з жовтим «!») пропозиція: ціна без ПДВ, грн',
-      width: 136,
+      width: 150,
+      cellClass: 'po-cell-chosen',
       pinned: 'left',
       cellRenderer: ChosenCell,
       valueGetter: (p) => (isLineRow(p.data) ? (p.data.chosen?.oc.unitNetUah ?? null) : null),

@@ -449,6 +449,7 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
       if (col.kind === 'line') {
         if (col.field === 'clientName') s.updateLine(row.id, { clientName: text.trim() });
         else if (col.field === 'clientUnit') s.updateLine(row.id, { clientUnit: text.trim() || null });
+        else if (col.field === 'clientNote') s.updateLine(row.id, { clientNote: text.trim() || null });
         else a.setLineQtyFromInput(row.id, text);
         // Enter в останньому рядку — далі порожній рядок: одразу назва наступної позиції
         if (key === 'enter' && e.node.rowIndex != null && isNewRow(e.api.getDisplayedRowAtIndex(e.node.rowIndex + 1)?.data)) {

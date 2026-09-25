@@ -33,10 +33,10 @@ describe('buildColumnDefs — «Підбір»', () => {
 
   it('закріплені колонки клієнта і «Обрано», далі групи блоків з повним набором колонок', () => {
     const ids = flattenColIds(cols);
-    expect(ids.slice(0, 5)).toEqual([COL.pos, COL.line('clientName'), COL.line('clientUnit'), COL.line('qty'), COL.chosen]);
-    expect(ids.slice(5, 5 + BLOCK_FIELDS.length)).toEqual(BLOCK_FIELDS.map((f) => COL.block('b1', f)));
-    expect(ids).toHaveLength(5 + BLOCK_FIELDS.length * 2);
-    for (const c of cols.slice(0, 5)) expect((c as ColDef).pinned).toBe('left');
+    expect(ids.slice(0, 6)).toEqual([COL.pos, COL.line('clientName'), COL.line('clientUnit'), COL.line('qty'), COL.line('clientNote'), COL.chosen]);
+    expect(ids.slice(6, 6 + BLOCK_FIELDS.length)).toEqual(BLOCK_FIELDS.map((f) => COL.block('b1', f)));
+    expect(ids).toHaveLength(6 + BLOCK_FIELDS.length * 2);
+    for (const c of cols.slice(0, 6)) expect((c as ColDef).pinned).toBe('left');
   });
 
   it('група на блок — з власним вмістом шапки і маркером початку блоку', () => {
@@ -112,12 +112,16 @@ describe('buildColumnDefs — «Підбір»', () => {
       Object.entries(findCol(cols, colId).cellClassRules ?? {})
         .filter(([, rule]) => (rule as (p: CellClassParams<SourcingRow>) => boolean)({ data } as CellClassParams<SourcingRow>))
         .map(([name]) => name);
-    expect(cls(COL.block('b1', 'net'), r1)).toEqual(expect.arrayContaining(['po-cell-min', 'po-cell-not-approved']));
+    expect(cls(COL.block('b1', 'net'), r1)).toEqual(['po-cell-min']);
     expect(cls(COL.block('b2', 'net'), r1)).toEqual([]);
-    expect(cls(COL.block('b2', 'net'), r2)).toContain('po-cell-approved');
-    // рамка обраної пропозиції й на ціні з ПДВ
+    // рамка обраної пропозиції — лише на ціні з ПДВ (правки замовника 25.09)
+    expect(cls(COL.block('b2', 'net'), r2)).not.toContain('po-cell-approved');
     expect(cls(COL.block('b2', 'gross'), r2)).toContain('po-cell-approved');
     expect(cls(COL.block('b1', 'gross'), r1)).toContain('po-cell-not-approved');
+    // згорнутий блок (без «З ПДВ») — рамка на ціні без ПДВ
+    const collapsedCols = buildColumnDefs({ mode: 'sourcing', blockIds: BLOCKS, collapsed: new Set(['b2']) });
+    const rule = findCol(collapsedCols, COL.block('b2', 'net')).cellClassRules?.['po-cell-approved'] as (p: CellClassParams<SourcingRow>) => boolean;
+    expect(rule({ data: r2 } as CellClassParams<SourcingRow>)).toBe(true);
     expect(cls(COL.block('b2', 'sum'), r2)).not.toContain('po-cell-approved');
     expect(cls(COL.block('b1', 'sum'), r3)).toContain('po-cell-excluded');
     expect(cls(COL.block('b2', 'sku'), r3)).toContain('po-cell-empty');
@@ -128,7 +132,7 @@ describe('buildColumnDefs — «Порівняння»', () => {
   const cols = buildColumnDefs({ mode: 'comparison', blockIds: BLOCKS, collapsed: new Set(['b1']) });
 
   it('№ | Найменування | Од. | К-сть, по колонці на блок, «Обрано» закріплено праворуч', () => {
-    expect(flattenColIds(cols)).toEqual([COL.pos, COL.line('clientName'), COL.line('clientUnit'), COL.line('qty'), COL.compare('b1'), COL.compare('b2'), COL.chosen]);
+    expect(flattenColIds(cols)).toEqual([COL.pos, COL.line('clientName'), COL.line('clientUnit'), COL.line('qty'), COL.line('clientNote'), COL.compare('b1'), COL.compare('b2'), COL.chosen]);
     expect(cols.some((c) => 'children' in c)).toBe(false);
     expect(findCol(cols, COL.chosen).pinned).toBe('right');
     expect(findCol(cols, COL.compare('b1')).headerComponentParams).toEqual({ blockId: 'b1' });
@@ -137,11 +141,11 @@ describe('buildColumnDefs — «Порівняння»', () => {
   it('набори колонок режимів не перетинаються в колонках блоків', () => {
     const sourcing = flattenColIds(buildColumnDefs({ mode: 'sourcing', blockIds: BLOCKS, collapsed: none }));
     const comparison = flattenColIds(cols);
-    expect(sourcing.filter((id) => comparison.includes(id))).toEqual([COL.pos, COL.line('clientName'), COL.line('clientUnit'), COL.line('qty'), COL.chosen]);
+    expect(sourcing.filter((id) => comparison.includes(id))).toEqual([COL.pos, COL.line('clientName'), COL.line('clientUnit'), COL.line('qty'), COL.line('clientNote'), COL.chosen]);
   });
 
   it('колонки клієнта закріплені ліворуч; клітинка блоку — ціна без ПДВ (під нею артикул)', () => {
-    for (const id of [COL.pos, COL.line('clientName'), COL.line('clientUnit'), COL.line('qty')]) expect(findCol(cols, id).pinned).toBe('left');
+    for (const id of [COL.pos, COL.line('clientName'), COL.line('clientUnit'), COL.line('qty'), COL.line('clientNote')]) expect(findCol(cols, id).pinned).toBe('left');
     expect(findCol(cols, COL.compare('b1')).pinned).toBeUndefined();
     const doc = makeDoc({ lines: [makeLine('l1', 2)], blocks: [makeBlock('b1', 1), makeBlock('b2', 2)], offers: [uah('l1', 'b2', 100)] });
     const [row] = buildLineRows({ doc, computed: computeRequest(doc, makeCtx([makeSupplier('b1'), makeSupplier('b2')])), misses: {} });
@@ -174,7 +178,7 @@ describe('buildColumnDefs — «Порівняння»', () => {
   });
 
   it('без блоків — лише колонки клієнта і «Обрано»', () => {
-    expect(flattenColIds(buildColumnDefs({ mode: 'comparison', blockIds: [], collapsed: none }))).toHaveLength(5);
-    expect(flattenColIds(buildColumnDefs({ mode: 'sourcing', blockIds: [], collapsed: none }))).toHaveLength(5);
+    expect(flattenColIds(buildColumnDefs({ mode: 'comparison', blockIds: [], collapsed: none }))).toHaveLength(6);
+    expect(flattenColIds(buildColumnDefs({ mode: 'sourcing', blockIds: [], collapsed: none }))).toHaveLength(6);
   });
 });

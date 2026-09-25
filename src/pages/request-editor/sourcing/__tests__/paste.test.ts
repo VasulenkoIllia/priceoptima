@@ -122,3 +122,19 @@ describe('colIds', () => {
     expect(parseColId(undefined)).toEqual({ kind: 'other' });
   });
 });
+
+describe('вставка з Excel: примітка клієнта (правки замовника 25.09 п.4)', () => {
+  it('четверта колонка (як у шаблоні) — примітка; у новому рядку теж', () => {
+    const plan = planPaste({ text: 'Муфта\tшт\t2\tбіла\nБак 500л\tшт\t1\tбокове підключення\n', colId: COL.line('clientName'), lineIds: ['l1'] });
+    expect(plan).toMatchObject({
+      kind: 'lines',
+      updates: [{ id: 'l1', patch: { clientName: 'Муфта', clientUnit: 'шт', qty: 2, clientNote: 'біла' } }],
+      newRows: [{ clientName: 'Бак 500л', clientUnit: 'шт', qty: 1, clientNote: 'бокове підключення' }],
+    });
+  });
+
+  it('вставка в саму колонку примітки; порожня клітинка — примітку прибрати', () => {
+    const plan = planPaste({ text: 'синій\n\n', colId: COL.line('clientNote'), lineIds: ['l1', 'l2'] });
+    expect(plan).toMatchObject({ kind: 'lines', updates: [{ id: 'l1', patch: { clientNote: 'синій' } }] });
+  });
+});

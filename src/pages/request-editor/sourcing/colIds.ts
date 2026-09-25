@@ -2,8 +2,8 @@
 import type { UUID } from '@shared/types';
 import type { EditorMode } from '@/stores/uiPrefsStore';
 
-/** Поля рядка клієнта, що редагуються в сітці (порядок = порядок колонок, важливий для вставки TSV). */
-export const LINE_FIELDS = ['clientName', 'clientUnit', 'qty'] as const;
+/** Поля рядка клієнта, що редагуються в сітці (порядок = порядок колонок, важливий для вставки TSV: як у шаблоні Excel). */
+export const LINE_FIELDS = ['clientName', 'clientUnit', 'qty', 'clientNote'] as const;
 export type LineField = (typeof LINE_FIELDS)[number];
 
 /** Колонки блоку постачальника в режимі «Підбір» (повний набір). */

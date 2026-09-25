@@ -231,6 +231,7 @@ export function createSourcingActions(app: AppApi) {
     const input: NewLineInput = { clientName: '' };
     if (field === 'clientName') input.clientName = text;
     else if (field === 'clientUnit') input.clientUnit = text;
+    else if (field === 'clientNote') input.clientNote = text;
     else {
       const n = parseLocaleNumber(text);
       if (!n.valid || (n.value ?? 0) < 0) {

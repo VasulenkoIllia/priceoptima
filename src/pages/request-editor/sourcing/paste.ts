@@ -72,6 +72,7 @@ function patchFromCells(cells: string[], fields: readonly LineField[]): { patch:
     const raw = cells[j].trim();
     if (field === 'clientName') patch.clientName = raw;
     else if (field === 'clientUnit') patch.clientUnit = raw || null;
+    else if (field === 'clientNote') patch.clientNote = raw || null;
     else if (raw !== '') {
       const n = parseLocaleNumber(raw);
       if (n.valid && n.value != null && n.value >= 0) patch.qty = n.value;
@@ -87,6 +88,7 @@ function newLineFrom(patch: LinePatch): NewLineInput {
     // порожню клітинку «Од.» не передаємо — спрацює типове «шт»
     ...(patch.clientUnit ? { clientUnit: patch.clientUnit } : {}),
     ...(patch.qty !== undefined ? { qty: patch.qty } : {}),
+    ...(patch.clientNote ? { clientNote: patch.clientNote } : {}),
   };
 }
 

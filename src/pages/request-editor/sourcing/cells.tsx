@@ -49,6 +49,20 @@ function Flex({ children, title }: { children: ReactNode; title?: string }) {
   );
 }
 
+/**
+ * Значення зі значками обабіч (▲▼ зліва, «!» справа): місце під значок є завжди, тож числа в колонці стоять рівно,
+ * хоч значок є лише в частині рядків (правки замовника 25.09).
+ */
+function Iconed({ lead, trail, children, title }: { lead?: ReactNode; trail?: ReactNode; children: ReactNode; title?: string }) {
+  return (
+    <Flex title={title}>
+      <span className="po-icon-slot">{lead}</span>
+      {children}
+      <span className="po-icon-slot">{trail}</span>
+    </Flex>
+  );
+}
+
 // ── колонки клієнта ─────────────────────────────────────────────────
 /** «Найменування (згідно заявки)»: назва (переноситься по словах) + кнопка «Підібрати в каталозі» (видно при наведенні на рядок). */
 export function ClientNameCell(p: P) {
@@ -126,10 +140,13 @@ export function ChosenCell(p: P) {
   if (!ch) return null;
   const supplier = p.context.supplierOfBlock(ch.blockId);
   const notApproved = isNotApproved(row.cmp);
+  // логотип | ціна (праворуч — цифри стовпчиком) | затверджено | попередження: у кожного своє місце в усіх рядках
   return (
-    <Flex>
-      {supplier ? <SupplierLogo name={supplier.name} logoUrl={supplier.logoUrl} color={supplier.color} size={16} width={supplier.logoUrl ? 28 : undefined} /> : null}
-      <span className="po-num">{formatMoney(ch.oc.unitNetUah)}</span>
+    <span className="po-chosen">
+      <span className="po-chosen-logo">
+        {supplier ? <SupplierLogo name={supplier.name} logoUrl={supplier.logoUrl} color={supplier.color} size={16} width={supplier.logoUrl ? 28 : undefined} /> : null}
+      </span>
+      <span className="po-num po-chosen-price">{formatMoney(ch.oc.unitNetUah)}</span>
       {notApproved ? (
         <span className="po-mark-not-approved" title="Не затверджено: у націнку й КП піде мінімальна ціна">
           !
@@ -137,8 +154,10 @@ export function ChosenCell(p: P) {
       ) : (
         <CheckCircleFilled className="po-mark-approved" title="Затверджено вручну" />
       )}
-      <WarningBadge warnings={lineWarnings(row)} size={12} />
-    </Flex>
+      <span className="po-icon-slot">
+        <WarningBadge warnings={lineWarnings(row)} size={12} />
+      </span>
+    </span>
   );
 }
 
@@ -203,6 +222,12 @@ export function OfferNameCell(p: P<BlockCellParams>) {
 }
 
 /** «Примітка» до пропозиції: переноситься по словах, як назви. */
+/** «Примітка клієнта»: з імпорту Excel чи введена в клітинці; переноситься по словах (правки замовника 25.09 п.4). */
+export function ClientNoteCell(p: P) {
+  const note = isLineRow(p.data) ? p.data.line.clientNote : null;
+  return note ? <span className="po-wrap">{note}</span> : null;
+}
+
 export function NoteCell(p: P<BlockCellParams>) {
   if (!isLineRow(p.data)) return null;
   const note = cellOf(p.data, p.blockId)?.offer?.note;
@@ -213,12 +238,7 @@ export function UnitCell(p: P<BlockCellParams>) {
   if (!isLineRow(p.data)) return null;
   const cell = cellOf(p.data, p.blockId);
   if (!cell?.offer) return null;
-  return (
-    <Flex>
-      {cell.offer.unitCode ?? ''}
-      <WarningBadge warnings={cellWarnings(cell.oc, 'unit')} size={12} />
-    </Flex>
-  );
+  return <Iconed trail={<WarningBadge warnings={cellWarnings(cell.oc, 'unit')} size={12} />}>{cell.offer.unitCode ?? ''}</Iconed>;
 }
 
 /** К-сть пропозиції: помаранчева підказка «округлено з 118, кратно 4»; некратна — попередження. */
@@ -228,14 +248,9 @@ export function BlockQtyCell(p: P<BlockCellParams>) {
   if (!cell?.offer || !cell.oc) return null;
   const rounded = cell.oc.warnings.find((w) => w.code === 'QTY_ROUNDED');
   return (
-    <Flex>
-      <QtyCell
-        qty={cell.oc.qtyEffective}
-        roundedFrom={rounded ? Number(rounded.params?.from) : null}
-        multiplicity={offerMultiplicity(cell.offer)}
-      />
-      <WarningBadge warnings={cellWarnings(cell.oc, 'qty')} size={12} />
-    </Flex>
+    <Iconed trail={<WarningBadge warnings={cellWarnings(cell.oc, 'qty')} size={12} />}>
+      <QtyCell qty={cell.oc.qtyEffective} roundedFrom={rounded ? Number(rounded.params?.from) : null} multiplicity={offerMultiplicity(cell.offer)} />
+    </Iconed>
   );
 }
 
@@ -285,11 +300,13 @@ export function PriceCell(p: P<BlockCellParams>) {
   if (!cell?.offer || !cell.oc) return null;
   const title = priceTitle(cell.offer, cell.oc, p.context.blockOf(p.blockId)?.supplierMarkupPct ?? null);
   return (
-    <Flex title={title}>
-      <PriceChangeMark offer={cell.offer} oc={cell.oc} />
-      <span className="po-num po-cell-grow">{formatMoney(cell.oc.unitNetUah)}</span>
-      <WarningBadge warnings={cellWarnings(cell.oc, 'net', p.allWarnings)} size={12} />
-    </Flex>
+    <Iconed
+      title={title}
+      lead={<PriceChangeMark offer={cell.offer} oc={cell.oc} />}
+      trail={<WarningBadge warnings={cellWarnings(cell.oc, 'net', p.allWarnings)} size={12} />}
+    >
+      <span className="po-num">{formatMoney(cell.oc.unitNetUah)}</span>
+    </Iconed>
   );
 }
 
@@ -314,10 +331,9 @@ export function StockCell(p: P<BlockCellParams>) {
   const cell = cellOf(p.data, p.blockId);
   if (!cell?.offer) return null;
   return (
-    <Flex title={AVAILABILITY_LABELS[cell.offer.availability]}>
-      <span className="po-num po-cell-grow">{stockText(cell.offer)}</span>
-      <WarningBadge warnings={cellWarnings(cell.oc, 'stock')} size={12} />
-    </Flex>
+    <Iconed title={AVAILABILITY_LABELS[cell.offer.availability]} trail={<WarningBadge warnings={cellWarnings(cell.oc, 'stock')} size={12} />}>
+      <span className="po-num">{stockText(cell.offer)}</span>
+    </Iconed>
   );
 }
 
