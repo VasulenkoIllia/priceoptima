@@ -13,6 +13,7 @@ import { EmptyState, LoadError } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { useElementHeight } from '@/lib/useElementHeight';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
+import { buildInvoice, downloadInvoice } from './invoice';
 import { buildSupplierOrders, downloadSupplierOrders } from './supplierOrders';
 
 interface ApprovalRow {
@@ -166,6 +167,22 @@ export default function ApprovalTab() {
     }
   };
 
+  // рахунок для бухгалтера: погоджені позиції в порядку КП, ціни КП, назви 1С (правки замовника 25.09 п.14)
+  const exportInvoice = async () => {
+    const invoice = buildInvoice(doc, computed, base.snapshot);
+    if (!invoice) {
+      message.warning('Немає погоджених позицій');
+      return;
+    }
+    try {
+      await downloadInvoice(invoice, { requestNumber: doc.header.number, kp: base.snapshot });
+      const note = invoice.missing1c ? `; без назви 1С: ${invoice.missing1c}, запросіть у постачальників` : '';
+      message[invoice.missing1c ? 'warning' : 'success'](`Рахунок сформовано: позицій ${invoice.rows.length}${note}`);
+    } catch (e) {
+      message.error(errorMessage(e));
+    }
+  };
+
   const setAll = (value: boolean) =>
     setApprovals(
       rows.flatMap((r) =>
@@ -283,6 +300,14 @@ export default function ApprovalTab() {
             onClick={() => void exportOrders()}
           >
             Замовлення постачальникам
+          </Button>
+          <Button
+            icon={<FileExcelOutlined />}
+            disabled={!approvedCount}
+            title="Excel для бухгалтера: погоджені позиції в порядку КП, ціни КП, назви 1С (якщо назви немає, позначка «запросити в постачальника»)"
+            onClick={() => void exportInvoice()}
+          >
+            Рахунок (Excel)
           </Button>
           <Button
             type="primary"
