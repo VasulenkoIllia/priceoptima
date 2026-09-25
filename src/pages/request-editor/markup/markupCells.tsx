@@ -81,15 +81,10 @@ export function ProductCell({ data }: P) {
   );
 }
 
-/** Вхід обраної пропозиції з ПДВ (для порівняння з РРЦ, правки замовника 23.09 п.11) з логотипом постачальника. */
-export function CostCell({ data }: P) {
-  if (!data?.offer) return null;
-  return (
-    <span className="po-mk-cost">
-      {data.supplier ? <SupplierLogo name={data.supplier.name} logoUrl={data.supplier.logoUrl} color={data.supplier.color} size={14} /> : null}
-      <span className="po-num">{formatMoney(data.mr.costGross)}</span>
-    </span>
-  );
+/** Постачальник обраної пропозиції — значок і назва: з самого логотипа не видно, чий товар (правки замовника 25.09 п.10). */
+export function SupplierCell({ data }: P) {
+  if (!data?.offer || !data.supplier) return null;
+  return <SupplierLogo name={data.supplier.name} logoUrl={data.supplier.logoUrl} color={data.supplier.color} size={16} showName />;
 }
 
 export function MethodCell({ data, context }: P) {

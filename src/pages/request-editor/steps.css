@@ -39,14 +39,6 @@
   min-width: 0;
   max-width: 100%;
 }
-/* логотип постачальника й ціна — разом по центру клітинки (правки замовника 25.09) */
-.po-mk-cost {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-}
 .ag-cell.po-mk-method-cell {
   padding-left: 0;
   padding-right: 2px;

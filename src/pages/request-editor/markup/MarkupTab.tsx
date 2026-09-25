@@ -27,7 +27,6 @@ import { setOfferPriceFromInput, setOfferRrpFromInput } from '../offerCellInput'
 import { markupFillPatch } from './markupFill';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import {
-  CostCell,
   FILL_COLS,
   FILL_HINT,
   hasOverride,
@@ -42,6 +41,7 @@ import {
   ProductCell,
   REQUEST_METHODS,
   Stat,
+  SupplierCell,
   SupplierProfitBreakdown,
   suppressFillKey,
   ValueCell,
@@ -177,11 +177,19 @@ export default function MarkupTab() {
         valueGetter: (p) => (p.data ? `${formatQty(p.data.mr.qty)} ${p.data.mr.unit ?? ''}`.trim() : ''),
       },
       {
+        headerName: 'Постачальник',
+        colId: 'supplier',
+        width: 170,
+        valueGetter: (p) => p.data?.supplier?.name ?? '',
+        cellRenderer: SupplierCell,
+        tooltipValueGetter: (p) => (p.value as string) || null,
+      },
+      {
         headerName: 'Вхід з ПДВ',
         colId: 'cost',
         width: 116,
-        cellRenderer: CostCell,
-        headerTooltip: 'Ціна входу обраної пропозиції з ПДВ, грн за од.; логотип показує постачальника. Введіть нову, щоб змінити її лише в цій заявці',
+        cellClass: 'po-num',
+        headerTooltip: 'Ціна входу обраної пропозиції з ПДВ, грн за од. Введіть нову, щоб змінити її лише в цій заявці',
         // нова ціна входу — прямо тут, як у «Підборі» (правки замовника 23.09 п.8)
         editable: canEdit,
         cellEditor: 'agTextCellEditor',
