@@ -51,6 +51,21 @@
 .po-mk-method .ant-select-selection-item {
   text-align: center;
 }
+/* назва способу переноситься по словах, коли колонка вузька (правки замовника 28.09 п.2): поле росте за текстом;
+   префікс клітинки — щоб перебити фіксовану висоту antd незалежно від порядку стилів */
+.ag-cell.po-mk-method-cell .po-mk-method.ant-select,
+.ag-cell.po-mk-method-cell .po-mk-method .ant-select-selector {
+  height: auto;
+  min-height: 24px;
+}
+.ag-cell.po-mk-method-cell .po-mk-method .ant-select-selector {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.ag-cell.po-mk-method-cell .po-mk-method .ant-select-selection-item {
+  white-space: normal;
+  line-height: 1.3;
+}
 .po-mk-method-default .ant-select-selection-item {
   color: rgba(0, 0, 0, 0.45);
 }

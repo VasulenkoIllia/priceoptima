@@ -4,6 +4,7 @@
 // (те саме поле в усіх блоках). Порядок — для сітки цілком; закріплені й нерухомі колонки лишаються на своїх місцях.
 import type { ColumnMovedEvent, ColumnResizedEvent, GridApi } from 'ag-grid-community';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
+import { FONT_FAMILY } from '@/theme';
 
 /** Ключ збереженої ширини для колонки; null — ширину не запам'ятовуємо. */
 export type ColumnWidthKey = (colId: string) => string | null;
@@ -22,6 +23,8 @@ interface WidthColumn {
   pinned?: unknown;
   suppressMovable?: boolean;
   lockPosition?: unknown;
+  headerName?: unknown;
+  minWidth?: number;
 }
 
 /** Колонки зі збереженою шириною; flex знімаємо — ширину задав користувач. */
@@ -36,7 +39,8 @@ export function withSavedWidths<C extends object>(
     const id = colId ?? field;
     const key = id ? keyOf(id) : null;
     const width = key ? saved[key] : undefined;
-    return width ? { ...column, width, flex: undefined } : column;
+    // збережена раніше вужча за нинішній мінімум — до мінімуму
+    return width ? { ...column, width: Math.max(width, (column as WidthColumn).minWidth ?? 0), flex: undefined } : column;
   });
 }
 
@@ -58,6 +62,46 @@ export function rememberColumnWidths<T>(e: ColumnResizedEvent<T>, keyOf: ColumnW
     return width != null && column.getActualWidth() !== width ? [{ key: column, newWidth: width }] : [];
   });
   if (same.length) e.api.setColumnWidths(same, true, 'api');
+}
+
+// ── мінімальна ширина ────────────────────────────────────────────────
+// Правки замовника 28.09 п.2: колонку не стиснути так, щоб заголовок ламався посеред слова (аж до стовпчика літер).
+
+/** Шрифт заголовків сітки (тема: 13 px, 600, src/lib/agGrid.ts). */
+const HEADER_FONT = `600 13px ${FONT_FAMILY}`;
+/** Поля заголовка з обох боків (14 + 14) і запас, px. */
+const HEADER_PADDING = 32;
+/** Значок сортування в сітках, де колонки сортуються, px. */
+const SORT_ICON = 18;
+
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+function headerTextWidth(text: string): number {
+  if (measureCtx === undefined) {
+    // у тестах (jsdom) текст не виміряти — там оцінка за кількістю символів
+    measureCtx = typeof document !== 'undefined' && !/jsdom/iu.test(navigator.userAgent) ? document.createElement('canvas').getContext('2d') : null;
+    if (measureCtx) measureCtx.font = HEADER_FONT;
+  }
+  return measureCtx ? measureCtx.measureText(text).width : text.length * 8;
+}
+
+/** Найменша ширина колонки, за якої жодне слово заголовка не розривається; 0 — заголовка немає. */
+export function headerMinWidth(header: string, sortable = false): number {
+  const longest = Math.max(0, ...header.split(/\s+/u).filter(Boolean).map(headerTextWidth));
+  return longest ? Math.ceil(longest + HEADER_PADDING + (sortable ? SORT_ICON : 0)) : 0;
+}
+
+/**
+ * Мінімальна ширина колонок: не вужча за найдовше слово заголовка і за задану в описі колонки. sortable — місце під значок
+ * сортування в усіх колонках сітки (навіть тих, що сортуються не завжди: мінімум не стрибає, коли сортування вмикається).
+ */
+export function withMinWidths<C extends object>(columns: C[], sortable = false): C[] {
+  return columns.map((column) => {
+    const { children, headerName, minWidth } = column as WidthColumn;
+    if (children) return { ...column, children: withMinWidths(children, sortable) };
+    if (typeof headerName !== 'string') return column;
+    const min = headerMinWidth(headerName, sortable);
+    return min > (minWidth ?? 0) ? { ...column, minWidth: min } : column;
+  });
 }
 
 // ── порядок ──────────────────────────────────────────────────────────
@@ -128,10 +172,13 @@ export function rememberColumnOrder<T>(e: ColumnMovedEvent<T>, key: string): voi
 
 // ── сітка без груп колонок: усе разом ────────────────────────────────
 
-/** Збережені ширина й порядок сітки (ключ ширини — «сітка:колонка», порядку — «сітка»); закріплені колонки нерухомі. */
-export function withSavedLayout<C extends object>(columns: C[], grid: string): C[] {
+/**
+ * Збережені ширина й порядок сітки (ключ ширини — «сітка:колонка», порядку — «сітка»); закріплені колонки нерухомі;
+ * мінімальна ширина — за заголовком (sortable — у сітці колонки сортуються, заголовку потрібне місце під значок).
+ */
+export function withSavedLayout<C extends object>(columns: C[], grid: string, sortable = false): C[] {
   const fixed = columns.map((c) => ((c as WidthColumn).pinned ? { ...c, suppressMovable: true } : c));
-  return withSavedOrder(withSavedWidths(fixed, gridWidthKey(grid)), grid);
+  return withSavedOrder(withSavedWidths(withMinWidths(fixed, sortable), gridWidthKey(grid)), grid);
 }
 
 /** Обробники сітки без груп: запам'ятати ширину й порядок, які задав користувач. */

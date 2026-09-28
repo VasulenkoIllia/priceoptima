@@ -347,6 +347,8 @@ export function buildColumnDefs({ mode, blockIds, collapsed, blockOrder }: Build
         headerName: 'Обрано',
         headerTooltip: 'Затверджена (або рекомендована) пропозиція рядка: постачальник, ціна без ПДВ, сума без ПДВ, переплата відносно мінімуму (без ПДВ)',
         width: 250,
+        // значок, назва постачальника й ціна (правки замовника 28.09 п.2)
+        minWidth: 180,
         pinned: 'right',
         cellRenderer: CompareChosenCell,
         valueGetter: (p) => (isLineRow(p.data) ? (p.data.chosen?.oc.unitNetUah ?? null) : null),
@@ -360,6 +362,8 @@ export function buildColumnDefs({ mode, blockIds, collapsed, blockOrder }: Build
       headerName: 'Обрано',
       headerTooltip: 'Затверджена (або рекомендована, з жовтим «!») пропозиція: ціна без ПДВ, грн',
       width: 150,
+      // значок постачальника, ціна й позначки (правки замовника 28.09 п.2)
+      minWidth: 130,
       cellClass: 'po-cell-chosen',
       pinned: 'left',
       cellRenderer: ChosenCell,

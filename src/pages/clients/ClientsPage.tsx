@@ -35,7 +35,7 @@ export default function ClientsPage() {
   const density = useUiPrefs((s) => s.density);
   // ширина, задана користувачем, — зі збережених (правки замовника 25.09 п.1)
   const layoutEpoch = useUiPrefs((s) => s.layoutEpoch);
-  const columns = useMemo(() => withSavedLayout(COLUMNS, 'clients'), [layoutEpoch]);
+  const columns = useMemo(() => withSavedLayout(COLUMNS, 'clients', true), [layoutEpoch]);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<{ id: UUID; name?: string } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);

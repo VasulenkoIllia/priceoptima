@@ -217,8 +217,12 @@ export default function MarkupTab() {
         headerName: 'Спосіб',
         colId: 'method',
         width: 178,
+        // вужче — найдовше слово («Націнка», «Знижка») зі стрілкою не вміщується
+        minWidth: 110,
         cellRenderer: MethodCell,
         cellClass: 'po-mk-method-cell',
+        // вузька колонка — назва способу переноситься по словах, рядок підростає (правки замовника 28.09 п.2)
+        autoHeight: true,
         headerTooltip: FILL_HINT,
         suppressKeyboardEvent: suppressFillKey,
         tooltipValueGetter: (p) =>
@@ -235,7 +239,8 @@ export default function MarkupTab() {
         cellEditor: 'agTextCellEditor',
         suppressKeyboardEvent: suppressFillKey,
         valueGetter: (p) => (p.data && isPctMethod(p.data.mr.method) ? p.data.mr.value : null),
-        valueFormatter: (p) => (p.value == null ? '' : formatPct(p.value as number, 2)),
+        // число без «%» — знак у заголовку, а «10,00 %» у стандартну ширину не вміщувалось (правки замовника 28.09 п.2)
+        valueFormatter: (p) => (p.value == null ? '' : formatMoney(p.value as number, 2)),
         cellRenderer: ValueCell,
       },
       {

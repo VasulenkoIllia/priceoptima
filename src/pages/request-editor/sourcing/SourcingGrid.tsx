@@ -33,7 +33,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import type { UUID } from '@shared/types';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
-import { orderByPreference, rememberColumnWidths, reorderSubset, withSavedWidths } from '@/lib/gridColumnLayout';
+import { orderByPreference, rememberColumnWidths, reorderSubset, withMinWidths, withSavedWidths } from '@/lib/gridColumnLayout';
 import { startFillDrag } from '@/lib/gridFillDrag';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
 import { getRequestDocStore, useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
@@ -229,12 +229,14 @@ export function SourcingGrid({ mode, allRows }: SourcingGridProps) {
   const columnDefs = useMemo(
     () =>
       withSavedWidths(
-        buildColumnDefs({
-          mode,
-          blockIds: blockKey ? blockKey.split('|') : [],
-          collapsed: new Set(collapsedKey ? collapsedKey.split('|') : []),
-          blockOrder: useUiPrefs.getState().columnOrder[BLOCK_ORDER_KEY],
-        }),
+        withMinWidths(
+          buildColumnDefs({
+            mode,
+            blockIds: blockKey ? blockKey.split('|') : [],
+            collapsed: new Set(collapsedKey ? collapsedKey.split('|') : []),
+            blockOrder: useUiPrefs.getState().columnOrder[BLOCK_ORDER_KEY],
+          }),
+        ),
         widthKey,
       ),
     [mode, blockKey, collapsedKey, widthKey, layoutEpoch],

@@ -302,6 +302,7 @@ export default function CatalogPage() {
           return { ...c, sortable: false, headerTooltip: c.headerTooltip ? `${c.headerTooltip}. ${hint}` : hint };
         }),
         'catalog',
+        true,
       ),
     [columns, narrowed, layoutEpoch],
   );

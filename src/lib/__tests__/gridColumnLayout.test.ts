@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { COL, columnWidthKey } from '@/pages/request-editor/sourcing/colIds';
 import { buildColumnDefs, type SourcingColumn } from '@/pages/request-editor/sourcing/columns';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
-import { orderByPreference, reorderSubset, withSavedLayout, withSavedOrder, withSavedWidths } from '../gridColumnLayout';
+import { headerMinWidth, orderByPreference, reorderSubset, withMinWidths, withSavedLayout, withSavedOrder, withSavedWidths } from '../gridColumnLayout';
 
 type Row = { id: string };
 
@@ -92,5 +92,34 @@ describe('порядок колонок', () => {
     expect(b1[1].headerClass).not.toContain('po-block-start');
     expect(b1.find((c) => c.colId === COL.block('b1', 'pick'))?.suppressMovable).toBe(true);
     expect(b1[0].suppressMovable).toBe(false);
+  });
+});
+
+describe('мінімальна ширина колонки (правки замовника 28.09 п.2)', () => {
+  // у тестах текст не міряється — оцінка 8 px на символ, поля заголовка 32 px, значок сортування 18 px
+  it('не вужча за найдовше слово заголовка; у сітці з сортуванням — ще й місце під значок', () => {
+    expect(headerMinWidth('Спосіб')).toBe(6 * 8 + 32);
+    expect(headerMinWidth('Найменування (згідно заявки)')).toBe(12 * 8 + 32);
+    expect(headerMinWidth('Постачальник', true)).toBe(12 * 8 + 32 + 18);
+    expect(headerMinWidth('')).toBe(0);
+  });
+
+  it('задана в описі більша — лишається; колонки в групах теж; без текстового заголовка — без змін', () => {
+    const cols = withMinWidths<ColDef<Row> | ColGroupDef<Row>>([
+      { colId: 'method', headerName: 'Спосіб', minWidth: 110 },
+      { colId: 'qty', headerName: 'К-сть', width: 72 },
+      { headerName: 'Блок', children: [{ colId: 'b:sku', headerName: 'Артикул' }] },
+      { colId: 'custom', headerComponent: 'x' },
+    ]);
+    expect((cols[0] as ColDef<Row>).minWidth).toBe(110);
+    expect((cols[1] as ColDef<Row>).minWidth).toBe(5 * 8 + 32);
+    expect(((cols[2] as ColGroupDef<Row>).children[0] as ColDef<Row>).minWidth).toBe(7 * 8 + 32);
+    expect((cols[3] as ColDef<Row>).minWidth).toBeUndefined();
+  });
+
+  it('збережена раніше ширина, вужча за мінімум, піднімається до мінімуму', () => {
+    useUiPrefs.setState({ columnWidths: { 'markup:qty': 30 } });
+    const [qty] = withSavedLayout<ColDef<Row>>([{ colId: 'qty', headerName: 'К-сть', width: 76 }], 'markup');
+    expect(qty).toMatchObject({ width: 5 * 8 + 32, minWidth: 5 * 8 + 32 });
   });
 });
