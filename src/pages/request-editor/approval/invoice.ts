@@ -4,7 +4,7 @@
 import { formatDate, formatRequestNumber } from '@shared/format';
 import { approvedTotalsFromKp } from '@shared/pricing';
 import type { DocumentRefs, KpSnapshot, Offer, RequestComputed, RequestDocument } from '@shared/types';
-import { loadExcelJs, saveBlob, XLSX_MIME } from '@/lib/files';
+import { loadExcelJs, qtyNumFmt, saveBlob, XLSX_MIME } from '@/lib/files';
 
 export interface InvoiceRow {
   n: number;
@@ -90,6 +90,9 @@ const BOX = { top: LINE, left: LINE, bottom: LINE, right: LINE };
 const MISSING_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFFFF3C4' } };
 const MONEY = '#,##0.00';
 const COLS = 9;
+/** Колонки з назвами (перенос, зліва). */
+const NAME_KP = 4;
+const NAME_1C = 5;
 
 const party = (label: string, p: { title: string; lines: string[] }) => [label, p.title, ...p.lines].filter(Boolean).join(' · ');
 
@@ -97,7 +100,8 @@ export async function buildInvoiceWorkbook(invoice: Invoice, meta: InvoiceMeta) 
   const ExcelJS = await loadExcelJs();
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Рахунок', { pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
-  ws.columns = [{ width: 5 }, { width: 50 }, { width: 50 }, { width: 18 }, { width: 20 }, { width: 8 }, { width: 11 }, { width: 14 }, { width: 16 }];
+  // порядок колонок як у «Номенклатурі»: постачальник, артикул, назви (правки замовника 28.09 п.4)
+  ws.columns = [{ width: 5 }, { width: 20 }, { width: 18 }, { width: 50 }, { width: 50 }, { width: 8 }, { width: 11 }, { width: 14 }, { width: 16 }];
 
   const title = (row: number, text: string, bold = false) => {
     ws.mergeCells(row, 1, row, COLS);
@@ -114,7 +118,7 @@ export async function buildInvoiceWorkbook(invoice: Invoice, meta: InvoiceMeta) 
 
   const HEAD = 6;
   const head = ws.getRow(HEAD);
-  head.values = ['№', 'Найменування 1С', 'Найменування в КП', 'Артикул', 'Постачальник', 'Од.', 'Кількість', invoice.priceHeader, invoice.sumHeader];
+  head.values = ['№', 'Постачальник', 'Артикул', 'Найменування в КП', 'Найменування 1С', 'Од.', 'Кількість', invoice.priceHeader, invoice.sumHeader];
   head.eachCell((c) => {
     c.font = { bold: true };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF2F8' } };
@@ -124,16 +128,17 @@ export async function buildInvoiceWorkbook(invoice: Invoice, meta: InvoiceMeta) 
 
   invoice.rows.forEach((r, i) => {
     const row = ws.getRow(HEAD + 1 + i);
-    row.values = [r.n, r.name1c ?? missing1cText(r), r.kpName, r.sku, r.supplierName, r.unit, r.qty, r.price, r.sum];
+    row.values = [r.n, r.supplierName, r.sku, r.kpName, r.name1c ?? missing1cText(r), r.unit, r.qty, r.price, r.sum];
     for (let c = 1; c <= COLS; c++) {
+      const text = c === NAME_KP || c === NAME_1C;
       row.getCell(c).border = BOX;
-      row.getCell(c).alignment = { vertical: 'top', wrapText: c === 2 || c === 3, horizontal: c === 2 || c === 3 ? 'left' : 'center' };
+      row.getCell(c).alignment = { vertical: 'top', wrapText: text, horizontal: text ? 'left' : 'center' };
     }
     if (!r.name1c) {
-      row.getCell(2).fill = MISSING_FILL;
-      row.getCell(2).font = { italic: true, color: { argb: 'FF9A6700' } };
+      row.getCell(NAME_1C).fill = MISSING_FILL;
+      row.getCell(NAME_1C).font = { italic: true, color: { argb: 'FF9A6700' } };
     }
-    row.getCell(7).numFmt = '#,##0.###';
+    row.getCell(7).numFmt = qtyNumFmt(r.qty);
     row.getCell(8).numFmt = MONEY;
     row.getCell(9).numFmt = MONEY;
   });

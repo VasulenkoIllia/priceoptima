@@ -1,12 +1,11 @@
 // Excel бланка КП (КП-4): той самий знімок, що й PDF; к-сті, ціни й суми — числові клітинки.
 import type { Border, Workbook, Worksheet } from 'exceljs';
 import type { KpSnapshot } from '@shared/types';
-import { loadExcelJs, saveBlob, XLSX_MIME } from '@/lib/files';
+import { loadExcelJs, qtyNumFmt, saveBlob, XLSX_MIME } from '@/lib/files';
 import { kpAmountLine, kpContactsLine, kpFileName, kpPartyRows, kpTermRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
 import { loadRowPhotos } from './kpPhotos';
 
 const MONEY = '#,##0.00';
-const QTY = '#,##0.###';
 const LINE: Partial<Border> = { style: 'thin', color: { argb: 'FFB8C2D0' } };
 const BOX = { top: LINE, left: LINE, bottom: LINE, right: LINE };
 /** Сторона фото в клітинці, пікселі; висота рядка з фото — у пунктах. */
@@ -99,7 +98,7 @@ export async function buildKpWorkbook(s: KpSnapshot, photos: ReadonlyMap<string,
     x.getCell(2).alignment = { vertical: 'top' };
     x.getCell(at(3)).alignment = { wrapText: true, vertical: 'top' };
     x.getCell(at(4)).alignment = { horizontal: 'center', vertical: 'top' };
-    x.getCell(at(5)).numFmt = QTY;
+    x.getCell(at(5)).numFmt = qtyNumFmt(row.qty);
     x.getCell(at(6)).numFmt = MONEY;
     x.getCell(at(7)).numFmt = MONEY;
     const photo = withPhotos && row.imagePath ? photos.get(row.imagePath) : undefined;

@@ -22,6 +22,14 @@ export function loadXlsxReader(): Promise<XlsxModule> {
 
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+/**
+ * Формат кількості в Excel: ціле — без дробової частини, дробове — до 3 знаків. Один формат «#,##0.###» для всіх
+ * в українському Excel показує кому і в цілого числа: «2,» (правки замовника 28.09 п.4).
+ */
+export function qtyNumFmt(qty: number): string {
+  return Number.isInteger(qty) ? '#,##0' : '#,##0.###';
+}
+
 export function saveBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

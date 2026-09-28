@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { computeRequest } from '@shared/pricing';
 import { makeBlock, makeCtx, makeDoc, makeLine, makeSupplier, uah } from '@shared/pricing/__tests__/fixtures';
 import type { KpRow, KpSnapshot } from '@shared/types';
+import { qtyNumFmt } from '@/lib/files';
 import { buildInvoice, buildInvoiceWorkbook, missing1cText } from '../invoice';
 
 const approved = (qty: number | null = null) => ({ approval: { approved: true, approvedQty: qty } });
@@ -80,12 +81,20 @@ describe('рахунок (п.14 правок 25.09)', () => {
     const ws = wb.getWorksheet('Рахунок')!;
     expect(ws.getCell(1, 1).value).toBe('Для рахунку: КП № 2114 / 000007 від 25.09.2026');
     expect(ws.getCell(4, 1).value).toContain('Без назви 1С: 1');
-    expect((ws.getRow(6).values as unknown[]).slice(1)).toEqual(['№', 'Найменування 1С', 'Найменування в КП', 'Артикул', 'Постачальник', 'Од.', 'Кількість', 'Ціна без ПДВ, грн', 'Сума без ПДВ, грн']);
+    // порядок як у «Номенклатурі» (правки замовника 28.09 п.4)
+    expect((ws.getRow(6).values as unknown[]).slice(1)).toEqual(['№', 'Постачальник', 'Артикул', 'Найменування в КП', 'Найменування 1С', 'Од.', 'Кількість', 'Ціна без ПДВ, грн', 'Сума без ПДВ, грн']);
+    expect((ws.getRow(7).values as unknown[]).slice(1)).toEqual([1, 'САНДІ', 'A-1', 'Кран кульовий', 'Кран кульовий 1/2 (1С)', 'шт', 2, 120, 240]);
+    // ціла кількість — без коми в кінці («2», а не «2,»)
+    expect(ws.getRow(7).getCell(7).numFmt).toBe('#,##0');
     const noName = ws.getRow(9);
-    expect(noName.getCell(2).value).toBe(missing1cText({ supplierName: 'ТЕПЛОАРМАТУРА', sku: 'B-5' }));
-    expect(noName.getCell(2).value).toBe('Немає назви 1С: запросити в постачальника ТЕПЛОАРМАТУРА (артикул B-5)');
-    expect((noName.getCell(2).fill as { fgColor?: { argb?: string } }).fgColor?.argb).toBe('FFFFF3C4');
+    expect(noName.getCell(5).value).toBe(missing1cText({ supplierName: 'ТЕПЛОАРМАТУРА', sku: 'B-5' }));
+    expect(noName.getCell(5).value).toBe('Немає назви 1С: запросити в постачальника ТЕПЛОАРМАТУРА (артикул B-5)');
+    expect((noName.getCell(5).fill as { fgColor?: { argb?: string } }).fgColor?.argb).toBe('FFFFF3C4');
     expect([ws.getRow(10).getCell(8).value, ws.getRow(11).getCell(8).value, ws.getRow(12).getCell(8).value]).toEqual(['Разом без ПДВ', 'ПДВ', 'Разом з ПДВ']);
     expect(ws.getRow(12).getCell(9).value).toBe(2352);
+  });
+
+  it('формат кількості в Excel: ціле без дробової частини, дробове до 3 знаків', () => {
+    expect([qtyNumFmt(2), qtyNumFmt(120), qtyNumFmt(1.5), qtyNumFmt(12.75)]).toEqual(['#,##0', '#,##0', '#,##0.###', '#,##0.###']);
   });
 });

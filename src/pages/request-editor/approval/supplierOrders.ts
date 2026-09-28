@@ -4,7 +4,7 @@ import { formatDate, formatRequestNumber } from '@shared/format';
 import { checkMultiplicity, offerMultiplicity, round2 } from '@shared/pricing';
 import type { CurrencyCode } from '@shared/enums';
 import type { DocumentRefs, KpRow, RequestComputed, RequestDocument, UUID } from '@shared/types';
-import { loadExcelJs, saveBlob, XLSX_MIME } from '@/lib/files';
+import { loadExcelJs, qtyNumFmt, saveBlob, XLSX_MIME } from '@/lib/files';
 
 export interface SupplierOrderRow {
   lineId: UUID;
@@ -136,7 +136,7 @@ export async function buildSupplierOrdersWorkbook(orders: readonly SupplierOrder
       row.getCell(1).alignment = { horizontal: 'center', vertical: 'top' };
       row.getCell(4).alignment = { wrapText: true, vertical: 'top' };
       row.getCell(5).alignment = { horizontal: 'center', vertical: 'top' };
-      row.getCell(6).numFmt = '#,##0.###';
+      row.getCell(6).numFmt = qtyNumFmt(r.qty);
       row.getCell(7).numFmt = moneyFmt(r.currency);
       row.getCell(8).numFmt = moneyFmt(r.currency);
       if (r.roundedFrom != null) row.getCell(6).note = `Погоджено ${r.roundedFrom}, округлено до кратності`;
