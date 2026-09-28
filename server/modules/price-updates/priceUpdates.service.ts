@@ -387,12 +387,19 @@ async function writePlan(tx: Prisma.TransactionClient, ctx: RunContext, price: P
   const now = new Date();
   // картки, які змінили вручну вже після звірки, не перезаписуємо: блокуємо рядки й звіряємо версії;
   // далі такі правки чекають кінця запису, а товар оновить наступний запуск
-  const edited = await editedSincePlan(tx, plan.updates);
+  // фото теж: заміна видаляє попередні фото з прайсу, тож картку, змінену під час запису, не чіпаємо й тут
+  const edited = await editedSincePlan(tx, [
+    ...plan.updates.map((u) => ({ id: u.id, version: u.version })),
+    ...plan.imageReplacements.map((r) => ({ id: r.productId, version: r.version })),
+    ...plan.imageAttachments.map((a) => ({ id: a.productId, version: a.version })),
+  ]);
   if (edited.size) {
     plan = {
       ...plan,
       updates: plan.updates.filter((u) => !edited.has(u.id)),
       historyEntries: plan.historyEntries.filter((h) => !edited.has(h.productId)),
+      imageReplacements: plan.imageReplacements.filter((r) => !edited.has(r.productId)),
+      imageAttachments: plan.imageAttachments.filter((a) => !edited.has(a.productId)),
     };
     price = { ...price, warnings: [...price.warnings, `Товарів, які змінили вручну під час оновлення, не перезаписано: ${edited.size}. Їх оновить наступний запуск`] };
   }
@@ -519,13 +526,13 @@ async function replaceFeedImages(tx: Prisma.TransactionClient, replacements: rea
 const feedImageUrl = (url: string): string => imageUrlOf({ id: '', source: 'feed', url });
 
 /** Товари з плану, чия версія змінилась після звірки (рядки блокуються до кінця запису). */
-async function editedSincePlan(tx: Prisma.TransactionClient, updates: readonly ProductUpdate[]): Promise<Set<UUID>> {
-  const planned = new Map(updates.filter((u) => u.version != null).map((u) => [u.id, u.version!]));
+async function editedSincePlan(tx: Prisma.TransactionClient, planned: readonly { id: UUID; version?: number }[]): Promise<Set<UUID>> {
+  const versions = new Map(planned.filter((u) => u.version != null).map((u) => [u.id, u.version!]));
   const edited = new Set<UUID>();
-  for (const ids of chunks([...planned.keys()], ID_BATCH)) {
+  for (const ids of chunks([...versions.keys()], ID_BATCH)) {
     const rows = await tx.$queryRaw<{ id: UUID; version: number }[]>`
       SELECT id, version FROM "Product" WHERE id IN (${Prisma.join(ids)}) FOR UPDATE`;
-    for (const r of rows) if (r.version !== planned.get(r.id)) edited.add(r.id);
+    for (const r of rows) if (r.version !== versions.get(r.id)) edited.add(r.id);
   }
   return edited;
 }

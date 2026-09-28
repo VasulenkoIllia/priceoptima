@@ -629,6 +629,7 @@ export async function productOrFail(id: UUID): Promise<Product> {
 const decimalOrNull = (v: Prisma.Decimal | null): number | null => (v === null ? null : v.toNumber());
 
 const NAME1C_BATCH = 1000;
+const NAME1C_TX_TIMEOUT_MS = 2 * 60 * 1000;
 const NOT_FOUND_LIMIT = 500;
 
 /**
@@ -677,7 +678,8 @@ async function writeName1c(products: readonly Name1cSource[], updates: readonly 
         FROM (VALUES ${Prisma.join(values)}) AS v(id, name1c, search_text)
         WHERE p.id = v.id`;
     }
-  });
+    // до 50 тис. рядків пакетами — довше за типові 5 с транзакції
+  }, { timeout: NAME1C_TX_TIMEOUT_MS, maxWait: 30_000 });
 }
 
 const NAME1C_MODE_LABELS: Record<ProductsName1cBody['mode'], string> = {
@@ -692,11 +694,15 @@ const NAME1C_MODE_LABELS: Record<ProductsName1cBody['mode'], string> = {
  */
 export async function setProductsName1c(input: ProductsName1cBody, actor: User): Promise<ProductsName1cResult> {
   const where: Prisma.ProductWhereInput = input.ids ? { id: { in: input.ids } } : listWhere(input.filter!, await catalogContext());
-  const matched = await prisma.product.count({ where });
-  if (matched > PRODUCTS_NAME1C_MAX) {
-    throw validationError(`Знайдено ${matched.toLocaleString('uk-UA')} товарів, за раз — до ${PRODUCTS_NAME1C_MAX.toLocaleString('uk-UA')}. Звузьте пошук`);
+  // один запит із межею: окремий підрахунок перед вибіркою пропускав би товари, додані між ними
+  const products = await prisma.product.findMany({
+    where,
+    select: { id: true, sku: true, nameWork: true, name1c: true, brand: true },
+    take: PRODUCTS_NAME1C_MAX + 1,
+  });
+  if (products.length > PRODUCTS_NAME1C_MAX) {
+    throw validationError(`Знайдено понад ${PRODUCTS_NAME1C_MAX.toLocaleString('uk-UA')} товарів, а за раз можна не більше. Звузьте пошук`);
   }
-  const products = await prisma.product.findMany({ where, select: { id: true, sku: true, nameWork: true, name1c: true, brand: true } });
   let tooLong = 0;
   const updates: { id: string; name1c: string | null }[] = [];
   for (const p of products) {

@@ -68,7 +68,7 @@ export function FeedUpdateDialog({ supplier, onClose, onApplied }: FeedUpdateDia
         showIcon
         style={{ marginBottom: 12 }}
         message="Разове оновлення з вигрузки лише вибраних полів. Щоденне автооновлення не змінюється."
-        description="«Перевірити» завантажує вигрузку й показує, що зміниться, нічого не записуючи. «Застосувати» — після перевірки, з тим самим вибором."
+        description="«Перевірити» завантажує вигрузку й показує, що зміниться, нічого не записуючи. «Застосувати» стає доступним після перевірки з тим самим вибором."
       />
       <PriceFieldsPicker value={fields} onChange={setFields} unavailable={unavailable} disabled={check.isPending || apply.isPending} />
       {preview ? (

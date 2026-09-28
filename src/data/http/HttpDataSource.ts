@@ -316,7 +316,6 @@ export class HttpDataSource implements DataSource {
     return api<ProductsName1cResult>('/products/name1c-bulk', { body: input });
   }
 
-
   searchProducts(query: ProductSearchQuery): Promise<ProductPickDto[]> {
     return api<ProductPickDto[]>('/products/search', {
       query: { q: query.q, supplierId: query.supplierId, limit: query.limit, includeArchived: query.includeArchived },

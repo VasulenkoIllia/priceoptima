@@ -44,7 +44,6 @@ interface ImportOptions {
   rrpIncludesVat: boolean;
   currency: CurrencyCode;
   skipRowsWithoutPrice: boolean;
-  markMissing: boolean;
 }
 
 export interface PriceImportDialogProps {
@@ -103,7 +102,6 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     rrpIncludesVat: true,
     currency: 'UAH',
     skipRowsWithoutPrice: true,
-    markMissing: false,
   });
   // що оновлювати: щоразу стартово «ціни, наявність, нові» (рішення власника 28.09), решта — свідомо
   const [fields, setFields] = useState<PriceUpdateField[]>([...FILE_DEFAULT_FIELDS]);
@@ -139,8 +137,6 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       rrpIncludesVat: saved?.rrpIncludesVat ?? supplier.data?.rrpIncludesVat ?? true,
       currency,
       skipRowsWithoutPrice: saved?.skipRowsWithoutPrice ?? true,
-      // «Позначити зниклі» тепер серед галочок «Що оновити» і не запам'ятовується
-      markMissing: false,
     });
     return picked;
   };
@@ -198,7 +194,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, rates: fileRates, fields: sendFields }),
   });
 
-  // «Перегляд»: що зміниться в каталозі — рахує сервер без запису (нова спроба заміняє попередню)
+  // «Перегляд»: що зміниться в каталозі — рахує сервер без запису (нова спроба заміняє попередню: хук показує лише останній
+  // виклик mutate, тож пізня відповідь старішої перевірки нічого не перепише; не додавайте сюди onSuccess, що пише в стан)
   const preview = useMutation({
     mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, rates: fileRates, dryRun: true, fields: sendFields }),
   });
@@ -232,7 +229,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   });
 
   const rememberColumns = async () => {
-    const next: PriceImportMapping = toSavedMapping(mapping, header, options, sheetName);
+    // «Позначити зниклі» тепер серед галочок «Що оновити» і не запам'ятовується (поле лишається для сумісності збереженого)
+    const next: PriceImportMapping = toSavedMapping(mapping, header, { ...options, markMissing: false }, sheetName);
     try {
       queryClient.setQueryData(qk.priceMapping(supplierId), await ds.savePriceImportMapping(supplierId, next));
     } catch (e) {

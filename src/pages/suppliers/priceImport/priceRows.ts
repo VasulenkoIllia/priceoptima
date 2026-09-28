@@ -30,7 +30,7 @@ export const ROLE_HINTS: Partial<Record<PriceColumnRole, string>> = {
   purchasePrice: 'Ціна опт / закупівельна. З ПДВ вона чи без, вкажіть нижче',
   rrp: 'Рекомендована роздрібна ціна, завжди читається як ціна з ПДВ',
   stock: 'Наявність, залишок або кількість: «100+», «є», «під замовлення»',
-  image: 'Посилання на фото товару (http…); кілька — через пробіл, кому чи «;», перше стане головним',
+  image: 'Посилання на фото товару (http…). Кілька посилань розділяйте пробілом, комою чи «;»; перше стане головним',
 };
 
 export type PriceColumnMap = { headerRow: number | null } & Record<PriceColumnRole, number | null>;

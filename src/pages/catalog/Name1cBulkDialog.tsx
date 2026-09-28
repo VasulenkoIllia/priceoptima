@@ -8,8 +8,8 @@ import type { ProductListQuery, ProductsName1cMode, UUID } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
 
 const MODES: { value: ProductsName1cMode; label: string }[] = [
-  { value: 'copyEmpty', label: 'Скопіювати робочу назву в назву 1С — лише де назва 1С порожня' },
-  { value: 'copyAll', label: 'Скопіювати робочу назву в назву 1С — у всі (вписані замінюються)' },
+  { value: 'copyEmpty', label: 'Скопіювати робочу назву в назву 1С (лише де назва 1С порожня)' },
+  { value: 'copyAll', label: 'Скопіювати робочу назву в назву 1С у всі товари (вписані замінюються)' },
   { value: 'clear', label: 'Очистити назву 1С' },
 ];
 
@@ -89,7 +89,7 @@ export function Name1cBulkDialog({ scope, count, ids, filter, onClose, onDone }:
                 {mode === 'copyAll' && changed ? <div>Вписані вручну назви 1С буде замінено робочою назвою.</div> : null}
                 {mode === 'clear' && changed ? <div>Назви 1С буде очищено; у рахунку для бухгалтера ці позиції стануть жовтими.</div> : null}
                 {check.data.tooLong ? (
-                  <div>Робоча назва довша за 300 символів у {formatQty(check.data.tooLong)} товарів — їм назву 1С не скопійовано.</div>
+                  <div>Робоча назва довша за 300 символів у {formatQty(check.data.tooLong)} товарів: їм назву 1С не скопійовано.</div>
                 ) : null}
               </>
             }

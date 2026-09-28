@@ -110,22 +110,8 @@ function jsonField(value: unknown, message: string): unknown {
 
 /** Поля форми multipart → те саме тіло, що й у JSON-запиті. Назва файлу за замовчуванням — з самого файлу. */
 export function importBodyFromForm(fields: Record<string, unknown>, uploadedName: string | null): unknown {
-  let rows: unknown = fields.rows;
-  if (typeof rows === 'string') {
-    try {
-      rows = JSON.parse(rows) as unknown;
-    } catch {
-      throw new ApiError('VALIDATION_ERROR', 'Рядки прайсу мають бути JSON-списком');
-    }
-  }
-  let rates: unknown = fields.rates;
-  if (typeof rates === 'string') {
-    try {
-      rates = JSON.parse(rates) as unknown;
-    } catch {
-      throw new ApiError('VALIDATION_ERROR', 'Курс прайсу має бути JSON-об’єктом');
-    }
-  }
+  const rows = jsonField(fields.rows, 'Рядки прайсу мають бути JSON-списком');
+  const rates = jsonField(fields.rates, 'Курс прайсу має бути JSON-об’єктом');
   return {
     supplierId: fields.supplierId,
     rows,

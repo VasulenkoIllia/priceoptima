@@ -145,6 +145,8 @@ export interface HistoryEntry {
 export interface ImageAttachment {
   productId: UUID;
   urls: string[];
+  /** Версія картки на момент звірки (як у ProductUpdate): змінену вручну під час запису не чіпаємо. */
+  version?: number;
 }
 
 export interface PlanCounters {
@@ -518,11 +520,11 @@ export function planApply(input: PlanInput): PlanResult {
       // рядок без фото — фото товару не чіпаємо; ті самі фото — не переписуємо
       const before = current.feedImageUrls ?? [];
       if (urls.length && !sameList(urls, before)) {
-        plan.imageReplacements.push({ productId: current.id, urls });
+        plan.imageReplacements.push({ productId: current.id, urls, version: current.version });
         replaced.push({ field: 'images', old: `${before.length} фото`, new: `${urls.length} фото` });
       }
     } else if (roles.assortment && !current.hasImages && urls.length) {
-      plan.imageAttachments.push({ productId: current.id, urls });
+      plan.imageAttachments.push({ productId: current.id, urls, version: current.version });
     }
     if (fillName1c && !current.name1c?.trim() && next.nameWork.length <= NAME1C_MAX_LENGTH) {
       next.name1c = next.nameWork;
