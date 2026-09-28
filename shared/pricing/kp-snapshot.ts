@@ -57,6 +57,11 @@ const PRICE_HEADERS: Record<KpVatMode, { priceHeader: string; sumHeader: string 
   no_vat: { priceHeader: 'Ціна, грн', sumHeader: 'Сума, грн' },
 };
 
+/** Рядок «Менеджер» за галочкою «Вказати менеджера в КП»: знята — рядка немає; немає поля (заявки до 28.09) — є. */
+export function kpShownManager(settings: Pick<KpSettings, 'showManager'>, managerName: string): string {
+  return settings.showManager === false ? '' : managerName;
+}
+
 /** Рядок «Менеджер» бланка: 'Коваль О.В., тел. 067 000 11 22'. */
 export function kpManagerName(u: { shortName: string; phone?: string | null } | null | undefined): string {
   return u ? `${u.shortName}${u.phone ? `, тел. ${u.phone}` : ''}` : '';
@@ -133,7 +138,7 @@ export function buildKpSnapshot(input: KpSnapshotInput): KpSnapshot {
     totals,
     amountInWords: amountInWordsUah(totals.payable),
     // галочку «Вказати менеджера» зняли — рядка «Менеджер» у КП немає (правки замовника 28.09 п.5)
-    managerName: settings.showManager === false ? '' : input.managerName,
+    managerName: kpShownManager(settings, input.managerName),
     validUntil: settings.validityDays > 0 ? addDaysIso(input.date, settings.validityDays) : null,
     footer: seller.kpFooter,
     terms: cleanKpTerms(input.terms),

@@ -3,7 +3,7 @@
 import { CopyOutlined, FileExcelOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Checkbox, Input, InputNumber, Radio, Select, Spin, Tag, Tooltip } from 'antd';
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { KP_NAME_SOURCE_LABELS, KP_NAME_SOURCES, KP_VAT_MODE_LABELS, type KpNameSource, type KpVatMode } from '@shared/enums';
 import { formatDateTime, formatKpNumber, formatMoney } from '@shared/format';
@@ -249,7 +249,7 @@ export default function KpTab() {
   const base = latestBaseKp(kps.data);
   const validityDays = useRequestDoc((s) => s.doc?.header.kpSettings.validityDays ?? 0);
   // що змінилось після останньої версії (ціни, галочки, умови…): щоб увійшло в КП — нова версія
-  const changes = base && preview ? kpChangesSince(base, preview, validityDays) : [];
+  const changes = useMemo(() => (base && preview ? kpChangesSince(base, preview, validityDays) : []), [base, preview, validityDays]);
   const changesText = base && changes.length ? `Після КП № ${base.numberLabel} (версія ${base.version}) змінились: ${changes.join(', ')}` : null;
   const blockReason = readOnly
     ? 'Заявка відкрита лише для перегляду'

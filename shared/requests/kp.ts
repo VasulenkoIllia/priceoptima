@@ -4,6 +4,7 @@ import { formatMoney } from '../format';
 import {
   approvalBaseKp,
   buildFinalKpSnapshot,
+  kpShownManager,
   buildKpRows,
   buildKpSnapshot,
   computeRequest,
@@ -61,7 +62,7 @@ export function buildKpVersion(i: KpBuildInput): KpBuilt {
       kpNumber: i.kpNumber,
       date: i.date,
       validityDays: i.settings.validityDays,
-      managerName: i.settings.showManager === false ? '' : i.parties.managerName,
+      managerName: kpShownManager(i.settings, i.parties.managerName),
     });
     if (!snapshot.rows.length) throw new KpBuildError('VALIDATION_ERROR', 'Немає погоджених позицій, відмітьте їх на вкладці «Погодження»');
     return { snapshot, ownCompanyId: base.ownCompanyId, settings: { ...base.settings, onlyApproved: true } };

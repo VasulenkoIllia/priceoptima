@@ -3,13 +3,16 @@
 // потрібна нова версія (правки замовника 28.09 п.5: зняли галочку після формування, а у відкритій версії менеджер лишився).
 import type { KpDocumentDto, KpSnapshot } from '@shared/types';
 
-/** Те саме значення незалежно від порядку полів: збережена версія приходить з бази (JSONB) з іншим порядком ключів. */
+/**
+ * Те саме значення незалежно від порядку полів (збережена версія приходить з бази, JSONB, з іншим порядком ключів);
+ * поле без значення й відсутнє поле (у старіших знімках) — однаково.
+ */
 function stable(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(stable);
   if (v && typeof v === 'object') {
     return Object.fromEntries(
       Object.entries(v as Record<string, unknown>)
-        .filter(([, x]) => x !== undefined)
+        .filter(([, x]) => x != null)
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .map(([k, x]) => [k, stable(x)]),
     );
@@ -29,7 +32,8 @@ export function kpChangesSince(
 ): string[] {
   const was = base.snapshot;
   const changes: string[] = [];
-  if (!same(was.seller, preview.seller)) changes.push('наша юрособа');
+  // реквізити, шапка (слоган, телефон, логотип) і підпис унизу — усе з картки нашої юрособи
+  if (!same(was.seller, preview.seller) || !same(was.header, preview.header) || !same(was.footer, preview.footer)) changes.push('наша юрособа');
   if (!same(was.buyer, preview.buyer)) changes.push('покупець');
   if (was.totals.vatMode !== preview.totals.vatMode) changes.push('ціни з ПДВ чи без');
   if (was.rows.length !== preview.rows.length) changes.push('кількість позицій');

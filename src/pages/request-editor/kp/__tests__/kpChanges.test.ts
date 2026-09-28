@@ -65,6 +65,13 @@ describe('зміни після сформованої версії КП', () =>
     expect(kpChangesSince(base, preview, 5)).toEqual(['ціни чи кількості', 'фото', 'строк дії', 'умови', 'дод. інформація']);
   });
 
+  it('шапка чи підпис нашої юрособи змінились у картці — «наша юрособа»; у старому знімку немає поля — це не зміна', () => {
+    expect(kpChangesSince(base, buildKpSnapshot({ ...input, seller: { ...seller, phone: '067 111 22 33' } }), 3)).toEqual(['наша юрособа']);
+    expect(kpChangesSince(base, buildKpSnapshot({ ...input, seller: { ...seller, kpFooter: 'Дякуємо!' } }), 3)).toEqual(['наша юрособа']);
+    const { slogan: _omit, ...oldHeader } = base.snapshot.header;
+    expect(kpChangesSince({ snapshot: { ...base.snapshot, header: oldHeader as typeof base.snapshot.header }, settings }, buildKpSnapshot(input), 3)).toEqual([]);
+  });
+
   it('інша кількість позицій, назви, покупець, режим ПДВ', () => {
     expect(kpChangesSince(base, buildKpSnapshot({ ...input, rows: [rows[0]!] }), 3)).toEqual(['кількість позицій']);
     expect(kpChangesSince(base, buildKpSnapshot({ ...input, rows: [{ ...rows[0]!, name: 'Змішувач (1С)' }, rows[1]!] }), 3)).toEqual(['назви товарів']);
