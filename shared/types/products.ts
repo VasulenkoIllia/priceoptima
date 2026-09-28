@@ -111,7 +111,6 @@ export type ProductSortField =
   | 'priceUpdatedAt'
   | 'priceSource';
 
-/** Сторінка номенклатури: каталог на десятки тисяч позицій читається шматками. */
 /** Масова зміна одиниці й кратності (правки замовника 25.09 п.8): напр., труби, які постачальник продає метрами. */
 export interface ProductsUnitInput {
   ids: UUID[];
@@ -119,6 +118,30 @@ export interface ProductsUnitInput {
   multiplicity: number;
 }
 
+/**
+ * Назва 1С масово (правки замовника 28.09): copyEmpty — робоча назва в порожню назву 1С; copyAll — у всі;
+ * clear — очистити. Для вибраних товарів (ids) або всіх знайдених за фільтром «Номенклатури» (filter).
+ */
+export type ProductsName1cMode = 'copyEmpty' | 'copyAll' | 'clear';
+
+export interface ProductsName1cInput {
+  mode: ProductsName1cMode;
+  ids?: UUID[];
+  filter?: ProductListQuery;
+  /** Лише порахувати. */
+  dryRun?: boolean;
+}
+
+export interface ProductsName1cResult {
+  /** Товарів у виборі. */
+  matched: number;
+  /** Зміниться (змінилось) назв 1С. */
+  changed: number;
+  /** Робоча назва довша за 300 символів — у назву 1С не копіюється. */
+  tooLong: number;
+}
+
+/** Сторінка номенклатури: каталог на десятки тисяч позицій читається шматками. */
 export interface ProductPageQuery extends ProductListQuery {
   offset: number;
   limit: number;

@@ -4,6 +4,8 @@ import type { ForeignCurrency, UserRole } from '@shared/enums';
 import type {
   AttachmentDto,
   ProductListQuery,
+  ProductsName1cInput,
+  ProductsName1cResult,
   ProductsUnitInput,
   AppSettings,
   AppSettingsPatch,
@@ -164,6 +166,8 @@ export interface DataSource {
   listProductsPage(query: ProductPageQuery): Promise<ProductPage>;
   /** Одиниця й кратність для вибраних товарів одразу (до 500). */
   setProductsUnit(input: ProductsUnitInput): Promise<{ updated: number }>;
+  /** Назва 1С масово: робоча в порожні чи в усі, або очистити (dryRun — лише порахувати). */
+  setProductsName1c(input: ProductsName1cInput): Promise<ProductsName1cResult>;
   /** Excel із номенклатурою за поточними фільтрами (до 100 000 позицій). */
   exportProducts(query: ProductListQuery): Promise<Blob>;
   searchProducts(query: ProductSearchQuery): Promise<ProductPickDto[]>;

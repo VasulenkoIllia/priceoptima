@@ -72,6 +72,8 @@ import type {
   ProfileInput,
   RegisterInput,
   UiPrefsDto,
+  ProductsName1cInput,
+  ProductsName1cResult,
   ProductsUnitInput,
 } from '@shared/types';
 import type { PriceUpdateField } from '@shared/catalog/priceUpdateFields';
@@ -308,6 +310,10 @@ export class HttpDataSource implements DataSource {
   }
   setProductsUnit(input: ProductsUnitInput): Promise<{ updated: number }> {
     return api<{ updated: number }>('/products/unit', { body: input });
+  }
+
+  setProductsName1c(input: ProductsName1cInput): Promise<ProductsName1cResult> {
+    return api<ProductsName1cResult>('/products/name1c-bulk', { body: input });
   }
 
 

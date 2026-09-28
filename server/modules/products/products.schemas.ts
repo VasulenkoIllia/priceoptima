@@ -171,6 +171,25 @@ export const productsUnitSchema = z.object({
   multiplicity: z.number({ message: 'Кратність: вкажіть число' }).gt(0, 'Кратність: більше нуля').max(100_000, 'Кратність: завелике значення'),
 });
 
+/** Назва 1С масово (правки замовника 28.09): вибраним або всім знайденим за фільтром (постачальник чи пошук обов'язкові). */
+export const PRODUCTS_NAME1C_MAX = 50_000;
+export const PRODUCTS_NAME1C_MODES = ['copyEmpty', 'copyAll', 'clear'] as const;
+
+export const productsName1cSchema = z
+  .object({
+    mode: z.enum(PRODUCTS_NAME1C_MODES, { message: 'Невідома дія з назвою 1С' }),
+    ids: z
+      .array(z.uuid('Невірний ідентифікатор товару'))
+      .min(1, 'Не вибрано жодного товару')
+      .max(PRODUCTS_NAME1C_MAX, `Забагато товарів за раз (до ${PRODUCTS_NAME1C_MAX})`)
+      .refine((ids) => new Set(ids).size === ids.length, 'Товар у списку двічі')
+      .optional(),
+    filter: productListQuerySchema.optional(),
+    dryRun: z.boolean({ message: 'dryRun: так або ні' }).default(false),
+  })
+  .refine((v) => !!v.ids !== !!v.filter, 'Передайте або вибрані товари, або фільтр')
+  .refine((v) => !v.filter || !!v.filter.supplierId || !!v.filter.q, 'Для всіх знайдених виберіть постачальника або введіть пошук');
+
 export const productPriceUpdateSchema = z.object({
   currency,
   purchasePrice: money('Вхідна ціна'),
@@ -195,6 +214,7 @@ export const name1cImportSchema = z.object({
 });
 
 export type ProductListQueryInput = z.infer<typeof productListQuerySchema>;
+export type ProductsName1cBody = z.infer<typeof productsName1cSchema>;
 export type ProductSearchQueryInput = z.infer<typeof productSearchQuerySchema>;
 export type SkuLookupInput = z.infer<typeof skuLookupSchema>;
 export type ProductInputBody = z.infer<typeof productInputSchema>;

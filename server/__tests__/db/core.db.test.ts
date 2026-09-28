@@ -14,8 +14,8 @@ import { createOwnCompany } from '../../modules/own-companies/ownCompanies.servi
 import { ownCompanyInputSchema } from '../../modules/own-companies/ownCompanies.schemas';
 import { importBodySchema } from '../../modules/price-updates/priceUpdates.schemas';
 import { importPriceRows } from '../../modules/price-updates/priceUpdates.service';
-import { productInputSchema, productPatchSchema, productPriceUpdateSchema, productsUnitSchema } from '../../modules/products/products.schemas';
-import { createProduct, getPriceHistory, getProduct, setProductsUnit, updateProduct, updateProductPrice } from '../../modules/products/products.service';
+import { productInputSchema, productPatchSchema, productPriceUpdateSchema, productsName1cSchema, productsUnitSchema } from '../../modules/products/products.schemas';
+import { createProduct, getPriceHistory, getProduct, setProductsName1c, setProductsUnit, updateProduct, updateProductPrice } from '../../modules/products/products.service';
 import { kpCreateSchema, createRequestSchema, documentPatchSchema } from '../../modules/requests/requests.schemas';
 import { createKp, listKps } from '../../modules/requests/kp.service';
 import { acquireLock, activeLock, forceLock, releaseLock } from '../../modules/requests/locks.service';
@@ -186,6 +186,46 @@ describe('одиниця й кратність кільком товарам о�
       { code: `PIPE-${RUN}-2`, name: 'Труба PPR 25', purchasePrice: 45 },
     ]);
     expect(await getProduct(p1.id)).toMatchObject({ unitCode: 'м', multiplicity: 3.9 });
+  });
+});
+
+describe('назва 1С масово (правки замовника 28.09)', () => {
+  it('лише порожні / в усі / очистити; вибрані або всі знайдені постачальника; довга назва не копіюється; підрахунок нічого не пише', async () => {
+    const other = (await createSupplier(parse(supplierInputSchema, { name: `Назви 1С ${RUN}`, defaultCurrency: 'UAH' }), admin)).id;
+    await importPriceRows(
+      parse(importBodySchema, {
+        supplierId: other,
+        fileName: 'назви.xlsx',
+        rows: [
+          { code: 'N-1', name: 'Кран', purchasePrice: 10 },
+          { code: 'N-2', name: 'Труба', purchasePrice: 20 },
+          { code: 'N-3', name: 'Д'.repeat(301), purchasePrice: 30 },
+        ],
+      }),
+      admin,
+      null,
+    );
+    const bySku = async () => new Map((await prisma.product.findMany({ where: { supplierId: other } })).map((p) => [p.sku, p]));
+    let p = await bySku();
+    await prisma.product.update({ where: { id: p.get('N-2')!.id }, data: { name1c: 'Труба (1С)' } });
+    const run = (body: object) => setProductsName1c(parse(productsName1cSchema, body), admin);
+    const filter = { supplierId: other };
+
+    expect(await run({ mode: 'copyEmpty', filter, dryRun: true })).toEqual({ matched: 3, changed: 1, tooLong: 1 });
+    expect((await bySku()).get('N-1')!.name1c).toBeNull();
+    expect(await run({ mode: 'copyEmpty', filter })).toEqual({ matched: 3, changed: 1, tooLong: 1 });
+    p = await bySku();
+    expect([p.get('N-1')!.name1c, p.get('N-2')!.name1c, p.get('N-3')!.name1c]).toEqual(['Кран', 'Труба (1С)', null]);
+    expect(p.get('N-1')!.searchText).toContain('кран');
+
+    expect(await run({ mode: 'copyAll', ids: [p.get('N-2')!.id] })).toEqual({ matched: 1, changed: 1, tooLong: 0 });
+    expect((await bySku()).get('N-2')).toMatchObject({ name1c: 'Труба', version: p.get('N-2')!.version + 1 });
+
+    expect(await run({ mode: 'clear', filter })).toMatchObject({ changed: 2 });
+    expect([...(await bySku()).values()].map((x) => x.name1c)).toEqual([null, null, null]);
+
+    // «усі знайдені» без постачальника й пошуку — не можна
+    expect(() => parse(productsName1cSchema, { mode: 'clear', filter: {} })).toThrow('виберіть постачальника або введіть пошук');
   });
 });
 

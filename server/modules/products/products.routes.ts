@@ -14,6 +14,7 @@ import {
   productPatchSchema,
   productPriceUpdateSchema,
   productSearchQuerySchema,
+  productsName1cSchema,
   productsUnitSchema,
   skuLookupSchema,
 } from './products.schemas';
@@ -25,6 +26,7 @@ import {
   listProductsPage,
   lookupSkus,
   searchProducts,
+  setProductsName1c,
   setProductsUnit,
   updateProduct,
   updateProductPrice,
@@ -69,6 +71,14 @@ productsRouter.post(
   '/name1c',
   asyncHandler(async (req, res) => {
     res.json(await importName1c(parseBody(name1cImportSchema, req), currentUser(req)));
+  }),
+);
+
+// назва 1С масово: робоча в порожні чи в усі, або очистити (правки замовника 28.09)
+productsRouter.post(
+  '/name1c-bulk',
+  asyncHandler(async (req, res) => {
+    res.json(await setProductsName1c(parseBody(productsName1cSchema, req), currentUser(req)));
   }),
 );
 

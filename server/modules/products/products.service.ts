@@ -4,6 +4,7 @@
 import { Prisma, type Product, type User } from '@prisma/client';
 import { catalogSortAllowed } from '@shared/catalog/limits';
 import { planName1cImport } from '@shared/catalog/name1c';
+import { NAME1C_MAX_LENGTH } from '@shared/catalog/priceUpdateFields';
 import { toIsoDate } from '@shared/format';
 import { normalizeSku } from '@shared/parse';
 import { normalizeInputPrice } from '@shared/pricing';
@@ -14,13 +15,14 @@ import type {
   ProductPage,
   ProductPickDto,
   ProductPriceUpdateResult,
+  ProductsName1cResult,
   ProductsUnitInput,
   RatesPair,
   SkuLookupResult,
   UUID,
 } from '@shared/types';
 import { prisma } from '../../db';
-import { ApiError, duplicate, notFound } from '../../http/errors';
+import { ApiError, duplicate, notFound, validationError } from '../../http/errors';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { dateOnly } from '../../lib/mapping';
 import { audit, lastChangeOf } from '../audit/audit.service';
@@ -40,8 +42,10 @@ import {
   SEARCH_SCORE,
   type SearchPlan,
 } from './products.search';
+import { PRODUCTS_NAME1C_MAX } from './products.schemas';
 import type {
   Name1cImportInput,
+  ProductsName1cBody,
   ProductInputBody,
   ProductListQueryInput,
   ProductPatchBody,
@@ -650,6 +654,77 @@ export async function setProductsUnit(input: ProductsUnitInput, actor: User): Pr
   return { updated: count };
 }
 
+type Name1cSource = { id: string; sku: string; nameWork: string; name1c: string | null; brand: string | null };
+
+/** Назви 1С пакетами однією транзакцією; пошуковий текст — з новою назвою 1С; версія картки +1. */
+async function writeName1c(products: readonly Name1cSource[], updates: readonly { id: string; name1c: string | null }[], actor: User): Promise<void> {
+  const byId = new Map(products.map((p) => [p.id, p]));
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    for (let i = 0; i < updates.length; i += NAME1C_BATCH) {
+      const values = updates.slice(i, i + NAME1C_BATCH).map((u) => {
+        const p = byId.get(u.id)!;
+        const searchText = searchTextOf({ sku: p.sku, nameWork: p.nameWork, name1c: u.name1c, brand: p.brand });
+        return Prisma.sql`(${u.id}::text, ${u.name1c}::text, ${searchText}::text)`;
+      });
+      await tx.$executeRaw`
+        UPDATE "Product" AS p SET
+          "name1c" = v.name1c,
+          "searchText" = v.search_text,
+          "version" = p."version" + 1,
+          "updatedById" = ${actor.id},
+          "updatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
+        FROM (VALUES ${Prisma.join(values)}) AS v(id, name1c, search_text)
+        WHERE p.id = v.id`;
+    }
+  });
+}
+
+const NAME1C_MODE_LABELS: Record<ProductsName1cBody['mode'], string> = {
+  copyEmpty: 'робоча назва в порожні назви 1С',
+  copyAll: 'робоча назва в усі назви 1С',
+  clear: 'назви 1С очищено',
+};
+
+/**
+ * Назва 1С масово (правки замовника 28.09): робоча назва в порожню назву 1С чи в усі, або очистити — вибраним товарам
+ * або всім знайденим за фільтром «Номенклатури». Довша за 300 символів робоча назва не копіюється (як у картці).
+ */
+export async function setProductsName1c(input: ProductsName1cBody, actor: User): Promise<ProductsName1cResult> {
+  const where: Prisma.ProductWhereInput = input.ids ? { id: { in: input.ids } } : listWhere(input.filter!, await catalogContext());
+  const matched = await prisma.product.count({ where });
+  if (matched > PRODUCTS_NAME1C_MAX) {
+    throw validationError(`Знайдено ${matched.toLocaleString('uk-UA')} товарів, за раз — до ${PRODUCTS_NAME1C_MAX.toLocaleString('uk-UA')}. Звузьте пошук`);
+  }
+  const products = await prisma.product.findMany({ where, select: { id: true, sku: true, nameWork: true, name1c: true, brand: true } });
+  let tooLong = 0;
+  const updates: { id: string; name1c: string | null }[] = [];
+  for (const p of products) {
+    const current = p.name1c?.trim() ? p.name1c : null;
+    if (input.mode === 'clear') {
+      if (p.name1c != null) updates.push({ id: p.id, name1c: null });
+      continue;
+    }
+    if (input.mode === 'copyEmpty' && current) continue;
+    if (p.nameWork.length > NAME1C_MAX_LENGTH) {
+      tooLong++;
+      continue;
+    }
+    if (current !== p.nameWork) updates.push({ id: p.id, name1c: p.nameWork });
+  }
+  if (!input.dryRun && updates.length) {
+    await writeName1c(products, updates, actor);
+    await audit({
+      userId: actor.id,
+      action: 'product.name1c',
+      entityType: 'product',
+      entityId: null,
+      summary: `Назва 1С масово: ${NAME1C_MODE_LABELS[input.mode]}, товарів ${updates.length}`,
+    });
+  }
+  return { matched: products.length, changed: updates.length, tooLong };
+}
+
 export async function importName1c(input: Name1cImportInput, actor: User): Promise<Name1cImportResult> {
   const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true } });
   if (!supplier) throw notFound('Постачальника не знайдено');
@@ -660,26 +735,7 @@ export async function importName1c(input: Name1cImportInput, actor: User): Promi
   });
   const plan = planName1cImport(input.rows, products);
   if (!input.dryRun && plan.updates.length) {
-    const byId = new Map(products.map((p) => [p.id, p]));
-    const now = new Date();
-    await prisma.$transaction(async (tx) => {
-      for (let i = 0; i < plan.updates.length; i += NAME1C_BATCH) {
-        const values = plan.updates.slice(i, i + NAME1C_BATCH).map((u) => {
-          const p = byId.get(u.id)!;
-          const searchText = searchTextOf({ sku: p.sku, nameWork: p.nameWork, name1c: u.name1c, brand: p.brand });
-          return Prisma.sql`(${u.id}::text, ${u.name1c}::text, ${searchText}::text)`;
-        });
-        await tx.$executeRaw`
-          UPDATE "Product" AS p SET
-            "name1c" = v.name1c,
-            "searchText" = v.search_text,
-            "version" = p."version" + 1,
-            "updatedById" = ${actor.id},
-            "updatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
-          FROM (VALUES ${Prisma.join(values)}) AS v(id, name1c, search_text)
-          WHERE p.id = v.id`;
-      }
-    });
+    await writeName1c(products, plan.updates, actor);
     await audit({
       userId: actor.id,
       action: 'product.name1c',

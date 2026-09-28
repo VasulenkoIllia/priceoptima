@@ -19,6 +19,7 @@ import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { PriceImportDialog } from '../suppliers/priceImport';
 import { Name1cImportDialog } from './Name1cImportDialog';
 import { ProductDrawer } from './ProductDrawer';
+import { Name1cBulkDialog } from './Name1cBulkDialog';
 import { UnitBulkDialog } from './UnitBulkDialog';
 import { Availability, grossPrice, PriceSourceTag, priceCur, useVatRate } from './productView';
 import './catalog.css';
@@ -98,6 +99,7 @@ export default function CatalogPage() {
   const [name1cFor, setName1cFor] = useState<SupplierListItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<UUID[]>([]);
   const [unitOpen, setUnitOpen] = useState(false);
+  const [name1cOpen, setName1cOpen] = useState(false);
   // одна літера на великому каталозі — майже весь каталог; шукаємо від 2 символів
   const q = useDebouncedValue(search.trim().length >= 2 ? search.trim() : '', 300);
 
@@ -290,6 +292,8 @@ export default function CatalogPage() {
     : narrowed && total != null && total > 0 && total <= UNIT_FOUND_MAX
       ? 'found'
       : null;
+  // назва 1С масово: вибрані галочками, інакше — усі знайдені, якщо вибрано постачальника чи є пошук (правки замовника 28.09)
+  const name1cScope: 'selected' | 'found' | null = selectedIds.length ? 'selected' : narrowed && total != null && total > 0 ? 'found' : null;
   // ширина, задана користувачем, — зі збережених: колонки будуються наново й при зміні пошуку (правки замовника 25.09 п.1)
   const layoutEpoch = useUiPrefs((s) => s.layoutEpoch);
   const sortableColumns = useMemo<ColDef<ProductDetail>[]>(
@@ -381,6 +385,19 @@ export default function CatalogPage() {
               onClick={() => setUnitOpen(true)}
             >
               {selectedIds.length ? `Од. і кратність (${formatQty(selectedIds.length)})` : 'Од. і кратність'}
+            </Button>
+            <Button
+              disabled={!name1cScope}
+              title={
+                name1cScope === 'selected'
+                  ? 'Назва 1С для вибраних товарів: скопіювати робочу назву або очистити'
+                  : name1cScope === 'found'
+                    ? `Назва 1С для всіх знайдених (${formatQty(total ?? 0)}): скопіювати робочу назву або очистити`
+                    : 'Виділіть товари галочками або виберіть постачальника чи введіть пошук'
+              }
+              onClick={() => setName1cOpen(true)}
+            >
+              {selectedIds.length ? `Назва 1С (${formatQty(selectedIds.length)})` : 'Назва 1С'}
             </Button>
             <Button
               icon={<FileExcelOutlined />}
@@ -495,6 +512,20 @@ export default function CatalogPage() {
         onCreated={onProductCreated}
       />
       {name1cFor ? <Name1cImportDialog supplierId={name1cFor.id} supplierName={name1cFor.name} open onClose={() => setName1cFor(null)} /> : null}
+      {name1cOpen && name1cScope ? (
+        <Name1cBulkDialog
+          scope={name1cScope}
+          count={name1cScope === 'selected' ? selectedIds.length : (total ?? 0)}
+          ids={name1cScope === 'selected' ? selectedIds : undefined}
+          filter={name1cScope === 'found' ? filters : undefined}
+          onClose={() => setName1cOpen(false)}
+          onDone={() => {
+            setName1cOpen(false);
+            gridApi.current?.deselectAll();
+            setSelectedIds([]);
+          }}
+        />
+      ) : null}
       {unitOpen && unitScope ? (
         <UnitBulkDialog
           open
