@@ -79,6 +79,23 @@ describe('прайс файлом', () => {
       availability: null,
       multiplicity: null,
       minOrderQty: null,
+      imageUrls: [],
+    });
+    expect(parsed.fields).toBeUndefined();
+  });
+
+  it('вибір полів і фото рядка (правки замовника 28.09): відомі поля без повторів; фото лише http(s)', () => {
+    const parsed = parseImportBody({
+      ...body,
+      fields: ['nameWork', 'images', 'nameWork'],
+      rows: [{ code: 'A-1', imageUrls: ['https://img/a.jpg', 'ftp://x/b.jpg', ' http://img/c.png '] }],
+    });
+    expect(parsed.fields).toEqual(['nameWork', 'images']);
+    expect(parsed.rows[0].imageUrls).toEqual(['https://img/a.jpg', 'http://img/c.png']);
+    expect(() => parseImportBody({ ...body, fields: ['sku'] })).toThrow('Невідоме поле оновлення прайсу');
+    // форма multipart: поля — JSON-рядком
+    expect(importBodyFromForm({ supplierId: body.supplierId, rows: JSON.stringify(body.rows), fields: '["purchasePrice","images"]' }, 'p.xlsx')).toMatchObject({
+      fields: ['purchasePrice', 'images'],
     });
   });
 

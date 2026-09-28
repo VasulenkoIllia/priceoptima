@@ -2,6 +2,7 @@
 // або формою multipart із тими самими полями (rows — JSON-рядок) і самим файлом.
 import { z } from 'zod';
 import { MAX_IMPORT_ROWS } from '@shared/catalog/limits';
+import { PRICE_UPDATE_FIELDS } from '@shared/catalog/priceUpdateFields';
 import { AVAILABILITY_STATUSES, CURRENCY_CODES } from '@shared/enums';
 import { ApiError } from '../../http/errors';
 import { optionalNumberField, optionalRateField, optionalText, trimmed } from '../../lib/fields';
@@ -11,6 +12,16 @@ const MONEY_MAX = 999_999_999;
 export { MAX_IMPORT_ROWS };
 
 const supplierId = z.uuid('Невірний ідентифікатор постачальника');
+
+/** Що оновлювати (галочки ручного оновлення); немає — як автооновлення. */
+const fieldsSchema = z
+  .array(z.enum(PRICE_UPDATE_FIELDS, { message: 'Невідоме поле оновлення прайсу' }))
+  .max(PRICE_UPDATE_FIELDS.length)
+  .transform((v) => [...new Set(v)])
+  .optional();
+
+/** Фото рядка файлу: посилання http(s), до 10. */
+const IMAGE_URLS_MAX = 10;
 
 /** '1'/'true'/'yes'/'on' — так; решта — ні; параметра немає — не задано. */
 const formFlag = (value: unknown): boolean | undefined =>
@@ -33,6 +44,7 @@ export const priceUpdateIdSchema = z.object({
 export const runBodySchema = z.object({
   supplierId,
   dryRun: z.boolean({ message: 'dryRun: так або ні' }).default(false),
+  fields: fieldsSchema,
 });
 
 export const priceImportRowSchema = z.object({
@@ -58,6 +70,11 @@ export const priceImportRowSchema = z.object({
     .transform((v) => v ?? null),
   multiplicity: optionalNumberField(0, 100_000, 'Кратність'),
   minOrderQty: optionalNumberField(0, MONEY_MAX, 'Мінімальна партія'),
+  imageUrls: z
+    .array(z.string().trim().max(2000, 'Задовге посилання на фото'))
+    .max(IMAGE_URLS_MAX, `Фото: до ${IMAGE_URLS_MAX} посилань`)
+    .nullish()
+    .transform((v) => (v ?? []).filter((u) => /^https?:\/\//iu.test(u))),
 });
 
 export const importBodySchema = z.object({
@@ -73,11 +90,23 @@ export const importBodySchema = z.object({
     .object({ USD: optionalRateField('Курс USD'), EUR: optionalRateField('Курс EUR') })
     .nullish()
     .transform((v) => (v && (v.USD != null || v.EUR != null) ? v : null)),
+  fields: fieldsSchema,
 });
 
 export type PriceUpdatesQuery = z.infer<typeof priceUpdatesQuerySchema>;
 export type RunBody = z.infer<typeof runBodySchema>;
 export type ImportBody = z.infer<typeof importBodySchema>;
+
+/** Поле форми multipart, що несе JSON (рядком); немає — undefined. */
+function jsonField(value: unknown, message: string): unknown {
+  if (typeof value !== 'string') return value;
+  if (!value.trim()) return undefined;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    throw new ApiError('VALIDATION_ERROR', message);
+  }
+}
 
 /** Поля форми multipart → те саме тіло, що й у JSON-запиті. Назва файлу за замовчуванням — з самого файлу. */
 export function importBodyFromForm(fields: Record<string, unknown>, uploadedName: string | null): unknown {
@@ -104,6 +133,7 @@ export function importBodyFromForm(fields: Record<string, unknown>, uploadedName
     markMissing: formFlag(fields.markMissing),
     dryRun: formFlag(fields.dryRun),
     rates,
+    fields: jsonField(fields.fields, 'Поля оновлення мають бути JSON-списком'),
   };
 }
 

@@ -3,7 +3,7 @@
 import { AVAILABILITY_STATUSES, CURRENCY_CODES } from '@shared/enums';
 import type { AvailabilityStatus, CurrencyCode } from '@shared/enums';
 import type { PriceImportRow } from '@shared/types';
-import { emptyRow, type PriceRow } from './connectors/types';
+import { emptyRow, imageList, type PriceRow } from './connectors/types';
 
 const text = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim();
@@ -45,6 +45,7 @@ export function importRowToPriceRow(row: PriceImportRow): PriceRow {
     availability: availabilityOf(row.availability),
     multiplicity: positive(row.multiplicity),
     minOrderQty: positive(row.minOrderQty),
+    imageUrls: imageList(row.imageUrls ?? []),
   };
 }
 

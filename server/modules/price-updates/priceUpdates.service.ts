@@ -4,6 +4,7 @@
 import { Prisma, type PriceImportFile, type Supplier, type SupplierPriceFeed, type User } from '@prisma/client';
 import { getSettings } from '../settings/settings.service';
 import { FEED_CONNECTOR_INFO, isFeedConnector, type FeedConnector } from '@shared/catalog/connectors';
+import type { PriceUpdateField } from '@shared/catalog/priceUpdateFields';
 import type { RatesPair, UUID } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
@@ -93,6 +94,8 @@ interface ParsedPrice {
   warnings: string[];
   roles: SourceRoles;
   markMissing: boolean;
+  /** Що оновлювати (ручне оновлення); немає — як автооновлення. */
+  fields?: readonly PriceUpdateField[];
 }
 
 // ── журнал ──────────────────────────────────────────────────────────
@@ -118,7 +121,7 @@ export async function getPriceUpdate(id: number): Promise<PriceUpdateRunDetail> 
 /** «Оновити зараз» або щоденний розклад (user = null). */
 export async function runFeedUpdate(
   supplierId: UUID,
-  options: { user: User | null; dryRun?: boolean },
+  options: { user: User | null; dryRun?: boolean; fields?: readonly PriceUpdateField[] },
 ): Promise<PriceUpdateRunDetail> {
   const supplier = await supplierOrFail(supplierId);
   const feed = supplier.feed;
@@ -151,7 +154,9 @@ export async function runFeedUpdate(
       rates: parsed.rates ?? null,
       warnings: parsed.warnings,
       roles: rolesFor(feed.kind, 'link'),
-      markMissing: true,
+      // автооновлення позначає зниклі; ручне — якщо відмічено
+      markMissing: options.fields ? options.fields.includes('markMissing') : true,
+      fields: options.fields,
     });
   });
 }
@@ -218,7 +223,8 @@ export async function importPriceRows(
       rates: body.rates,
       warnings: [],
       roles,
-      markMissing: roles.assortment && body.markMissing,
+      markMissing: roles.assortment && (body.fields ? body.fields.includes('markMissing') : body.markMissing),
+      fields: body.fields,
     });
   });
 }
@@ -264,7 +270,7 @@ function applyPrice(ctx: RunContext, price: ParsedPrice): Promise<PriceUpdateRun
 
 async function applyPriceNow(ctx: RunContext, price: ParsedPrice): Promise<PriceUpdateRunDetail> {
   const supplierId = ctx.supplier.id;
-  const [existing, units] = await Promise.all([loadExisting(supplierId), listUnits()]);
+  const [existing, units] = await Promise.all([loadExisting(supplierId, price.fields?.includes('images') ?? false), listUnits()]);
   // звірка сотень тисяч позицій — в окремому потоці, щоб сервер відповідав іншим
   const result = await runPriceTask({
     kind: 'plan',
@@ -276,6 +282,7 @@ async function applyPriceNow(ctx: RunContext, price: ParsedPrice): Promise<Price
       roles: price.roles,
       defaultCurrency: ctx.supplier.defaultCurrency,
       units: units.filter((u) => u.isActive),
+      fields: price.fields,
     },
   });
 
@@ -325,15 +332,25 @@ const EXISTING_BATCH = 10_000;
 /** Календарний день дати ціни — як у застосунку (toIsoDate). */
 const APP_TIME_ZONE = 'Europe/Kyiv';
 
-type ExistingRow = Omit<ExistingProduct, 'hasImages'>;
+type ExistingRow = Omit<ExistingProduct, 'hasImages' | 'feedImageUrls'>;
 
 /**
  * Товари постачальника для звірки — легким SQL порціями за кодом (унікальний індекс постачальник + код): числа одразу як double (не Decimal),
  * дата — текстом. На 140 тис. позицій це ~4 рази менше пам'яті й часу, ніж findMany.
  */
-async function loadExisting(supplierId: UUID): Promise<ExistingProduct[]> {
+async function loadExisting(supplierId: UUID, withFeedImages: boolean): Promise<ExistingProduct[]> {
   const withImages = await prisma.productImage.groupBy({ by: ['productId'], where: { product: { supplierId } } });
   const hasImages = new Set(withImages.map((g) => g.productId));
+  // фото з прайсу по товарах — лише коли їх замінюють: ті самі фото не переписуємо
+  const feedImages = new Map<UUID, string[]>();
+  if (withFeedImages) {
+    const rows = await prisma.productImage.findMany({
+      where: { source: 'feed', product: { supplierId } },
+      select: { productId: true, url: true },
+      orderBy: [{ productId: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+    for (const r of rows) if (r.url) feedImages.set(r.productId, [...(feedImages.get(r.productId) ?? []), r.url]);
+  }
   const out: ExistingProduct[] = [];
   let after = '';
   for (;;) {
@@ -348,7 +365,9 @@ async function loadExisting(supplierId: UUID): Promise<ExistingProduct[]> {
       WHERE "supplierId" = ${supplierId} AND "skuKey" > ${after}
       ORDER BY "skuKey"
       LIMIT ${EXISTING_BATCH}`;
-    for (const r of rows) out.push({ ...r, hasImages: hasImages.has(r.id) });
+    for (const r of rows) {
+      out.push({ ...r, hasImages: hasImages.has(r.id), ...(withFeedImages ? { feedImageUrls: feedImages.get(r.id) ?? [] } : {}) });
+    }
     if (rows.length < EXISTING_BATCH) return out;
     after = rows[rows.length - 1].skuKey;
   }
@@ -391,6 +410,7 @@ async function writePlan(tx: Prisma.TransactionClient, ctx: RunContext, price: P
         sku: c.sku,
         skuKey: c.skuKey,
         nameWork: c.nameWork,
+        name1c: c.name1c,
         searchText: c.searchText,
         brand: c.brand,
         unitCode: c.unitCode,
@@ -419,6 +439,7 @@ async function writePlan(tx: Prisma.TransactionClient, ctx: RunContext, price: P
   );
   for (const batch of chunks(images, INSERT_BATCH)) await tx.productImage.createMany({ data: batch });
   for (const batch of chunks(plan.imageAttachments, UPDATE_BATCH)) await setMainImageUrls(tx, batch);
+  await replaceFeedImages(tx, plan.imageReplacements);
 
   // «ціну підтвердив прайс» — дата ціни; показується й рахується з точністю до дня, тож рядки, підтверджені сьогодні,
   // не переписуємо вдруге (повторне «Оновити зараз» чи той самий файл удруге не перезаписують увесь каталог постачальника)
@@ -470,6 +491,28 @@ async function writePlan(tx: Prisma.TransactionClient, ctx: RunContext, price: P
   return run.id;
 }
 
+/**
+ * «Фото» при ручному оновленні: фото з прайсу замінюються новими, перше нове — головне; фото, завантажені вручну,
+ * лишаються, і головне, вибране вручну, лишається головним.
+ */
+async function replaceFeedImages(tx: Prisma.TransactionClient, replacements: readonly { productId: UUID; urls: string[] }[]): Promise<void> {
+  for (const batch of chunks(replacements, UPDATE_BATCH)) {
+    const ids = batch.map((r) => r.productId);
+    const keepMain = new Set(
+      (await tx.productImage.findMany({ where: { productId: { in: ids }, source: 'upload', isMain: true }, select: { productId: true } })).map(
+        (r) => r.productId,
+      ),
+    );
+    await tx.productImage.deleteMany({ where: { productId: { in: ids }, source: 'feed' } });
+    const images = batch.flatMap(({ productId, urls }) =>
+      urls.map((url, i) => ({ productId, source: 'feed' as const, url, isMain: i === 0 && !keepMain.has(productId), sortOrder: i })),
+    );
+    for (const part of chunks(images, INSERT_BATCH)) await tx.productImage.createMany({ data: part });
+    const newMain = batch.filter((r) => !keepMain.has(r.productId));
+    if (newMain.length) await setMainImageUrls(tx, newMain);
+  }
+}
+
 /** Посилання на фото з прайсу так, як його бачать списки й КП (те саме правило, що в модулі фото). */
 const feedImageUrl = (url: string): string => imageUrlOf({ id: '', source: 'feed', url });
 
@@ -492,7 +535,7 @@ async function editedSincePlan(tx: Prisma.TransactionClient, updates: readonly P
 async function updateProducts(tx: Prisma.TransactionClient, batch: readonly ProductUpdate[], now: Date): Promise<void> {
   const values = batch.map(
     (u) => Prisma.sql`(
-      ${u.id}::text, ${u.sku}::text, ${u.skuKey}::text, ${u.nameWork}::text, ${u.brand}::text, ${u.unitCode}::text,
+      ${u.id}::text, ${u.sku}::text, ${u.skuKey}::text, ${u.nameWork}::text, ${u.name1c}::text, ${u.brand}::text, ${u.unitCode}::text,
       ${u.currency}::text, ${u.purchasePrice}::numeric, ${u.rrp}::numeric, ${u.stockQty}::numeric, ${u.availability}::text,
       ${u.multiplicity}::numeric, ${u.minOrderQty}::numeric, ${u.barcode}::text, ${u.categoryPath}::text,
       ${u.searchText}::text, ${u.isArchived}::boolean
@@ -503,6 +546,7 @@ async function updateProducts(tx: Prisma.TransactionClient, batch: readonly Prod
       "sku" = v.sku,
       "skuKey" = v.sku_key,
       "nameWork" = v.name_work,
+      "name1c" = v.name1c,
       "brand" = v.brand,
       "unitCode" = v.unit_code,
       "currency" = v.currency::"Currency",
@@ -520,7 +564,7 @@ async function updateProducts(tx: Prisma.TransactionClient, batch: readonly Prod
       "version" = p."version" + 1,
       "updatedAt" = (${now.toISOString()}::timestamptz AT TIME ZONE 'UTC')
     FROM (VALUES ${Prisma.join(values)}) AS v(
-      id, sku, sku_key, name_work, brand, unit_code, currency, purchase_price, rrp, stock_qty, availability,
+      id, sku, sku_key, name_work, name1c, brand, unit_code, currency, purchase_price, rrp, stock_qty, availability,
       multiplicity, min_order_qty, barcode, category_path, search_text, is_archived
     )
     WHERE p.id = v.id`;

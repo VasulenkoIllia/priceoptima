@@ -74,6 +74,7 @@ import type {
   UiPrefsDto,
   ProductsUnitInput,
 } from '@shared/types';
+import type { PriceUpdateField } from '@shared/catalog/priceUpdateFields';
 import type { ForeignCurrency, UserRole } from '@shared/enums';
 import type { CallOptions, DataSource, LockAcquireResult } from '../DataSource';
 import { isDataSourceError } from '../errors';
@@ -248,8 +249,8 @@ export class HttpDataSource implements DataSource {
   // ── прайси постачальників ─────────────────────────────────────────
 
   /** Завантажити вигрузку постачальника зараз (за розкладом це робиться щоранку). */
-  refreshSupplierPrices(supplierId: UUID, options?: { dryRun?: boolean }): Promise<PriceUpdateDto> {
-    return api<PriceUpdateDto>('/price-updates/run', { body: { supplierId, dryRun: options?.dryRun ?? false } });
+  refreshSupplierPrices(supplierId: UUID, options?: { dryRun?: boolean; fields?: PriceUpdateField[] }): Promise<PriceUpdateDto> {
+    return api<PriceUpdateDto>('/price-updates/run', { body: { supplierId, dryRun: options?.dryRun ?? false, fields: options?.fields } });
   }
 
   listPriceUpdates(supplierId?: UUID): Promise<PriceUpdateDto[]> {

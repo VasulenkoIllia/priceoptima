@@ -111,6 +111,7 @@ describe('звірка: нові позиції', () => {
         sku: 'ab-100',
         skuKey: 'AB100',
         nameWork: 'Змішувач Grohe',
+        name1c: null,
         brand: 'Grohe',
         unitCode: 'шт',
         currency: 'EUR',
@@ -609,5 +610,103 @@ describe('звірка: попередній розрахунок', () => {
     });
     expect(second.counters).toEqual(first.counters);
     expect(existing).toEqual(snapshot);
+  });
+});
+
+describe('звірка: вибір полів (ручне оновлення, правки замовника 28.09)', () => {
+  const FEED_DEFAULT = ['purchasePrice', 'rrp', 'stock', 'newProducts', 'markMissing'] as const;
+
+  it('без вибору — як автооновлення: описи лише у звіті, назва 1С не чіпається', () => {
+    const p = product({ nameWork: 'Кран кульовый', brand: 'Старий' });
+    const result = plan({ existing: [p], rows: [rowOf(p, { name: 'Кран кульовий', brand: 'Новий' })] });
+    expect(result.updates).toEqual([]);
+    expect(result.report.detailsDiffer.total).toBe(2);
+    expect(result.report.replaced?.total).toBe(0);
+  });
+
+  it('«Назва» відмічена — назви замінюються з прайсу (SIGMA: російська → українська), пошук теж', () => {
+    const p = product({ nameWork: 'Кран шаровый 1/2' });
+    const result = plan({ existing: [p], rows: [rowOf(p, { name: 'Кран кульовий 1/2' })], fields: [...FEED_DEFAULT, 'nameWork'] });
+    expect(result.updates).toHaveLength(1);
+    expect(result.updates[0]).toMatchObject({ nameWork: 'Кран кульовий 1/2', searchText: searchTextOf({ ...p, nameWork: 'Кран кульовий 1/2' }) });
+    expect(result.report.replaced).toMatchObject({ total: 1, sample: [{ code: p.sku, field: 'nameWork', old: 'Кран шаровый 1/2', new: 'Кран кульовий 1/2' }] });
+    expect(result.report.replacedCounts).toEqual({ nameWork: 1 });
+    // замінена назва — не «розбіжність»
+    expect(result.report.detailsDiffer.total).toBe(0);
+  });
+
+  it('заміна різниться й регістром; порожнє в прайсі нічого не стирає', () => {
+    const p = product({ nameWork: 'кран', brand: 'Icma', multiplicity: 4, unitCode: 'м' });
+    const result = plan({
+      existing: [p],
+      rows: [rowOf(p, { name: 'Кран', brand: null, multiplicity: 50, unitCode: 'шт' })],
+      fields: ['nameWork', 'brand', 'multiplicity', 'unitCode'],
+    });
+    expect(result.updates[0]).toMatchObject({ nameWork: 'Кран', brand: 'Icma', multiplicity: 50, unitCode: 'шт' });
+    expect(result.report.replacedCounts).toEqual({ nameWork: 1, multiplicity: 1, unitCode: 1 });
+  });
+
+  it('ціни, наявність, нові, зниклі — лише відмічені', () => {
+    const kept = product({ purchasePrice: 100, rrp: 150, stockQty: 10 });
+    const gone = product();
+    const onlyNames = plan({
+      existing: [kept, gone],
+      rows: [rowOf(kept, { purchasePrice: 120, rrp: 170, stockQty: 3, name: 'Нова назва' }), { ...emptyRow('NEW-1'), name: 'Новий', purchasePrice: 5 }],
+      markMissing: true,
+      fields: ['nameWork'],
+    });
+    expect(onlyNames.updates[0]).toMatchObject({ purchasePrice: 100, rrp: 150, stockQty: 10, nameWork: 'Нова назва' });
+    expect(onlyNames.creates).toEqual([]);
+    expect(onlyNames.report.notFound.total).toBe(1);
+    expect(onlyNames.missingMarks).toEqual([]);
+    expect(onlyNames.priceConfirmedIds).toEqual([]);
+    expect(onlyNames.historyEntries).toEqual([]);
+
+    const pricesOnly = plan({ existing: [kept], rows: [rowOf(kept, { purchasePrice: 120, rrp: 170, stockQty: 3 })], fields: ['purchasePrice'] });
+    expect(pricesOnly.updates[0]).toMatchObject({ purchasePrice: 120, rrp: 150, stockQty: 10 });
+  });
+
+  it('«Назва 1С = робоча»: лише де порожня (після заміни назви — нова назва); новим товарам теж; довша за 300 — ні', () => {
+    const empty = product({ nameWork: 'Змішувач', name1c: null });
+    const filled = product({ nameWork: 'Кран', name1c: 'Кран (1С)' });
+    const long = product({ nameWork: 'Д'.repeat(301), name1c: '' });
+    const result = plan({
+      existing: [empty, filled, long],
+      rows: [rowOf(empty, { name: 'Змішувач новий' }), rowOf(filled), rowOf(long), { ...emptyRow('NEW-2'), name: 'Новий товар', purchasePrice: 5 }],
+      fields: [...FEED_DEFAULT, 'nameWork', 'name1c'],
+    });
+    const byId = new Map(result.updates.map((u) => [u.id, u]));
+    expect(byId.get(empty.id)).toMatchObject({ nameWork: 'Змішувач новий', name1c: 'Змішувач новий' });
+    expect(byId.has(filled.id)).toBe(false);
+    expect(byId.has(long.id)).toBe(false);
+    expect(result.creates[0]).toMatchObject({ nameWork: 'Новий товар', name1c: 'Новий товар' });
+    expect(result.report.replacedCounts).toMatchObject({ nameWork: 1, name1c: 1 });
+  });
+
+  it('«Фото»: фото з прайсу замінюються; ті самі — ні; рядок без фото — фото не чіпаємо', () => {
+    const changed = product({ hasImages: true, feedImageUrls: ['https://img/old.jpg'] });
+    const same = product({ hasImages: true, feedImageUrls: ['https://img/a.jpg'] });
+    const noRowPhotos = product({ hasImages: true, feedImageUrls: ['https://img/keep.jpg'] });
+    const result = plan({
+      existing: [changed, same, noRowPhotos],
+      rows: [rowOf(changed, { imageUrls: ['https://img/new1.jpg', 'https://img/new2.jpg'] }), rowOf(same, { imageUrls: ['https://img/a.jpg'] }), rowOf(noRowPhotos)],
+      fields: [...FEED_DEFAULT, 'images'],
+    });
+    expect(result.imageReplacements).toEqual([{ productId: changed.id, urls: ['https://img/new1.jpg', 'https://img/new2.jpg'] }]);
+    expect(result.imageAttachments).toEqual([]);
+    expect(result.report.replaced?.sample).toEqual([{ code: changed.sku, field: 'images', old: '1 фото', new: '2 фото' }]);
+  });
+
+  it('заміна описів діє й для джерела без ролі асортименту (файл у гібриді); порожні тоді не заповнюються', () => {
+    const p = product({ nameWork: 'Стара', brand: null });
+    const result = plan({ existing: [p], rows: [rowOf(p, { name: 'Нова', brand: 'Бренд' })], roles: HYBRID_FILE, fields: ['purchasePrice', 'nameWork'] });
+    expect(result.updates[0]).toMatchObject({ nameWork: 'Нова', brand: null });
+  });
+
+  it('«Позначити зниклі» знято — підозріло короткий прайс не відхиляється (зниклих не позначаємо)', () => {
+    const many = Array.from({ length: 10 }, () => product());
+    const result = plan({ existing: many, rows: [rowOf(many[0], { name: 'Інша' })], markMissing: true, fields: ['nameWork'] });
+    expect(result.missingMarks).toEqual([]);
+    expect(result.updates).toHaveLength(1);
   });
 });

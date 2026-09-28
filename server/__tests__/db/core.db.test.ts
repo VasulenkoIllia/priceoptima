@@ -110,6 +110,40 @@ describe('прайс файлом', () => {
     expect((await getSupplier(supplierId)).priceListRates.USD).toBe(41.2);
   });
 
+  it('вибір полів (правки замовника 28.09): назва, назва 1С, фото замінюються; ціни без галочки не чіпаються; головне фото, завантажене вручну, лишається', async () => {
+    const pick = (fields: string[], rows: object[]) => importFile(rows, { fields });
+    const row = { code: 'A-1', name: 'Кран кульовий', purchasePrice: 999, rrp: 150 };
+    const renamed = await pick(['nameWork', 'name1c', 'images'], [{ ...row, imageUrls: ['https://img.example/a1.jpg', 'https://img.example/a2.jpg'] }]);
+    expect(renamed.report?.replacedCounts).toMatchObject({ nameWork: 1, name1c: 1, images: 1 });
+    let a1 = await prisma.product.findFirstOrThrow({ where: { supplierId, sku: 'A-1' }, include: { images: { orderBy: { sortOrder: 'asc' } } } });
+    expect([a1.nameWork, a1.name1c, Number(a1.purchasePrice)]).toEqual(['Кран кульовий', 'Кран кульовий', 120]);
+    expect(a1.searchText).toContain('кульовий');
+    expect(a1.images.map((i) => [i.source, i.url, i.isMain])).toEqual([
+      ['feed', 'https://img.example/a1.jpg', true],
+      ['feed', 'https://img.example/a2.jpg', false],
+    ]);
+    const mainBefore = a1.imageUrl;
+    expect(mainBefore).toBeTruthy();
+
+    // своє фото, вибране головним, — лишається головним; фото з прайсу замінюються новими
+    await prisma.productImage.updateMany({ where: { productId: a1.id }, data: { isMain: false } });
+    await prisma.productImage.create({ data: { productId: a1.id, source: 'upload', storedPath: `products/${a1.id}/own.jpg`, isMain: true, sortOrder: 0 } });
+    await prisma.product.update({ where: { id: a1.id }, data: { imageUrl: '/api/images/own' } });
+    await pick(['images'], [{ ...row, imageUrls: ['https://img.example/b1.jpg'] }]);
+    a1 = await prisma.product.findFirstOrThrow({ where: { id: a1.id }, include: { images: { orderBy: [{ source: 'asc' }, { sortOrder: 'asc' }] } } });
+    expect(a1.images.map((i) => [i.source, i.url ?? i.storedPath, i.isMain])).toEqual([
+      ['feed', 'https://img.example/b1.jpg', false],
+      ['upload', `products/${a1.id}/own.jpg`, true],
+    ]);
+    expect(a1.imageUrl).toBe('/api/images/own');
+
+    // ті самі фото вдруге — нічого не переписується
+    const again = await pick(['images'], [{ ...row, imageUrls: ['https://img.example/b1.jpg'] }]);
+    expect(again.report?.replacedCounts ?? {}).toEqual({});
+    await prisma.productImage.deleteMany({ where: { productId: a1.id } });
+    await prisma.product.update({ where: { id: a1.id }, data: { imageUrl: null } });
+  });
+
   it('перегляд (dryRun) нічого не записує', async () => {
     const before = await prisma.product.count({ where: { supplierId } });
     const dry = await importFile([{ code: 'NEW-1', name: 'Нове', purchasePrice: 10 }], { dryRun: true });

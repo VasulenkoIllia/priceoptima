@@ -44,6 +44,7 @@ export interface SupplierRef {
 /** Підключення автооновлення (модуль постачальника), див. shared/catalog/connectors. */
 export type { FeedConnector } from '../catalog/connectors';
 import type { FeedConnector } from '../catalog/connectors';
+import type { PriceReplaceField, PriceUpdateField } from '../catalog/priceUpdateFields';
 
 /**
  * Звідки береться прайс: 'auto' — усе за посиланням; 'manual' — файлом від менеджера;
@@ -279,9 +280,25 @@ export interface PriceReportSection<T> {
   sample: T[];
 }
 
+/** Що замінено значенням із прайсу (ручне оновлення з галочками, правки замовника 28.09). */
+export type PriceReplacedField = PriceReplaceField | 'name1c';
+
+export interface PriceReplacedItem {
+  code: string;
+  field: PriceReplacedField;
+  /** Було в каталозі (для фото — кількість фото з прайсу). */
+  old: string;
+  /** Стане з прайсу. */
+  new: string;
+}
+
 export interface PriceUpdateReport {
   /** Поля, у яких заповнене значення каталогу відрізняється від прайсу (по запису на поле). */
   detailsDiffer: PriceReportSection<PriceDetailDiff>;
+  /** Замінено з прайсу (по запису на поле); немає — у записах до 28.09 і в автооновленні. */
+  replaced?: PriceReportSection<PriceReplacedItem>;
+  /** Скільки товарів змінилось по кожному полю, що замінювалось. */
+  replacedCounts?: Partial<Record<PriceReplacedField, number>>;
   bigPriceChanges: PriceReportSection<PriceBigChange>;
   relinked: PriceReportSection<PriceRelinkedItem>;
   notFound: PriceReportSection<PriceNotFoundRow>;
@@ -317,6 +334,8 @@ export interface PriceImportRow {
   availability?: AvailabilityStatus | null;
   multiplicity?: number | null;
   minOrderQty?: number | null;
+  /** Посилання на фото (колонка «Фото»), перше — головне. */
+  imageUrls?: string[] | null;
 }
 
 export interface PriceImportBody {
@@ -328,6 +347,8 @@ export interface PriceImportBody {
   dryRun?: boolean;
   /** Курс прайсу — з клітинки чи колонки файлу або введений у діалозі; стає «курсом із прайсу» постачальника. */
   rates?: { USD: number | null; EUR: number | null } | null;
+  /** Що оновлювати (галочки діалогу); немає — як раніше (ціни, наявність, нові; описи лише заповнюються). */
+  fields?: PriceUpdateField[];
 }
 
 /** Мапа статусів наявності з прайсу: 'є' → in_stock, 'під замовлення' → on_order. */

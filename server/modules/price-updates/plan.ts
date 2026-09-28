@@ -7,7 +7,18 @@
 // - stock      — залишок і наявність (коли рядок щось про них каже);
 // - assortment — нові позиції, «немає у прайсі», повернення з архіву, заповнення описів і фото;
 //                товар, доданий вручну, який з'явився в такому прайсі, далі веде прайс.
+//
+// Вибір полів (ручне оновлення, правки замовника 28.09, shared/catalog/priceUpdateFields.ts): ціни, наявність, нові,
+// зниклі — лише відмічені; відмічені поля опису замінюються значенням із прайсу (не відмічені — як в автооновленні);
+// фото «замінити» — фото з прайсу замінюються новими; «назва 1С» — робоча назва в порожню назву 1С.
 import { randomUUID } from 'node:crypto';
+import {
+  FEED_DEFAULT_FIELDS,
+  NAME1C_MAX_LENGTH,
+  PRICE_REPLACE_FIELDS,
+  type PriceReplaceField,
+  type PriceUpdateField,
+} from '@shared/catalog/priceUpdateFields';
 import type { AvailabilityStatus, CurrencyCode } from '@shared/enums';
 import { DEFAULT_UNITS, normalizeSku, normalizeUnit, type UnitAliasSource } from '@shared/parse';
 import { round3, round4 } from '@shared/pricing';
@@ -18,6 +29,8 @@ import type {
   PriceDetailField,
   PriceNotFoundRow,
   PriceRelinkedItem,
+  PriceReplacedField,
+  PriceReplacedItem,
   PriceReportSection,
   PriceSkippedRow,
   PriceUpdateReport,
@@ -79,11 +92,14 @@ export interface ExistingProduct {
   /** В архіві через тривалу відсутність у прайсі (не вручну). */
   autoArchived: boolean;
   hasImages: boolean;
+  /** Посилання фото з прайсу в порядку показу — лише коли фото замінюються (інакше не завантажуються). */
+  feedImageUrls?: string[];
 }
 
 /** Поля товару, які може вести прайс. */
 export interface ImportedFields {
   nameWork: string;
+  name1c: string | null;
   brand: string | null;
   unitCode: string;
   currency: CurrencyCode;
@@ -125,7 +141,7 @@ export interface HistoryEntry {
   availability: AvailabilityStatus;
 }
 
-/** Фото з прайсу для наявного товару, у якого фото ще немає зовсім. */
+/** Фото з прайсу для наявного товару: у якого фото ще немає зовсім або (заміна) — нові замість попередніх фото з прайсу. */
 export interface ImageAttachment {
   productId: UUID;
   urls: string[];
@@ -171,6 +187,8 @@ export interface ApplyPlan {
   priceConfirmedIds: UUID[];
   historyEntries: HistoryEntry[];
   imageAttachments: ImageAttachment[];
+  /** Фото з прайсу замінюються новими (ручне оновлення з галочкою «Фото»). */
+  imageReplacements: ImageAttachment[];
   /** Позначити «немає у прайсі» сьогоднішньою датою (у кого дати ще немає). */
   missingMarks: UUID[];
   /** Знову є у прайсі — позначку прибрати. */
@@ -203,6 +221,8 @@ export interface PlanInput {
   units?: readonly UnitAliasSource[];
   /** Ідентифікатор нового товару (у тестах — передбачуваний). */
   newId?: () => UUID;
+  /** Що оновлювати (ручне оновлення); немає — як автооновлення (FEED_DEFAULT_FIELDS). */
+  fields?: readonly PriceUpdateField[];
 }
 
 export function isRejected(result: PlanResult): result is PlanRejection {
@@ -291,6 +311,7 @@ const UPDATE_FIELDS: readonly (keyof ProductUpdate & keyof ExistingProduct)[] = 
   'sku',
   'skuKey',
   'nameWork',
+  'name1c',
   'brand',
   'unitCode',
   'currency',
@@ -324,8 +345,20 @@ export function planApply(input: PlanInput): PlanResult {
   const units = input.units ?? DEFAULT_UNITS;
   const defaultCurrency = input.defaultCurrency ?? 'UAH';
   const newId = input.newId ?? randomUUID;
+  const pick = new Set<PriceUpdateField>(input.fields ?? FEED_DEFAULT_FIELDS);
+  const updatePurchase = roles.purchasePrice && pick.has('purchasePrice');
+  const rrpMode: SourceRoles['rrp'] = pick.has('rrp') ? roles.rrp : 'none';
+  const updateStock = roles.stock && pick.has('stock');
+  const addNew = roles.assortment && pick.has('newProducts');
+  const markMissing = roles.assortment && input.markMissing && pick.has('markMissing');
+  const replace = new Set<PriceReplaceField>(PRICE_REPLACE_FIELDS.filter((f) => pick.has(f)));
+  const replaceImages = replace.delete('images');
+  const fillName1c = pick.has('name1c');
+  const replacedCounts: Partial<Record<PriceReplacedField, number>> = {};
   const report: PlanReport = {
     detailsDiffer: section(),
+    replaced: section(),
+    replacedCounts,
     bigPriceChanges: section(),
     relinked: section(),
     notFound: section(),
@@ -366,7 +399,7 @@ export function planApply(input: PlanInput): PlanResult {
   }
   // короткий прайс небезпечний лише тоді, коли відсутні в ньому позиції позначаються зниклими;
   // файл лише з частиною цін (договірні ціни, гібрид) — звичайна ситуація
-  if (roles.assortment && input.markMissing && byKey.size < activeImported * MIN_ROWS_SHARE) {
+  if (markMissing && byKey.size < activeImported * MIN_ROWS_SHARE) {
     return {
       rejected: `Прайс підозріло короткий: ${byKey.size} поз. проти ${activeImported} у каталозі. Оновлення не застосовано, щоб не позначити решту товарів зниклими`,
     };
@@ -382,6 +415,7 @@ export function planApply(input: PlanInput): PlanResult {
     priceConfirmedIds: [],
     historyEntries: [],
     imageAttachments: [],
+    imageReplacements: [],
     missingMarks: [],
     adoptedIds: [],
     notes: [],
@@ -400,12 +434,13 @@ export function planApply(input: PlanInput): PlanResult {
     const match = matches.get(key);
 
     if (!match) {
-      if (!roles.assortment) {
+      // джерело не веде асортимент або «Додати нові товари» знято — нове лише у звіті
+      if (!addNew) {
         counters.skipped++;
         note(report.notFound, { row: line, code: row.code.trim(), name: text(row.name) });
         continue;
       }
-      const created = newProduct(key, row, units, defaultCurrency, newId());
+      const created = newProduct(key, row, units, defaultCurrency, newId(), fillName1c);
       plan.creates.push(created);
       counters.added++;
       if (created.purchasePrice != null || created.rrp != null) plan.historyEntries.push(historyOf(created.id, created));
@@ -430,8 +465,8 @@ export function planApply(input: PlanInput): PlanResult {
     }
 
     // ціну веде прайс: навіть якщо її правили вручну, нове завантаження її замінює (ІМП-6)
-    if (roles.purchasePrice || roles.rrp !== 'none') {
-      if (roles.purchasePrice) {
+    if (updatePurchase || rrpMode !== 'none') {
+      if (updatePurchase) {
         // валюту веде джерело вхідної ціни; «ціну перевірено» — теж лише воно
         next.purchasePrice = price(row.purchasePrice) ?? current.purchasePrice;
         next.currency = row.currency ?? current.currency;
@@ -440,8 +475,8 @@ export function planApply(input: PlanInput): PlanResult {
         if (next.currency !== current.currency) currencyChanges++;
       }
       // РРЦ у чужій валюті джерело, що не веде валюту, не записує
-      const rrpCurrencyFits = roles.purchasePrice || (row.currency ?? current.currency) === current.currency;
-      if (rrpCurrencyFits && (roles.rrp === 'set' || (roles.rrp === 'fill' && current.rrp == null))) {
+      const rrpCurrencyFits = updatePurchase || (row.currency ?? current.currency) === current.currency;
+      if (rrpCurrencyFits && (rrpMode === 'set' || (rrpMode === 'fill' && current.rrp == null))) {
         next.rrp = price(row.rrp) ?? current.rrp;
       } else if (next.currency !== current.currency) {
         // валюта змінилась, а нової РРЦ немає — стара РРЦ у старій валюті вже не має сенсу
@@ -462,20 +497,43 @@ export function planApply(input: PlanInput): PlanResult {
     }
 
     // залишок і наявність — пара: прайс сказав хоч щось про наявність — беремо обидва значення з нього
-    if (roles.stock && (row.stockQty != null || row.availability != null)) {
+    if (updateStock && (row.stockQty != null || row.availability != null)) {
       next.stockQty = quantity(row.stockQty);
       next.availability = row.availability ?? availabilityForQty(next.stockQty);
       if (next.stockQty !== current.stockQty || next.availability !== current.availability) counters.stockChanged++;
     }
 
-    if (roles.assortment) {
-      const diffs = fillDetails(next, current, row, units);
-      if (diffs.length) {
+    const replaced: Omit<PriceReplacedItem, 'code'>[] = [];
+    // описи: джерело, що веде асортимент, заповнює порожні; відмічені поля замінюються з будь-якого джерела
+    if (roles.assortment || replace.size) {
+      const details = fillDetails(next, current, row, units, { fillEmpty: roles.assortment, replace });
+      if (details.diffs.length) {
         counters.detailsDiffer++;
-        for (const diff of diffs) note(report.detailsDiffer, { code, ...diff });
+        for (const diff of details.diffs) note(report.detailsDiffer, { code, ...diff });
       }
-      const urls = imageList(row.imageUrls ?? []);
-      if (!current.hasImages && urls.length) plan.imageAttachments.push({ productId: current.id, urls });
+      replaced.push(...details.replaced);
+    }
+    const urls = imageList(row.imageUrls ?? []);
+    if (replaceImages) {
+      // рядок без фото — фото товару не чіпаємо; ті самі фото — не переписуємо
+      const before = current.feedImageUrls ?? [];
+      if (urls.length && !sameList(urls, before)) {
+        plan.imageReplacements.push({ productId: current.id, urls });
+        replaced.push({ field: 'images', old: `${before.length} фото`, new: `${urls.length} фото` });
+      }
+    } else if (roles.assortment && !current.hasImages && urls.length) {
+      plan.imageAttachments.push({ productId: current.id, urls });
+    }
+    if (fillName1c && !current.name1c?.trim() && next.nameWork.length <= NAME1C_MAX_LENGTH) {
+      next.name1c = next.nameWork;
+      replaced.push({ field: 'name1c', old: '', new: next.nameWork });
+    }
+    for (const item of replaced) {
+      note(report.replaced!, { code, ...item });
+      replacedCounts[item.field] = (replacedCounts[item.field] ?? 0) + 1;
+    }
+
+    if (roles.assortment) {
       if (current.missingSince) plan.missingClears.push(current.id);
       // в архіві через відсутність у прайсі й повернувся — назад у каталог; архів «вручну» не чіпаємо
       if (current.isArchived && current.autoArchived) {
@@ -484,7 +542,7 @@ export function planApply(input: PlanInput): PlanResult {
       }
     }
 
-    next.searchText = searchTextOf({ sku: next.sku, nameWork: next.nameWork, name1c: current.name1c, brand: next.brand });
+    next.searchText = searchTextOf({ sku: next.sku, nameWork: next.nameWork, name1c: next.name1c, brand: next.brand });
     if (UPDATE_FIELDS.some((f) => next[f] !== current[f])) plan.updates.push(next);
   }
 
@@ -494,7 +552,7 @@ export function planApply(input: PlanInput): PlanResult {
     plan.notes.push(`Товарів, доданих вручну, знайдено в прайсі: ${plan.adoptedIds.length}. Далі їх веде прайс`);
   }
 
-  if (roles.assortment && input.markMissing) {
+  if (markMissing) {
     for (const p of input.existing) {
       if (p.priceOrigin !== 'import' || p.isArchived || present.has(p.id)) continue;
       counters.missing++;
@@ -587,6 +645,7 @@ function stateOf(p: ExistingProduct): ProductUpdate {
     sku: p.sku,
     skuKey: p.skuKey,
     nameWork: p.nameWork,
+    name1c: p.name1c,
     brand: p.brand,
     unitCode: p.unitCode,
     currency: p.currency,
@@ -603,9 +662,21 @@ function stateOf(p: ExistingProduct): ProductUpdate {
   };
 }
 
+interface DetailOptions {
+  /** Порожні поля заповнюються з прайсу, різниця заповнених — у звіт (джерело веде асортимент, як в автооновленні). */
+  fillEmpty: boolean;
+  /** Відмічені поля замінюються значенням із прайсу (ручне оновлення); порожнє в прайсі нічого не стирає. */
+  replace: ReadonlySet<PriceReplaceField>;
+}
+
+interface DetailChanges {
+  diffs: Omit<DetailDiff, 'code'>[];
+  replaced: Omit<PriceReplacedItem, 'code'>[];
+}
+
 /**
- * Описи з прайсу лише заповнюють порожні поля; заповнене значення не перезаписуємо —
- * якщо воно відрізняється, повертаємо різницю для звіту.
+ * Описи з прайсу: відмічені для заміни поля беруться з прайсу; решта лише заповнюють порожні (заповнене значення
+ * не перезаписуємо — якщо воно відрізняється, повертаємо різницю для звіту).
  * Назва, що дорівнює коду, — це заглушка з попереднього завантаження без назви, її заповнюємо.
  */
 function fillDetails(
@@ -613,16 +684,27 @@ function fillDetails(
   current: ExistingProduct,
   row: PriceRow,
   units: readonly UnitAliasSource[],
-): Omit<DetailDiff, 'code'>[] {
+  opts: DetailOptions,
+): DetailChanges {
   const diffs: Omit<DetailDiff, 'code'>[] = [];
+  const replaced: Omit<PriceReplacedItem, 'code'>[] = [];
   const differ = (field: DetailField, catalog: string | number, value: string | number) =>
     diffs.push({ field, catalog: String(catalog), price: String(value) });
+  const took = (field: PriceReplaceField, old: string | number | null, value: string | number) =>
+    replaced.push({ field, old: old == null ? '' : String(old), new: String(value) });
 
   const name = text(row.name);
   if (name) {
     const placeholder = !current.nameWork.trim() || normalizeSku(current.nameWork) === current.skuKey;
-    if (placeholder) next.nameWork = name;
-    else if (comparable(current.nameWork) !== comparable(name)) differ('nameWork', current.nameWork, name);
+    if (opts.replace.has('nameWork')) {
+      if (current.nameWork.trim() !== name) {
+        next.nameWork = name;
+        took('nameWork', current.nameWork, name);
+      }
+    } else if (opts.fillEmpty) {
+      if (placeholder) next.nameWork = name;
+      else if (comparable(current.nameWork) !== comparable(name)) differ('nameWork', current.nameWork, name);
+    }
   }
 
   const texts = [
@@ -632,32 +714,65 @@ function fillDetails(
   for (const [field, value] of texts) {
     if (!value) continue;
     const stored = current[field];
-    if (stored == null || !stored.trim()) next[field] = value;
-    else if (comparable(stored) !== comparable(value)) differ(field, stored, value);
+    if (opts.replace.has(field)) {
+      if ((stored ?? '').trim() !== value) {
+        next[field] = value;
+        took(field, stored, value);
+      }
+    } else if (opts.fillEmpty) {
+      if (stored == null || !stored.trim()) next[field] = value;
+      else if (comparable(stored) !== comparable(value)) differ(field, stored, value);
+    }
   }
 
   const barcode = text(row.barcode);
   if (barcode) {
-    if (!current.barcode?.trim()) next.barcode = barcode;
-    else if (barcodeKey(current.barcode) !== barcodeKey(barcode)) differ('barcode', current.barcode, barcode);
+    if (opts.replace.has('barcode')) {
+      if ((current.barcode ?? '').trim() !== barcode) {
+        next.barcode = barcode;
+        took('barcode', current.barcode, barcode);
+      }
+    } else if (opts.fillEmpty) {
+      if (!current.barcode?.trim()) next.barcode = barcode;
+      else if (barcodeKey(current.barcode) !== barcodeKey(barcode)) differ('barcode', current.barcode, barcode);
+    }
   }
 
   const unit = unitOf(row.unitCode, units);
   if (unit && comparable(unit) !== comparable(current.unitCode)) {
-    if (!current.unitCode.trim()) next.unitCode = unit;
-    else differ('unitCode', current.unitCode, unit);
+    if (opts.replace.has('unitCode')) {
+      next.unitCode = unit;
+      took('unitCode', current.unitCode, unit);
+    } else if (opts.fillEmpty) {
+      if (!current.unitCode.trim()) next.unitCode = unit;
+      else differ('unitCode', current.unitCode, unit);
+    }
   }
 
   const multiplicity = positiveQty(row.multiplicity);
-  if (multiplicity != null && multiplicity !== current.multiplicity) differ('multiplicity', current.multiplicity, multiplicity);
+  if (multiplicity != null && multiplicity !== current.multiplicity) {
+    if (opts.replace.has('multiplicity')) {
+      next.multiplicity = multiplicity;
+      took('multiplicity', current.multiplicity, multiplicity);
+    } else if (opts.fillEmpty) {
+      differ('multiplicity', current.multiplicity, multiplicity);
+    }
+  }
 
   const minOrderQty = positiveQty(row.minOrderQty);
-  if (minOrderQty != null) {
-    if (current.minOrderQty == null) next.minOrderQty = minOrderQty;
-    else if (minOrderQty !== current.minOrderQty) differ('minOrderQty', current.minOrderQty, minOrderQty);
+  if (minOrderQty != null && minOrderQty !== current.minOrderQty) {
+    if (opts.replace.has('minOrderQty')) {
+      next.minOrderQty = minOrderQty;
+      took('minOrderQty', current.minOrderQty, minOrderQty);
+    } else if (opts.fillEmpty) {
+      if (current.minOrderQty == null) next.minOrderQty = minOrderQty;
+      else differ('minOrderQty', current.minOrderQty, minOrderQty);
+    }
   }
-  return diffs;
+  return { diffs, replaced };
 }
+
+const sameList = (a: readonly string[], b: readonly string[]) => a.length === b.length && a.every((v, i) => v === b[i]);
 
 function newProduct(
   skuKey: string,
@@ -665,9 +780,12 @@ function newProduct(
   units: readonly UnitAliasSource[],
   defaultCurrency: CurrencyCode,
   id: UUID,
+  /** «Назва 1С = робоча назва»: новому товару теж. */
+  withName1c = false,
 ): ProductCreate {
   const sku = row.code.trim();
   const nameWork = text(row.name) ?? sku;
+  const name1c = withName1c && nameWork.length <= NAME1C_MAX_LENGTH ? nameWork : null;
   const brand = text(row.brand);
   const stockQty = quantity(row.stockQty);
   return {
@@ -675,6 +793,7 @@ function newProduct(
     sku,
     skuKey,
     nameWork,
+    name1c,
     brand,
     unitCode: unitOf(row.unitCode, units) ?? 'шт',
     currency: row.currency ?? defaultCurrency,
@@ -686,7 +805,7 @@ function newProduct(
     minOrderQty: positiveQty(row.minOrderQty),
     barcode: text(row.barcode),
     categoryPath: text(row.categoryPath),
-    searchText: searchTextOf({ sku, nameWork, name1c: null, brand }),
+    searchText: searchTextOf({ sku, nameWork, name1c, brand }),
     imageUrls: imageList(row.imageUrls ?? []),
   };
 }

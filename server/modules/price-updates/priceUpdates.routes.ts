@@ -71,7 +71,7 @@ priceUpdatesRouter.post(
   '/run',
   asyncHandler(async (req, res) => {
     const body = parseBody(runBodySchema, req);
-    const result = await runFeedUpdate(body.supplierId, { user: currentUser(req), dryRun: body.dryRun });
+    const result = await runFeedUpdate(body.supplierId, { user: currentUser(req), dryRun: body.dryRun, fields: body.fields });
     res.status(body.dryRun ? 200 : 201).json(result);
   }),
 );

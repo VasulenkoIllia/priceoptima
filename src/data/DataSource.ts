@@ -1,4 +1,5 @@
 // Контракт джерела даних (§8 ui-prototype). Методи 1:1 з REST.
+import type { PriceUpdateField } from '@shared/catalog/priceUpdateFields';
 import type { ForeignCurrency, UserRole } from '@shared/enums';
 import type {
   AttachmentDto,
@@ -146,7 +147,8 @@ export interface DataSource {
   getSupplierPriceSource(supplierId: UUID): Promise<SupplierPriceSourceSettings>;
   saveSupplierPriceSource(supplierId: UUID, input: SupplierPriceSourceInput): Promise<SupplierPriceSourceSettings>;
   /** Оновити прайс постачальника зараз (у робочій системі прайси приходять автоматично; тут — імітація). */
-  refreshSupplierPrices(supplierId: UUID, options?: { dryRun?: boolean }): Promise<PriceUpdateDto>;
+  /** fields — ручне оновлення з вибраними полями (немає — як автооновлення). */
+  refreshSupplierPrices(supplierId: UUID, options?: { dryRun?: boolean; fields?: PriceUpdateField[] }): Promise<PriceUpdateDto>;
   /** Журнал оновлень прайсів, від найновішого. */
   listPriceUpdates(supplierId?: UUID): Promise<PriceUpdateDto[]>;
   /** Запис журналу разом зі звітом звірки. */
