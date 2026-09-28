@@ -1,13 +1,14 @@
-import { FileExcelOutlined, HolderOutlined, PlusOutlined, RightOutlined, SyncOutlined, UploadOutlined } from '@ant-design/icons';
+import { ControlOutlined, FileExcelOutlined, HolderOutlined, PlusOutlined, RightOutlined, SyncOutlined, UploadOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Space, Spin, Tag, Tooltip } from 'antd';
 import { useState, type DragEvent } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
 import { formatDate, formatDateTime, formatMoneyUah, formatQty, toIsoDate } from '@shared/format';
-import type { EffectiveRates, SupplierListItem } from '@shared/types';
+import type { EffectiveRates, PriceUpdateDto, SupplierListItem } from '@shared/types';
 import { EmptyState, LoadError, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
+import { FeedUpdateDialog } from './FeedUpdateDialog';
 import { downloadPriceTemplate, PriceImportDialog } from './priceImport';
 import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierDrawer } from './SupplierDrawer';
@@ -23,13 +24,15 @@ interface SupplierCardProps {
   maxAgeDays: number;
   refreshing: boolean;
   onRefresh: () => void;
+  /** «Оновити вручну…»: вибрати поля, перевірити й застосувати. */
+  onManual: () => void;
   onImport: () => void;
   onOpen: () => void;
   /** Натиснули на ⠿ — картку можна перетягнути (порядок постачальників). */
   onGrab: () => void;
 }
 
-function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onImport, onOpen, onGrab }: SupplierCardProps) {
+function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, onImport, onOpen, onGrab }: SupplierCardProps) {
   return (
     <Card className="po-sup-card" styles={{ body: { padding: 16 } }}>
       <div className="po-sup-head">
@@ -100,9 +103,14 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onImport, o
       </div>
       <div className="po-sup-actions">
         {viaLink(s.priceSource.kind) ? (
-          <Button icon={<SyncOutlined />} loading={refreshing} onClick={onRefresh}>
-            Оновити зараз
-          </Button>
+          <Space.Compact>
+            <Button icon={<SyncOutlined />} loading={refreshing} onClick={onRefresh}>
+              Оновити зараз
+            </Button>
+            <Tooltip title="Оновити вручну: вибрати, що оновлювати (назви, фото тощо), перевірити й застосувати">
+              <Button icon={<ControlOutlined />} disabled={refreshing} onClick={onManual} aria-label="Оновити вручну" />
+            </Tooltip>
+          </Space.Compact>
         ) : null}
         <Button icon={<UploadOutlined />} type={pricesFromFile(s.priceSource.kind) ? 'primary' : 'default'} ghost={pricesFromFile(s.priceSource.kind)} onClick={onImport}>
           Завантажити прайс
@@ -122,6 +130,7 @@ export default function SuppliersPage() {
   const [selected, setSelected] = useState<SupplierListItem | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [importFor, setImportFor] = useState<SupplierListItem | null>(null);
+  const [manualFor, setManualFor] = useState<SupplierListItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
   const today = toIsoDate(new Date());
@@ -162,25 +171,27 @@ export default function SuppliersPage() {
     reorder.mutate(ids);
   };
 
+  // звіт оновлення відкривається сам — що змінилось і які є зауваги; дані постачальника й каталогу — наново
+  const showApplied = (r: PriceUpdateDto, s: SupplierListItem) => {
+    modal.info({
+      title: `Прайс ${s.name} оновлено`,
+      width: 880,
+      icon: null,
+      okText: 'Закрити',
+      content: (
+        <div className="po-pi-confirm">
+          <PriceUpdateReportView update={r} />
+        </div>
+      ),
+    });
+    for (const queryKey of [qk.suppliers, qk.supplier(s.id), qk.productsAll, qk.productAll, qk.priceHistoryAll, qk.priceUpdatesAll]) {
+      void queryClient.invalidateQueries({ queryKey });
+    }
+  };
+
   const refresh = useMutation({
     mutationFn: (s: SupplierListItem) => ds.refreshSupplierPrices(s.id),
-    onSuccess: (r, s) => {
-      // звіт оновлення відкривається сам — що змінилось і які є зауваги
-      modal.info({
-        title: `Прайс ${s.name} оновлено`,
-        width: 880,
-        icon: null,
-        okText: 'Закрити',
-        content: (
-          <div className="po-pi-confirm">
-            <PriceUpdateReportView update={r} />
-          </div>
-        ),
-      });
-      for (const queryKey of [qk.suppliers, qk.supplier(s.id), qk.productsAll, qk.productAll, qk.priceHistoryAll, qk.priceUpdatesAll]) {
-        void queryClient.invalidateQueries({ queryKey });
-      }
-    },
+    onSuccess: showApplied,
     onError: (e, s) => {
       message.error({ content: errorMessage(e), duration: 8 });
       // невдалий запуск теж лягає в журнал
@@ -244,6 +255,7 @@ export default function SuppliersPage() {
                 maxAgeDays={maxAgeDays}
                 refreshing={refresh.isPending && refresh.variables?.id === s.id}
                 onRefresh={() => refresh.mutate(s)}
+                onManual={() => setManualFor(s)}
                 onImport={() => setImportFor(s)}
                 onOpen={() => {
                   setSelected(s);
@@ -267,6 +279,16 @@ export default function SuppliersPage() {
       />
       {importFor ? (
         <PriceImportDialog supplierId={importFor.id} supplierName={importFor.name} open onClose={() => setImportFor(null)} />
+      ) : null}
+      {manualFor ? (
+        <FeedUpdateDialog
+          supplier={manualFor}
+          onClose={() => setManualFor(null)}
+          onApplied={(r) => {
+            setManualFor(null);
+            showApplied(r, manualFor);
+          }}
+        />
       ) : null}
     </div>
   );

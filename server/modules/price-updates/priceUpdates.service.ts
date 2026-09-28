@@ -4,7 +4,7 @@
 import { Prisma, type PriceImportFile, type Supplier, type SupplierPriceFeed, type User } from '@prisma/client';
 import { getSettings } from '../settings/settings.service';
 import { FEED_CONNECTOR_INFO, isFeedConnector, type FeedConnector } from '@shared/catalog/connectors';
-import type { PriceUpdateField } from '@shared/catalog/priceUpdateFields';
+import { PRICE_UPDATE_FIELD_LABELS, type PriceUpdateField } from '@shared/catalog/priceUpdateFields';
 import type { RatesPair, UUID } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
@@ -291,8 +291,10 @@ async function applyPriceNow(ctx: RunContext, price: ParsedPrice): Promise<Price
     const details = result.report ? { counters: result.counters, report: result.report } : undefined;
     throw new ApiError('UNPROCESSABLE', result.rejected, details);
   }
-  // пояснення звірки йдуть у журнал поряд із попередженнями розбору
-  const withNotes: ParsedPrice = result.notes.length ? { ...price, warnings: [...price.warnings, ...result.notes] } : price;
+  // пояснення звірки йдуть у журнал поряд із попередженнями розбору; ручне оновлення — ще й що вибрали
+  const picked = price.fields ? [`Ручне оновлення: ${price.fields.map((f) => PRICE_UPDATE_FIELD_LABELS[f]).join(', ') || 'нічого не вибрано'}`] : [];
+  const withNotes: ParsedPrice =
+    picked.length || result.notes.length ? { ...price, warnings: [...picked, ...price.warnings, ...result.notes] } : price;
   if (ctx.dryRun) {
     return toDryRunDetail({
       supplierId,

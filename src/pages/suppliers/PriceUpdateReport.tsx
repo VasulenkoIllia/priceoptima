@@ -2,6 +2,7 @@
 // Той самий вигляд — у попередньому перегляді перед записом і в журналі оновлень.
 import { Alert, Collapse, Table, Tag, type TableColumnsType } from 'antd';
 import type { ReactNode } from 'react';
+import { PRICE_UPDATE_FIELD_LABELS } from '@shared/catalog/priceUpdateFields';
 import { formatMoney, formatQty, formatRate } from '@shared/format';
 import type {
   PriceBigChange,
@@ -9,6 +10,8 @@ import type {
   PriceDetailField,
   PriceNotFoundRow,
   PriceRelinkedItem,
+  PriceReplacedField,
+  PriceReplacedItem,
   PriceReportSection,
   PriceSkippedRow,
   PriceUpdateDto,
@@ -48,6 +51,15 @@ const DIFF_COLUMNS: TableColumnsType<PriceDetailDiff> = [
   { title: 'Поле', dataIndex: 'field', width: 100, render: (f: PriceDetailField) => DETAIL_FIELD_LABELS[f] ?? f },
   { title: 'У каталозі (лишається)', dataIndex: 'catalog', className: 'po-cell-text' },
   { title: 'У прайсі', dataIndex: 'price', className: 'po-cell-text', render: (v: string) => <span className="po-muted">{v}</span> },
+];
+
+const replacedLabel = (f: PriceReplacedField) => (f === 'name1c' ? 'Назва 1С' : PRICE_UPDATE_FIELD_LABELS[f]);
+
+const REPLACED_COLUMNS: TableColumnsType<PriceReplacedItem> = [
+  { title: 'Код', dataIndex: 'code', width: 150 },
+  { title: 'Поле', dataIndex: 'field', width: 110, render: replacedLabel },
+  { title: 'Було', dataIndex: 'old', className: 'po-cell-text', render: (v: string) => <span className="po-muted">{v}</span> },
+  { title: 'Стане', dataIndex: 'new', className: 'po-cell-text' },
 ];
 
 const NOT_FOUND_COLUMNS: TableColumnsType<PriceNotFoundRow> = [
@@ -120,6 +132,14 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
   ];
   if (u.restored) counters.push({ label: 'Повернуто з архіву', value: formatQty(u.restored) });
   if (u.relinked) counters.push({ label: 'Знайдено за штрихкодом / артикулом', value: formatQty(u.relinked) });
+  const replacedCounts = Object.entries(report?.replacedCounts ?? {}).filter(([, n]) => n) as [PriceReplacedField, number][];
+  if (replacedCounts.length) {
+    counters.push({
+      label: 'Замінено з прайсу',
+      value: replacedCounts.map(([f, n]) => `${replacedLabel(f).toLowerCase()} ${formatQty(n)}`).join(' · '),
+      hint: 'Поля, відмічені при ручному оновленні',
+    });
+  }
   if (u.detailsDiffer) counters.push({ label: 'Описи відрізняються (не змінено)', value: formatQty(u.detailsDiffer) });
   if (u.skipped) counters.push({ label: 'Пропущено рядків', value: formatQty(u.skipped) });
   const rates = [u.rates.USD != null ? `USD ${formatRate(u.rates.USD)}` : null, u.rates.EUR != null ? `EUR ${formatRate(u.rates.EUR)}` : null].filter(Boolean);
@@ -139,6 +159,22 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
                 <>
                   <div className="po-muted po-pu-hint">{verb} застосовано. Перевірте, чи це не помилка у прайсі.</div>
                   {sectionTable(report.bigPriceChanges, BIG_COLUMNS)}
+                </>
+              ),
+            }
+          : null,
+        report.replaced?.total
+          ? {
+              key: 'replaced',
+              label: (
+                <span>
+                  Замінено з прайсу <Tag color="blue">{formatQty(report.replaced.total)}</Tag>
+                </span>
+              ),
+              children: (
+                <>
+                  <div className="po-muted po-pu-hint">{verb} замінено значеннями з прайсу (поля, відмічені при оновленні).</div>
+                  {sectionTable(report.replaced, REPLACED_COLUMNS)}
                 </>
               ),
             }
@@ -172,7 +208,8 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
               children: (
                 <>
                   <div className="po-muted po-pu-hint">
-                    Ці коди не оновлено й не додано: у гібридному режимі нові позиції приходять лише за посиланням.
+                    Ці коди не оновлено й не додано: нові товари не додавались (знято «Додати нові товари» або в гібридному режимі
+                    нові позиції приходять лише за посиланням).
                   </div>
                   {sectionTable(report.notFound, NOT_FOUND_COLUMNS)}
                 </>

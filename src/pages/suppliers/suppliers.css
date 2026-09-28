@@ -274,3 +274,23 @@
 .po-pu-table .ant-table {
   font-size: 12px;
 }
+
+/* вибір полів оновлення прайсу (правки замовника 28.09) */
+.po-pf {
+  display: grid;
+  gap: 12px;
+}
+.po-pf-title {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.po-pf-hint {
+  margin-bottom: 6px;
+  color: var(--po-muted, rgba(0, 0, 0, 0.45));
+  font-size: 12px;
+}
+.po-pf-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
