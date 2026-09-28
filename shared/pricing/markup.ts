@@ -255,7 +255,7 @@ export function computeMarkupTotals(rows: readonly MarkupRowComputed[], mode: To
     vat: sale.vat,
     saleGross: sale.totalGross,
     profitNet: sumMoney(priced.map((r) => r.profitNet)),
-    // прибуток з ПДВ унизу = «Продаж з ПДВ» (підсумок як у КП) мінус «Собівартість з ПДВ», щоб цифри сходились до копійки;
+    // прибуток з ПДВ унизу = «Сума з ПДВ» (підсумок як у КП) мінус «Собівартість з ПДВ», щоб цифри сходились до копійки;
     // рядок без входу (ціни немає) у різницю не йде — тоді сума по рядках
     profitGross: withCost.length === priced.length ? round2(sale.totalGross - costGross) : sumMoney(priced.map((r) => r.profitGross)),
     markupPct: pct(saleNetOfCosted - costNet, costNet),

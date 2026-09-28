@@ -193,7 +193,7 @@ export function SupplierProfitBreakdown({ doc, computed }: { doc: RequestDocumen
         },
         { title: 'Обрано рядків', render: (_, r) => r.selected.lines },
         { title: 'Вхід з ПДВ', className: 'po-num', render: (_, r) => formatMoney(r.selected.costGross) },
-        { title: fop ? 'Продаж як у КП' : 'Продаж з ПДВ', className: 'po-num', render: (_, r) => formatMoney(r.selected.saleGross) },
+        { title: fop ? 'Сума як у КП' : 'Сума з ПДВ', className: 'po-num', render: (_, r) => formatMoney(r.selected.saleGross) },
         {
           title: fop ? 'Прибуток' : 'Прибуток з ПДВ',
           className: 'po-num',
