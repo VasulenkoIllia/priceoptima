@@ -82,6 +82,7 @@ export function defaultKpSettings(s: AppSettings, ownCompany: { id: UUID; isVatP
     nameSource: s.kpNameSource,
     showSku: true,
     showImages: s.kpShowImages,
+    showManager: true,
     validityDays: s.kpValidityDays,
     extraInfo: null,
     onlyApproved: false,

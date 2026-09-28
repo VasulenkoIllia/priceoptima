@@ -40,7 +40,7 @@ export interface KpSnapshotInput {
   kpNumber: number | null;
   requestNumber: number;
   date: ISODate;
-  settings: Pick<KpSettings, 'vatMode' | 'showImages' | 'validityDays' | 'extraInfo'>;
+  settings: Pick<KpSettings, 'vatMode' | 'showImages' | 'showManager' | 'validityDays' | 'extraInfo'>;
   vatRatePct: number;
   /** Рядки КП (buildKpRows). */
   rows: KpRow[];
@@ -132,7 +132,8 @@ export function buildKpSnapshot(input: KpSnapshotInput): KpSnapshot {
     rows,
     totals,
     amountInWords: amountInWordsUah(totals.payable),
-    managerName: input.managerName,
+    // галочку «Вказати менеджера» зняли — рядка «Менеджер» у КП немає (правки замовника 28.09 п.5)
+    managerName: settings.showManager === false ? '' : input.managerName,
     validUntil: settings.validityDays > 0 ? addDaysIso(input.date, settings.validityDays) : null,
     footer: seller.kpFooter,
     terms: cleanKpTerms(input.terms),
@@ -146,7 +147,8 @@ export function buildKpSnapshot(input: KpSnapshotInput): KpSnapshot {
 export function buildFinalKpSnapshot(
   base: KpSnapshot,
   lines: readonly Pick<RequestLine, 'id' | 'approval'>[],
-  init: { kpNumber: number | null; date: ISODate; validityDays: number },
+  /** managerName — рядок «Менеджер» за нинішніми налаштуваннями КП (галочка могла змінитись після КП-основи); немає — як в основі. */
+  init: { kpNumber: number | null; date: ISODate; validityDays: number; managerName?: string },
 ): KpSnapshot {
   const rows = approvedKpRows(base.rows, lines);
   const totals = computeKpTotals(
@@ -165,6 +167,7 @@ export function buildFinalKpSnapshot(
     totals,
     amountInWords: amountInWordsUah(totals.payable),
     validUntil: init.validityDays > 0 ? addDaysIso(init.date, init.validityDays) : null,
+    managerName: init.managerName ?? base.managerName,
   };
 }
 

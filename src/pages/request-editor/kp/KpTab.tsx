@@ -12,6 +12,7 @@ import type { KpDocumentDto, KpSettings, UUID } from '@shared/types';
 import { KpTermsEditor, LoadError } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { getRequestDocStore, useRequestDoc } from '@/stores/requestDocStore';
+import { kpChangesSince } from './kpChanges';
 import { KpDocumentView } from './KpDocumentView';
 import { downloadKpExcel } from './kpExcel';
 import { downloadKpPdf } from './kpPdf';
@@ -103,6 +104,11 @@ function KpSettingsForm() {
       <Field label="Фото товарів" hint="Головне фото товару з каталогу: у PDF і в Excel КП">
         <Checkbox checked={k.showImages} disabled={readOnly} onChange={(e) => patch({ showImages: e.target.checked })}>
           Додати фото в КП
+        </Checkbox>
+      </Field>
+      <Field label="Менеджер" hint="Відповідальний заявки: ім'я й телефон унизу КП">
+        <Checkbox checked={k.showManager !== false} disabled={readOnly} onChange={(e) => patch({ showManager: e.target.checked })}>
+          Вказати менеджера в КП
         </Checkbox>
       </Field>
       <Field label="Пропозиція дійсна, днів">
@@ -241,10 +247,10 @@ export default function KpTab() {
 
   const selected = kps.data?.find((k) => k.id === selectedId) ?? null;
   const base = latestBaseKp(kps.data);
-  const outdated =
-    !!base &&
-    !!preview &&
-    (base.vatMode !== preview.totals.vatMode || base.snapshot.rows.length !== preview.rows.length || base.snapshot.totals.payable !== preview.totals.payable);
+  const validityDays = useRequestDoc((s) => s.doc?.header.kpSettings.validityDays ?? 0);
+  // що змінилось після останньої версії (ціни, галочки, умови…): щоб увійшло в КП — нова версія
+  const changes = base && preview ? kpChangesSince(base, preview, validityDays) : [];
+  const changesText = base && changes.length ? `Після КП № ${base.numberLabel} (версія ${base.version}) змінились: ${changes.join(', ')}` : null;
   const blockReason = readOnly
     ? 'Заявка відкрита лише для перегляду'
     : !checks
@@ -302,8 +308,8 @@ export default function KpTab() {
               Сформувати КП{kpPrefix && requestNumber != null ? ` № ${formatKpNumber(kpPrefix, requestNumber)}` : ''}
             </Button>
           </Tooltip>
-          {outdated && base ? (
-            <Alert type="warning" showIcon style={{ marginTop: 8 }} message={`Ціни змінились після КП № ${base.numberLabel}, сформуйте нову версію`} />
+          {changesText ? (
+            <Alert type="warning" showIcon style={{ marginTop: 8 }} message={changesText} description="Сформуйте нову версію, щоб зміни увійшли в КП" />
           ) : null}
         </section>
         <section>
@@ -341,6 +347,13 @@ export default function KpTab() {
                   · сформовано {formatDateTime(selected.createdAt)}
                   {selected.createdBy ? ` · ${selected.createdBy.shortName}` : ''}
                 </span>
+                {selected.id === base?.id && changesText ? (
+                  <Tooltip title={`${changesText}. Сформуйте нову версію, щоб зміни увійшли в КП`}>
+                    <Tag color="warning" bordered={false} style={{ marginLeft: 8 }}>
+                      є зміни після цієї версії
+                    </Tag>
+                  </Tooltip>
+                ) : null}
               </span>
               <span className="po-tab-spacer" />
               {selected.onlyApproved ? null : (

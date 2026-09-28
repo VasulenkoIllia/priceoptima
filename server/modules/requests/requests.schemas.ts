@@ -68,6 +68,7 @@ const kpSettingsSchema = z.object({
   nameSource: z.enum(KP_NAME_SOURCES),
   showSku: z.literal(true),
   showImages: z.boolean(),
+  showManager: z.boolean().optional(),
   validityDays: z.number().int().min(0).max(365),
   extraInfo: nullableText(2000),
   onlyApproved: z.boolean(),

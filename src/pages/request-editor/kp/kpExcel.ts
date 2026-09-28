@@ -144,7 +144,7 @@ export async function buildKpWorkbook(s: KpSnapshot, photos: ReadonlyMap<string,
     r++;
   }
   r++;
-  text(`Менеджер: ${s.managerName}`);
+  if (s.managerName) text(`Менеджер: ${s.managerName}`);
   if (s.footer) text(s.footer, { size: 9, color: 'FF666666' });
   return wb;
 }

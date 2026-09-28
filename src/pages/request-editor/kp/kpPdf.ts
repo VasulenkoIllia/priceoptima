@@ -138,7 +138,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
       { text: kpAmountLine(s), margin: [0, 0, 0, 4] },
       ...(valid ? [{ text: valid } as Content] : []),
       ...(terms.length ? [{ table: { widths: [120, '*'], body: terms }, layout: 'noBorders', margin: [0, 8, 0, 0] } as Content] : []),
-      { text: `Менеджер: ${s.managerName}`, margin: [0, 14, 0, 0] },
+      ...(s.managerName ? [{ text: `Менеджер: ${s.managerName}`, margin: [0, 14, 0, 0] } as Content] : []),
       ...(s.footer ? [{ text: s.footer, fontSize: 8, color: '#666666', margin: [0, 8, 0, 0] } as Content] : []),
     ],
   };

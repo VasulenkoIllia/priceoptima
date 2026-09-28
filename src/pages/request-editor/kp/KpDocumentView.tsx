@@ -122,7 +122,7 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
           </tbody>
         </table>
       ) : null}
-      <p className="po-kp-manager">Менеджер: {s.managerName}</p>
+      {s.managerName ? <p className="po-kp-manager">Менеджер: {s.managerName}</p> : null}
       {s.footer ? <p className="po-kp-footer">{s.footer}</p> : null}
     </article>
   );

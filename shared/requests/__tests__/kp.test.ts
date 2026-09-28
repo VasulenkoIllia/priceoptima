@@ -140,6 +140,21 @@ describe('версія КП', () => {
     expect(fin.settings.onlyApproved).toBe(true);
     expect(kpEventSummary(asDto(fin, 2, true), OWN.nameShort)).toMatch(/^Сформовано фінальне КП № 2114 \/ 000007 · позицій: 1 · [\d\s\u00a0]+,\d{2} грн$/u);
   });
+
+  it('галочка «Вказати менеджера» (правки замовника 28.09 п.5): знята — рядка немає, і у фінальному теж; у старих заявках її немає — рядок є', () => {
+    const s = state();
+    const settings = s.header.kpSettings as KpSettings;
+    expect(buildKpVersion(input(s)).snapshot.managerName).toBe('Коваль О.В.');
+    expect(buildKpVersion(input(s, [], { settings: { ...settings, showManager: undefined } })).snapshot.managerName).toBe('Коваль О.В.');
+    const hidden = { ...settings, showManager: false };
+    const base = asDto(buildKpVersion(input(s, [], { settings: hidden })), 1, false);
+    expect(base.snapshot.managerName).toBe('');
+
+    s.lines = s.lines.map((l) => (l.id === 'L2' ? { ...l, approval: { approved: true, approvedQty: 3 } } : l));
+    // галочку повернули після КП-основи — фінальне з менеджером
+    expect(buildKpVersion(input(s, [base], { final: true })).snapshot.managerName).toBe('Коваль О.В.');
+    expect(buildKpVersion(input(s, [base], { final: true, settings: hidden })).snapshot.managerName).toBe('');
+  });
 });
 
 describe('подія статусу', () => {

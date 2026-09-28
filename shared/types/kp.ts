@@ -18,6 +18,8 @@ export interface KpSettings {
   showSku: true;
   /** Колонка «Зображення». */
   showImages: boolean;
+  /** Рядок «Менеджер» (відповідальний заявки) у КП; немає (заявки до 28.09) — так (правки замовника 28.09 п.5). */
+  showManager?: boolean;
   validityDays: number;
   /** «Дод. інф.» */
   extraInfo: string | null;

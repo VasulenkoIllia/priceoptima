@@ -68,6 +68,11 @@ describe('файли КП з одного знімка', () => {
     ws.eachRow((row) => cells.push(row.getCell(1).value, row.getCell(3).value));
     expect(cells).toContain('Умови оплати:');
     expect(cells).toContain('Передоплата 100 %');
+    expect(cells).toContain('Менеджер: Коваль О.В., тел. 067 000 11 22');
+    // галочку «Вказати менеджера» зняли (правки замовника 28.09 п.5) — рядка немає
+    const noManager: unknown[] = [];
+    (await buildKpWorkbook({ ...snapshot, managerName: '' })).getWorksheet('КП')!.eachRow((row) => noManager.push(row.getCell(1).value));
+    expect(noManager.some((v) => typeof v === 'string' && v.startsWith('Менеджер'))).toBe(false);
     expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
   });
 
