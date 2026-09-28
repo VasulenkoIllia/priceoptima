@@ -473,8 +473,7 @@ export default function MarkupTab() {
         <div className="po-mk-totals">
           {/* лише суми з ПДВ (правки замовника 23.09 п.7); ФОП ПДВ не нараховує — продаж як у КП */}
           <Stat label="Собівартість з ПДВ" value={formatMoney(totals.costGross)} />
-          {/* назва як у колонки «Сума з ПДВ»: це її підсумок, як у КП (правки замовника 28.09 п.3) */}
-          <Stat label={vatMode === 'no_vat' ? 'Сума' : 'Сума з ПДВ'} value={formatMoney(totals.saleGross)} strong />
+          <Stat label={vatMode === 'no_vat' ? 'Продаж' : 'Продаж з ПДВ'} value={formatMoney(totals.saleGross)} strong />
           <Stat label={vatMode === 'no_vat' ? 'Прибуток' : 'Прибуток з ПДВ'} value={formatMoney(totals.profitGross)} tone="good" />
           <SupplierProfitBreakdown doc={doc} computed={computed} />
           <span className="po-muted po-mk-count">
