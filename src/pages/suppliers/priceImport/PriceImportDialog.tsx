@@ -5,10 +5,12 @@ import { DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Button, Checkbox, InputNumber, Input, Modal, Select, Spin, Steps, Tooltip, Upload } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import { FILE_DEFAULT_FIELDS, type PriceUpdateField } from '@shared/catalog/priceUpdateFields';
 import { CURRENCY_CODES, CURRENCY_LABELS, type CurrencyCode } from '@shared/enums';
 import { formatQty } from '@shared/format';
 import type { PriceImportMapping, PriceUpdateDto, UUID } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
+import { effectiveFields, PriceFieldsPicker } from '../PriceFieldsPicker';
 import { PriceUpdateReportView } from '../PriceUpdateReport';
 import { columnOptions, RowsPreview, SheetPreview } from './PriceTablePreview';
 import {
@@ -22,6 +24,7 @@ import {
   PRICE_COLUMN_ROLES,
   ROLE_HINTS,
   ROLE_LABELS,
+  unavailableFileFields,
   type PriceColumnMap,
   type PriceColumnRole,
 } from './priceRows';
@@ -102,6 +105,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     skipRowsWithoutPrice: true,
     markMissing: false,
   });
+  // що оновлювати: щоразу стартово «ціни, наявність, нові» (рішення власника 28.09), решта — свідомо
+  const [fields, setFields] = useState<PriceUpdateField[]>([...FILE_DEFAULT_FIELDS]);
 
   const sheet = sheets.find((s) => s.name === sheetName) ?? sheets[0] ?? null;
   const rows = sheet?.rows ?? [];
@@ -134,7 +139,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       rrpIncludesVat: saved?.rrpIncludesVat ?? supplier.data?.rrpIncludesVat ?? true,
       currency,
       skipRowsWithoutPrice: saved?.skipRowsWithoutPrice ?? true,
-      markMissing: saved?.markMissing ?? false,
+      // «Позначити зниклі» тепер серед галочок «Що оновити» і не запам'ятовується
+      markMissing: false,
     });
     return picked;
   };
@@ -181,25 +187,27 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
   };
 
   const missingRoles = REQUIRED_ROLES.filter((r) => mapping[r] == null);
-  // у гібриді файл не відповідає за асортимент — позначати відсутні він не може
-  const markMissing = sourceKind !== 'hybrid' && options.markMissing;
+  // галочки без колонки у файлі (і в гібриді — нові й зниклі) вимкнені
+  const unavailable = useMemo(() => unavailableFileFields(mapping, sourceKind), [mapping, sourceKind]);
+  const sendFields = useMemo(() => effectiveFields(fields, unavailable), [fields, unavailable]);
+  const markMissing = sendFields.includes('markMissing');
   const hasPriceColumns = mapping.purchasePrice != null || mapping.rrp != null;
 
   const fileRates = rates.USD != null || rates.EUR != null ? rates : null;
   const importPrices = useMutation({
-    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, rates: fileRates }),
+    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, rates: fileRates, fields: sendFields }),
   });
 
   // «Перегляд»: що зміниться в каталозі — рахує сервер без запису (нова спроба заміняє попередню)
   const preview = useMutation({
-    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, rates: fileRates, dryRun: true }),
+    mutationFn: () => ds.importSupplierPrices(supplierId, { rows: built.rows, fileName, markMissing, rates: fileRates, dryRun: true, fields: sendFields }),
   });
   const runPreview = preview.mutate;
   const resetPreview = preview.reset;
   useEffect(() => {
     if (step === 3 && built.rows.length) runPreview();
     else resetPreview();
-  }, [step, built.rows, markMissing, fileRates, runPreview, resetPreview]);
+  }, [step, built.rows, sendFields, fileRates, runPreview, resetPreview]);
 
   const isAdmin = useIsAdmin();
   const switchToHybrid = useMutation({
@@ -500,16 +508,6 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               >
                 Пропускати рядки без ціни
               </Checkbox>
-              {sourceKind === 'hybrid' ? null : (
-                <Tooltip title="Позиції каталогу, яких немає у файлі, будуть позначені «немає у прайсі»">
-                  <Checkbox
-                    checked={options.markMissing}
-                    onChange={(e) => setOptions((o) => ({ ...o, markMissing: e.target.checked }))}
-                  >
-                    Позначити зниклі позиції
-                  </Checkbox>
-                </Tooltip>
-              )}
             </div>
             {ratesRow}
             {sourceAlert}
@@ -536,6 +534,10 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
             </div>
             {ratesRow}
             {sourceAlert}
+            <div className="po-pi-section">
+              <div className="po-pi-section-title">Що оновити</div>
+              <PriceFieldsPicker value={fields} onChange={setFields} unavailable={unavailable} disabled={importPrices.isPending} />
+            </div>
             {summary}
             {built.rows.length ? null : (
               <Alert type="error" showIcon message="Жоден рядок не придатний для завантаження, перевірте зіставлення колонок." />

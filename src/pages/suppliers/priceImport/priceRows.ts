@@ -1,9 +1,10 @@
 // Прайс постачальника: автовизначення заголовка й колонок за назвами (укр./рос.) і побудова рядків для імпорту.
 // Чисті функції (без DOM) — покриті тестами.
+import type { PriceUpdateField } from '@shared/catalog/priceUpdateFields';
 import { PRICE_COLUMN_ROLES, type CurrencyCode, type PriceColumnRole } from '@shared/enums';
 import { normalizeUnit, parseCurrency, parseLocaleNumber } from '@shared/parse';
 import { normalizeInputPrice, normalizeInputRrp } from '@shared/pricing';
-import type { PriceImportRow } from '@shared/types';
+import type { PriceImportRow, PriceSourceKind } from '@shared/types';
 import { parseStockText } from './stock';
 
 export { PRICE_COLUMN_ROLES, type PriceColumnRole };
@@ -20,6 +21,7 @@ export const ROLE_LABELS: Record<PriceColumnRole, string> = {
   stock: 'Наявність',
   multiplicity: 'Кратність',
   minOrderQty: 'Мін. замовлення',
+  image: 'Фото (посилання)',
 };
 
 export const ROLE_HINTS: Partial<Record<PriceColumnRole, string>> = {
@@ -28,6 +30,7 @@ export const ROLE_HINTS: Partial<Record<PriceColumnRole, string>> = {
   purchasePrice: 'Ціна опт / закупівельна. З ПДВ вона чи без, вкажіть нижче',
   rrp: 'Рекомендована роздрібна ціна, завжди читається як ціна з ПДВ',
   stock: 'Наявність, залишок або кількість: «100+», «є», «під замовлення»',
+  image: 'Посилання на фото товару (http…); кілька — через пробіл, кому чи «;», перше стане головним',
 };
 
 export type PriceColumnMap = { headerRow: number | null } & Record<PriceColumnRole, number | null>;
@@ -45,6 +48,7 @@ export const EMPTY_COLUMN_MAP: PriceColumnMap = {
   stock: null,
   multiplicity: null,
   minOrderQty: null,
+  image: null,
 };
 
 /** Ключ заголовка: без регістру, пробілів і розділових знаків — «Ціна опт з ПДВ» → «цінаоптзпдв». */
@@ -70,6 +74,7 @@ const HEADER_RULES: { re: RegExp; role: PriceColumnRole; rank: number }[] = [
   { re: /(кількіст|кільк|колво|^ксть|количеств|^кво$)/u, role: 'stock', rank: 1 },
   { re: /(кратн|multipl)/u, role: 'multiplicity', rank: 0 },
   { re: /(мінзамовлен|мінімальнезамовлен|мінпарті|минзаказ|минимальныйзаказ|minorder|мінкть)/u, role: 'minOrderQty', rank: 0 },
+  { re: /(^фото|^зображен|^изображен|^картинк|^image|^photo|^picture|^img)/u, role: 'image', rank: 0 },
 ];
 
 export interface HeaderMatch {
@@ -261,6 +266,12 @@ const TOTAL_ROW = /^(разом|всього|усього|итого|всего|
 
 const text = (row: readonly string[], col: number | null): string => (col == null ? '' : (row[col] ?? '').trim());
 
+/** Посилання на фото з клітинки: http(s), кілька — через пробіл, кому, «;» чи «|»; до 10. */
+export function imageUrlsOf(raw: string): string[] {
+  const urls = raw.split(/[\s,;|]+/u).filter((u) => /^https?:\/\/\S+$/iu.test(u));
+  return [...new Set(urls)].slice(0, 10);
+}
+
 function positive(raw: string): number | null {
   const n = parseLocaleNumber(raw);
   return n.valid && n.value != null && n.value > 0 ? n.value : null;
@@ -349,6 +360,7 @@ export function buildPriceRows(
       availability: stock.availability,
       multiplicity: positive(text(raw, mapping.multiplicity)),
       minOrderQty: positive(text(raw, mapping.minOrderQty)),
+      imageUrls: mapping.image != null ? imageUrlsOf(text(raw, mapping.image)) : [],
     };
 
     const skipped = errors.length > 0;
@@ -360,4 +372,31 @@ export function buildPriceRows(
   }
 
   return { preview, rows: out, stats };
+}
+
+/** Поле оновлення → колонка файлу, без якої його нема звідки взяти. */
+const FIELD_COLUMNS: [PriceUpdateField, PriceColumnRole][] = [
+  ['purchasePrice', 'purchasePrice'],
+  ['rrp', 'rrp'],
+  ['stock', 'stock'],
+  ['nameWork', 'name'],
+  ['brand', 'brand'],
+  ['unitCode', 'unit'],
+  ['multiplicity', 'multiplicity'],
+  ['minOrderQty', 'minOrderQty'],
+  ['images', 'image'],
+];
+
+/** Що з файлу оновити не можна (галочка вимкнена) і чому (правки замовника 28.09). */
+export function unavailableFileFields(mapping: PriceColumnMap, sourceKind: PriceSourceKind): Partial<Record<PriceUpdateField, string>> {
+  const out: Partial<Record<PriceUpdateField, string>> = {
+    categoryPath: 'У файлі прайсу немає колонки категорії',
+    barcode: 'У файлі прайсу немає колонки штрихкоду',
+  };
+  for (const [field, role] of FIELD_COLUMNS) if (mapping[role] == null) out[field] = 'У файлі не вибрано цю колонку (крок «Колонки»)';
+  if (sourceKind === 'hybrid') {
+    out.newProducts = 'Гібрид: нові позиції приходять лише за посиланням';
+    out.markMissing = 'Гібрид: зниклі позначає лише вигрузка за посиланням';
+  }
+  return out;
 }

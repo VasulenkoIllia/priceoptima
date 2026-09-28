@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  unavailableFileFields,
   buildPriceRows,
   detectFileRates,
   detectColumns,
@@ -45,6 +46,7 @@ describe('detectColumns — типовий прайс з 1С', () => {
       stock: 7,
       multiplicity: null,
       minOrderQty: null,
+      image: null,
     });
   });
 
@@ -74,6 +76,7 @@ describe('detectColumns — типовий прайс з 1С', () => {
       stock: null,
       multiplicity: null,
       minOrderQty: null,
+      image: null,
     });
   });
 
@@ -112,6 +115,7 @@ describe('detectColumns — типовий прайс з 1С', () => {
       stock: 8,
       multiplicity: 9,
       minOrderQty: 10,
+      image: null,
     });
   });
 
@@ -149,6 +153,7 @@ describe('buildPriceRows — рядки прайсу', () => {
         availability: 'in_stock',
         multiplicity: null,
         minOrderQty: null,
+        imageUrls: [],
       },
       {
         code: 'ТА-100987',
@@ -163,6 +168,7 @@ describe('buildPriceRows — рядки прайсу', () => {
         availability: 'in_stock',
         multiplicity: null,
         minOrderQty: null,
+        imageUrls: [],
       },
     ]);
     expect(res.stats).toMatchObject({ total: 2, withPrice: 2, noCode: 0, duplicates: 0 });
@@ -238,7 +244,7 @@ describe('buildPriceRows — рядки прайсу', () => {
   });
 
   it('без рядка заголовка дані читаються з першого рядка', () => {
-    const mapping: PriceColumnMap = { headerRow: null, code: 0, sku: null, name: 1, brand: null, unit: null, purchasePrice: 2, currency: null, rrp: null, stock: null, multiplicity: null, minOrderQty: null };
+    const mapping: PriceColumnMap = { headerRow: null, code: 0, sku: null, name: 1, brand: null, unit: null, purchasePrice: 2, currency: null, rrp: null, stock: null, multiplicity: null, minOrderQty: null, image: null };
     const res = buildPriceRows([['A-1', 'Кран', '100']], mapping, DEFAULT_BUILD_OPTIONS);
     expect(res.rows).toHaveLength(1);
     expect(res.preview[0].rowNumber).toBe(1);
@@ -264,5 +270,27 @@ describe('курс прайсу у файлі', () => {
   it('немає курсу або число неправдоподібне — нічого', () => {
     expect(detectFileRates([['Код', 'Ціна'], ['A1', '10']], 'USD')).toEqual({ USD: null, EUR: null, where: null });
     expect(detectFileRates([['Курс', '0,5']], 'USD').USD).toBeNull();
+  });
+
+  it('колонка «Фото» (правки замовника 28.09): знаходиться за заголовком; кілька посилань у клітинці, лише http(s)', () => {
+    const rows = [
+      ['Код', 'Назва', 'Ціна', 'Фото товару'],
+      ['A-1', 'Кран', '100', 'https://img/a.jpg; https://img/b.jpg ftp://x/c.jpg https://img/a.jpg'],
+      ['A-2', 'Труба', '50', ''],
+    ];
+    const mapping = detectColumns(rows);
+    expect(mapping.image).toBe(3);
+    const res = buildPriceRows(rows, mapping, DEFAULT_BUILD_OPTIONS);
+    expect(res.rows.map((r) => r.imageUrls)).toEqual([['https://img/a.jpg', 'https://img/b.jpg'], []]);
+  });
+
+  it('галочки «Що оновити»: без колонки у файлі — вимкнені; категорії й штрихкоду у файлі немає; у гібриді — без нових і зниклих', () => {
+    const mapping = detectColumns([['Код', 'Назва', 'Ціна', 'Фото'], ['A-1', 'Кран', '100', 'https://img/a.jpg']]);
+    const off = unavailableFileFields(mapping, 'manual');
+    expect(Object.keys(off).sort()).toEqual(['barcode', 'brand', 'categoryPath', 'minOrderQty', 'multiplicity', 'rrp', 'stock', 'unitCode'].sort());
+    const hybrid = unavailableFileFields(mapping, 'hybrid');
+    expect(hybrid).toMatchObject({ newProducts: expect.any(String), markMissing: expect.any(String) });
+    expect(hybrid.nameWork).toBeUndefined();
+    expect(hybrid.images).toBeUndefined();
   });
 });

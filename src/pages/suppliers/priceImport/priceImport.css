@@ -121,3 +121,14 @@
   overflow-y: auto;
   padding-right: 4px;
 }
+
+/* «Що оновити» — галочки полів на кроці «Перегляд» (правки замовника 28.09) */
+.po-pi-section {
+  padding: 10px 12px;
+  border: 1px solid var(--po-border);
+  border-radius: 6px;
+}
+.po-pi-section-title {
+  margin-bottom: 8px;
+  font-weight: 600;
+}

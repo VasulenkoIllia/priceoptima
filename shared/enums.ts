@@ -12,7 +12,7 @@ export const RATE_POLICIES = ['price_list', 'manual', 'nbu', 'nbu_adjusted'] as 
 export const RATE_SOURCES = ['nbu', 'manual'] as const;
 export const PRICE_SOURCES = ['import', 'manual', 'request', 'seed'] as const;
 /** Колонки прайсу, які зіставляються при завантаженні файлом. */
-export const PRICE_COLUMN_ROLES = ['code', 'sku', 'name', 'brand', 'unit', 'purchasePrice', 'currency', 'rrp', 'stock', 'multiplicity', 'minOrderQty'] as const;
+export const PRICE_COLUMN_ROLES = ['code', 'sku', 'name', 'brand', 'unit', 'purchasePrice', 'currency', 'rrp', 'stock', 'multiplicity', 'minOrderQty', 'image'] as const;
 export const AVAILABILITY_STATUSES = ['in_stock', 'low_stock', 'out_of_stock', 'on_order', 'unknown'] as const;
 export const IMPORT_STATUSES = ['uploaded', 'parsing', 'previewed', 'applying', 'applied', 'failed', 'cancelled'] as const;
 export const IMPORT_ROW_ACTIONS = ['create', 'update', 'unchanged', 'error', 'skip'] as const;
