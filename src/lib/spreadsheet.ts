@@ -1,11 +1,13 @@
 // Читання таблиці в браузері (прайс постачальника, заявка клієнта): xlsx (ExcelJS), старий .xls (SheetJS) — обидва підвантажуються
-// за потреби, csv/tsv/txt (UTF-8 або Windows-1251). Формат визначаємо за сигнатурою файлу, а не за розширенням.
+// за потреби, csv/tsv/txt (UTF-8 або Windows-1251), XML-вигрузка прайсу (Prom, YML — перетворюється на таблицю, priceXml.ts).
+// Формат визначаємо за сигнатурою файлу, а не за розширенням.
 // Чисті функції (крім читання File) — покриті тестами.
 import type { CellValue, Worksheet } from 'exceljs';
 import { MAX_IMPORT_ROWS } from '@shared/catalog/limits';
 import { parseTsv } from '@shared/parse';
 import { formatDate } from '@shared/format';
 import { loadExcelJs, loadXlsxReader } from '@/lib/files';
+import { looksLikeXml, priceXmlRows } from '@/lib/priceXml';
 
 export interface SheetData {
   name: string;
@@ -185,8 +187,22 @@ export async function readSpreadsheetFile(file: File): Promise<SheetData[]> {
 }
 
 function readDelimited(buf: ArrayBuffer, fileName: string): SheetData[] {
-  const rows = parseCsv(decodeText(buf)).map((r) => r.map(clean));
+  const text = decodeText(buf);
+  if (looksLikeXml(text)) return [readXml(text, fileName)];
+  const rows = parseCsv(text).map((r) => r.map(clean));
   return [{ name: fileName, rows: trimRows(rows) }];
+}
+
+/** XML-вигрузка прайсу → «аркуш» з колонками, які впізнає автовизначення. */
+function readXml(text: string, fileName: string): SheetData {
+  let rows: string[][];
+  try {
+    rows = priceXmlRows(text);
+  } catch (e) {
+    throw new SpreadsheetError(e instanceof Error ? e.message : 'Не вдалося прочитати XML');
+  }
+  if (rows.length - 1 > MAX_ROWS) throw tooManyRows(rows.length - 1);
+  return { name: fileName, rows: trimRows(rows.map((r) => r.map(clean))) };
 }
 
 async function readXlsx(buf: ArrayBuffer): Promise<SheetData[]> {

@@ -83,3 +83,47 @@ describe('csv', () => {
     expect(columnLetter(26)).toBe('AA');
   });
 });
+
+describe('XML-вигрузка прайсу (правки замовника 28.09)', () => {
+  // вигадані товари у форматі кабінету постачальника (Prom): штрихкод — наш код товару, ціна з ПДВ, по 2 фото
+  const PROM = `<?xml version="1.0" encoding="UTF-8"?>
+<shop><catalog/><items>
+<item id="101" selling_type="r"><name>Муфта с наружной резьбой 25х1"</name><name_ua>Муфта з зовнішньою різьбою 25х1"</name_ua>
+<priceuah>43.34</priceuah><image>https://img.example/a1.jpeg</image><image>https://img.example/a2.jpeg</image>
+<vendor>Тест</vendor><vendorCode>1003025004001</vendorCode><barcode>000000101</barcode><param name="Тип">Муфта</param>
+<description_ua><![CDATA[<p>Опис</p>]]></description_ua><available>true</available></item>
+<item id="102"><name>Кран</name><priceuah>10</priceuah><vendor>Тест</vendor><barcode>000000102</barcode><available>false</available></item>
+</items></shop>`;
+  const YML = `<?xml version="1.0" encoding="UTF-8"?>
+<yml_catalog date="2026-09-28"><shop><offers>
+<offer id="7" available="true"><price>12.5</price><currencyId>UAH</currencyId><picture>https://img.example/y.jpg</picture>
+<name>Трійник 20</name><param name="Артикул">TR-20</param></offer>
+</offers></shop></yml_catalog>`;
+
+  it('Prom: таблиця з колонками, які впізнає діалог прайсу; українська назва; наявність і фото', async () => {
+    const [sheet] = await readSpreadsheetFile(textFile(PROM, 'fitingi-prom.xml'));
+    expect(sheet.rows[0]).toEqual(['Код (штрихкод)', 'Артикул', 'Назва', 'Бренд', 'Ціна з ПДВ', 'Валюта', 'Наявність', 'Фото', 'ID у вигрузці']);
+    expect(sheet.rows[1]).toEqual([
+      '000000101',
+      '1003025004001',
+      'Муфта з зовнішньою різьбою 25х1"',
+      'Тест',
+      '43.34',
+      '',
+      'є',
+      'https://img.example/a1.jpeg https://img.example/a2.jpeg',
+      '101',
+    ]);
+    expect(sheet.rows[2].slice(0, 7)).toEqual(['000000102', '', 'Кран', 'Тест', '10', '', 'немає']);
+  });
+
+  it('YML: артикул із параметра, фото з picture, наявність з атрибута', async () => {
+    const [sheet] = await readSpreadsheetFile(textFile(YML, 'rozetka.xml'));
+    expect(sheet.rows[1]).toEqual(['', 'TR-20', 'Трійник 20', '', '12.5', 'UAH', 'є', 'https://img.example/y.jpg', '7']);
+  });
+
+  it('пошкоджений XML чи без товарів — зрозуміла помилка', async () => {
+    await expect(readSpreadsheetFile(textFile('<shop><items>', 'bad.xml'))).rejects.toBeInstanceOf(SpreadsheetError);
+    await expect(readSpreadsheetFile(textFile('<shop><items></items></shop>', 'empty.xml'))).rejects.toThrow('У XML немає товарів');
+  });
+});

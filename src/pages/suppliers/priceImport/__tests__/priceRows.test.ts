@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { PRICE_XML_HEADER } from '@/lib/priceXml';
 import {
   unavailableFileFields,
   buildPriceRows,
@@ -292,5 +293,16 @@ describe('курс прайсу у файлі', () => {
     expect(hybrid).toMatchObject({ newProducts: expect.any(String), markMissing: expect.any(String) });
     expect(hybrid.nameWork).toBeUndefined();
     expect(hybrid.images).toBeUndefined();
+  });
+
+  it('таблиця з XML-вигрузки (priceXml): колонки впізнаються, ціна — вхід з ПДВ, фото й наявність', () => {
+    const rows = [[...PRICE_XML_HEADER], ['000000101', '1003025004001', 'Муфта 25х1"', 'Тест', '43.34', '', 'є', 'https://img/a.jpeg https://img/b.jpeg', '101']];
+    const mapping = detectColumns(rows);
+    expect(mapping).toMatchObject({ headerRow: 0, code: 0, sku: 1, name: 2, brand: 3, purchasePrice: 4, currency: 5, stock: 6, image: 7 });
+    expect(detectPriceIncludesVat(rows[0][4])).toBe(true);
+    const res = buildPriceRows(rows, mapping, { ...DEFAULT_BUILD_OPTIONS, pricesIncludeVat: true });
+    expect(res.rows[0]).toMatchObject({ code: '000000101', name: 'Муфта 25х1"', availability: 'in_stock', imageUrls: ['https://img/a.jpeg', 'https://img/b.jpeg'] });
+    // 43,34 з ПДВ → вхід без ПДВ, як у каталозі
+    expect(res.rows[0].purchasePrice).toBeCloseTo(43.34 / 1.2, 4);
   });
 });
