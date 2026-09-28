@@ -11,6 +11,7 @@ import {
   searchPlan,
   SEARCH_SCORE,
 } from '../modules/products/products.search';
+import { PRODUCT_SEARCH_MAX, productSearchQuerySchema } from '../modules/products/products.schemas';
 
 function candidate(
   skuKey: string,
@@ -137,5 +138,14 @@ describe('звірка списку артикулів', () => {
   it('порожній артикул — порожній результат', () => {
     expect(lookupSkuMatches(rows, ['', '   '])).toEqual({ '': [], '   ': [] });
     expect(lookupKeys(['ab-100', 'AB100', '', ' '])).toEqual(['AB100']);
+  });
+});
+
+describe('межа видачі пошуку', () => {
+  it('до 100 (підказка артикулів — усі збіги з прокруткою, правки замовника 28.09 п.1); більше — помилка', () => {
+    expect(PRODUCT_SEARCH_MAX).toBe(100);
+    expect(productSearchQuerySchema.parse({ q: 'коліно', limit: '100' }).limit).toBe(100);
+    expect(productSearchQuerySchema.parse({ q: 'коліно' }).limit).toBe(20);
+    expect(productSearchQuerySchema.safeParse({ q: 'коліно', limit: '101' }).success).toBe(false);
   });
 });

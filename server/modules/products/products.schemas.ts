@@ -93,10 +93,18 @@ export const productListQuerySchema = z
   })
   .transform((v) => ({ ...v, q: v.q || v.search || '' }));
 
+/** Найбільша видача пошуку (підказка артикулів у «Підборі» показує до 100 з прокруткою, правки замовника 28.09 п.1). */
+export const PRODUCT_SEARCH_MAX = 100;
+
 export const productSearchQuerySchema = z.object({
   q: z.string().trim().max(200, 'Задовгий запит').default(''),
   supplierId: queryUuid('Невірний ідентифікатор постачальника'),
-  limit: z.coerce.number().int('Ліміт: вкажіть ціле число').min(1, 'Ліміт: не менше 1').max(50, 'Ліміт: не більше 50').default(20),
+  limit: z.coerce
+    .number()
+    .int('Ліміт: вкажіть ціле число')
+    .min(1, 'Ліміт: не менше 1')
+    .max(PRODUCT_SEARCH_MAX, `Ліміт: не більше ${PRODUCT_SEARCH_MAX}`)
+    .default(20),
   includeArchived: queryFlag,
 });
 

@@ -12,6 +12,22 @@ import { parseColId } from './colIds';
 import type { SourcingGridContext } from './gridContext';
 import type { SourcingRow } from './rows';
 
+/** Скільки підказок просимо (правки замовника 28.09 п.1): усі збіги з прокруткою; більше — просимо уточнити запит. */
+export const SKU_SUGGEST_LIMIT = 100;
+/** Висота списку: ~12 рядків, решта прокручується. */
+const SUGGEST_LIST_HEIGHT = 12 * 32;
+const MORE_HINT = '__more';
+
+/**
+ * Що показати з видачі пошуку. Є товари з усіма словами запиту — часткові збіги (лише частина слів) не показуємо:
+ * «коліно 40» звужує список, а не доповнює його «просто колінами». more — видача дійшла до межі, збігів може бути більше.
+ */
+export function skuSuggestions(hits: ProductPickDto[], limit = SKU_SUGGEST_LIMIT): { items: ProductPickDto[]; more: boolean } {
+  const full = hits.filter((h) => h.matchKind !== 'fuzzy');
+  const items = full.length ? full : hits;
+  return { items, more: hits.length >= limit && items.length === hits.length };
+}
+
 /** Список підказок відкрито — Enter і стрілки обробляє підказка, а не сітка (див. suppressKeyboardEvent у SourcingGrid). */
 let suggestOpen = false;
 export const isSkuSuggestOpen = (): boolean => suggestOpen;
@@ -39,11 +55,20 @@ export function SkuEditor(p: CustomCellEditorProps<SourcingRow, string, Sourcing
   const q = useDebouncedValue(text.trim(), 150);
   const search = useQuery({
     queryKey: ['sku-suggest', supplierId, q],
-    queryFn: () => ds.searchProducts({ q, supplierId, limit: 8 }),
+    queryFn: () => ds.searchProducts({ q, supplierId, limit: SKU_SUGGEST_LIMIT }),
     enabled: q.length >= 2,
     staleTime: 15_000,
   });
-  const options = q.length >= 2 ? (search.data ?? []).map((product) => ({ value: product.sku, label: <SuggestOption product={product} /> })) : [];
+  const found = skuSuggestions(q.length >= 2 ? (search.data ?? []) : []);
+  const options = found.items.map((product) => ({ value: product.sku, label: <SuggestOption product={product} /> }));
+  // збігів може бути більше за межу — останнім рядком підказка (не вибирається)
+  if (found.more) {
+    options.push({
+      value: MORE_HINT,
+      label: <span className="po-muted">Перші {SKU_SUGGEST_LIMIT}. Уточніть запит, напр. «коліно 40», або F4</span>,
+      disabled: true,
+    } as (typeof options)[number]);
+  }
   const shown = open && options.length > 0;
 
   // лише при відкритті: фокус і стартова клавіша як значення редактора
@@ -68,12 +93,14 @@ export function SkuEditor(p: CustomCellEditorProps<SourcingRow, string, Sourcing
       options={options}
       open={shown}
       popupMatchSelectWidth={440}
+      listHeight={SUGGEST_LIST_HEIGHT}
       onChange={(v: string) => {
         setText(v);
         setOpen(true);
         p.onValueChange(v);
       }}
       onSelect={(v: string) => {
+        if (v === MORE_HINT) return;
         setText(v);
         setOpen(false);
         suggestOpen = false;
