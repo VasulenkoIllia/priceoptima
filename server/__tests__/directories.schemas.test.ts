@@ -37,6 +37,13 @@ describe('юрособа', () => {
     expect(out.isDefault).toBe(false);
   });
 
+  it('печатка з підписом (30.09): лише зображення; порожньо — прибрати', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(parse(ownCompanyInputSchema, { ...valid, stampUrl: png }).stampUrl).toBe(png);
+    expect(parse(ownCompanyInputSchema, { ...valid, stampUrl: '' }).stampUrl).toBeNull();
+    expect(messageOf(() => parse(ownCompanyInputSchema, { ...valid, stampUrl: 'data:text/html;base64,PHNjcmlwdD4=' }))).toContain('Печатка');
+  });
+
   it('без назв — зрозуміле повідомлення українською', () => {
     expect(messageOf(() => parse(ownCompanyInputSchema, {}))).toBe('Вкажіть позначку юрособи');
     expect(messageOf(() => parse(ownCompanyInputSchema, { code: 'ТОВ', nameShort: '   ' }))).toBe('Вкажіть коротку назву');

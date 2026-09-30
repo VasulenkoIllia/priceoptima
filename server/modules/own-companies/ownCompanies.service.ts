@@ -67,6 +67,7 @@ function toRow(input: OwnCompanyInputBody) {
     website: input.website,
     slogan: input.slogan,
     logoUrl: input.logoUrl,
+    stampUrl: input.stampUrl,
     kpFooter: input.kpFooter,
     isActive: input.isActive,
   };

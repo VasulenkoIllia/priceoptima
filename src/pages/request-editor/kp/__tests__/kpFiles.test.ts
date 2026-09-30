@@ -89,6 +89,20 @@ describe('файли КП з одного знімка', () => {
     expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
   });
 
+  it('Excel з печаткою: зображення біля «Виписав(ла)», у друк входить', async () => {
+    const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+    const wb = await buildKpWorkbook({ ...snapshot, stampPath: PNG }, new Map(), null, { dataUrl: PNG, width: 435, height: 261 });
+    const ws = wb.getWorksheet('КП')!;
+    expect(ws.getImages()).toHaveLength(1);
+    let signRow = 0;
+    ws.eachRow((row, n) => {
+      if (row.getCell(1).value === 'Виписав(ла):') signRow = n;
+    });
+    // печатка над рядком підпису й трохи нижче; область друку — з запасом під неї
+    expect(ws.getImages()[0].range.tl.nativeRow).toBeLessThan(signRow);
+    expect(ws.pageSetup.printArea).toBe(`A1:G${signRow + 3}`);
+  });
+
   it('Excel з логотипом: зображення в шапці', async () => {
     // 1×1 прозорий PNG
     const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';

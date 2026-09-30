@@ -429,6 +429,20 @@
   width: 190px;
   border-bottom: 1px solid #222;
 }
+/* печатка з підписом поверх «Виписав(ла)» і лінії, як у бланку замовника */
+.po-kp-sign {
+  position: relative;
+}
+.po-kp-sign-stamped {
+  margin-bottom: 44px;
+}
+.po-kp-stamp {
+  position: absolute;
+  right: 60px;
+  bottom: -46px;
+  width: 210px;
+  pointer-events: none;
+}
 
 /* ── Погодження ──────────────────────────────────────────────── */
 .po-tab.po-appr {

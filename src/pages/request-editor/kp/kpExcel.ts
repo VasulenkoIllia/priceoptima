@@ -18,7 +18,7 @@ import {
   kpTotalLines,
   kpValidLine,
 } from './kpLayout';
-import { loadKpLogo, loadRowPhotos, type KpLogoImage } from './kpPhotos';
+import { loadKpLogo, loadKpStamp, loadRowPhotos, type KpLogoImage } from './kpPhotos';
 
 const MONEY = '#,##0.00';
 const LINE: Partial<Border> = { style: 'thin', color: { argb: 'FF222222' } };
@@ -33,6 +33,8 @@ const PHOTO_ROW_PT = 46;
 /** Шапка: два рядки по стільки пунктів; логотип — не вищий за них. */
 const HEAD_ROW_PT = 30;
 const LOGO_MAX_H_PX = 68;
+/** Ширина печатки з підписом, пікселі. */
+const STAMP_W_PX = 260;
 
 interface TextOptions {
   bold?: boolean;
@@ -61,6 +63,7 @@ export async function buildKpWorkbook(
   s: KpSnapshot,
   photos: ReadonlyMap<string, string> = new Map(),
   logo: KpLogoImage | null = null,
+  stamp: KpLogoImage | null = null,
 ): Promise<Workbook> {
   const ExcelJS = await loadExcelJs();
   const wb = new ExcelJS.Workbook();
@@ -74,6 +77,27 @@ export async function buildKpWorkbook(
   const widths = [5, 14, ...(withPhotos ? [10] : []), 52, 8, 10, 15, 16];
   ws.columns = widths.map((width) => ({ width }));
   let r = 1;
+
+  /** Частка колонки (від 0) для якоря зображення: x пікселів від лівого краю таблиці. */
+  const colAt = (x: number) => {
+    let left = Math.max(0, x);
+    for (let c = 0; c < widths.length; c++) {
+      const cw = colPx(widths[c]);
+      if (left < cw) return c + left / cw;
+      left -= cw;
+    }
+    return widths.length;
+  };
+  /** Частка рядка (від 0) для якоря зображення: на px пікселів вище верху рядка row (з 1), з урахуванням висоти рядків. */
+  const rowAbove = (row: number, px: number) => {
+    let left = px;
+    for (let i = row - 1; i >= 1; i--) {
+      const rh = ((ws.getRow(i).height || 15) * 4) / 3;
+      if (left <= rh) return i - 1 + (rh - left) / rh;
+      left -= rh;
+    }
+    return 0;
+  };
 
   const styleText = (c: Cell, o: TextOptions) => {
     c.font = { bold: o.bold, underline: o.underline, size: o.size ?? 10, ...(o.color ? { color: { argb: o.color } } : {}) };
@@ -258,6 +282,17 @@ export async function buildKpWorkbook(
   sign.value = KP_SIGN_LABEL;
   sign.alignment = { horizontal: 'right' };
   for (let c = COLS - 1; c <= COLS; c++) setBorder(ws.getCell(r, c), { bottom: LINE });
+  if (stamp) {
+    // печатка з підписом поверх «Виписав(ла)» і лінії, як у бланку замовника: правий край — трохи лівіше краю таблиці,
+    // більша частина вище рядка підпису
+    const w = STAMP_W_PX;
+    const h = Math.round((w * stamp.height) / stamp.width);
+    const tableW = widths.reduce((sum, c) => sum + colPx(c), 0);
+    const id = wb.addImage({ base64: stamp.dataUrl, extension: 'png' });
+    ws.addImage(id, { tl: { col: colAt(tableW - 40 - w), row: rowAbove(r, Math.round(h * 0.6)) }, ext: { width: w, height: h } });
+    // низ печатки — у друк
+    ws.pageSetup.printArea = `A1:${ws.getColumn(COLS).letter}${r + 3}`;
+  }
 
   // один шрифт на весь бланк: клітинки без явного шрифту інакше отримують шрифт програми, що відкриває файл
   ws.eachRow((row) =>
@@ -269,10 +304,11 @@ export async function buildKpWorkbook(
 }
 
 export async function downloadKpExcel(s: KpSnapshot, version?: number): Promise<void> {
-  const [photos, logo] = await Promise.all([
+  const [photos, logo, stamp] = await Promise.all([
     s.columns.showImages ? loadRowPhotos(s.rows.map((r) => r.imagePath).filter((p): p is string => !!p)) : new Map<string, string>(),
     loadKpLogo(s.header.logoPath),
+    loadKpStamp(s.stampPath),
   ]);
-  const data = await (await buildKpWorkbook(s, photos, logo)).xlsx.writeBuffer();
+  const data = await (await buildKpWorkbook(s, photos, logo, stamp)).xlsx.writeBuffer();
   saveBlob(new Blob([data], { type: XLSX_MIME }), kpFileName(s, 'xlsx', version));
 }

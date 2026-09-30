@@ -68,6 +68,8 @@ describe('зміни після сформованої версії КП', () =>
   it('шапка чи підпис нашої юрособи змінились у картці — «наша юрособа»; у старому знімку немає поля — це не зміна', () => {
     expect(kpChangesSince(base, buildKpSnapshot({ ...input, seller: { ...seller, phone: '067 111 22 33' } }), 3)).toEqual(['наша юрособа']);
     expect(kpChangesSince(base, buildKpSnapshot({ ...input, seller: { ...seller, kpFooter: 'Дякуємо!' } }), 3)).toEqual(['примітка']);
+    // печатку додали в картку юрособи після КП
+    expect(kpChangesSince(base, buildKpSnapshot({ ...input, seller: { ...seller, stampUrl: 'data:image/png;base64,ST' } }), 3)).toEqual(['печатка']);
     // спільний логотип з Налаштувань — окремим словом, не «наша юрособа»
     expect(kpChangesSince(base, buildKpSnapshot({ ...input, logoUrl: 'data:image/png;base64,AAA' }), 3)).toEqual(['логотип']);
     // КП до 29.09 без примітки, у новому бланку типова примітка — не зміна

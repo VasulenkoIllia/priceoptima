@@ -227,6 +227,8 @@ export interface OwnCompanyDto {
   website: string | null;
   slogan: string | null;
   logoUrl: string | null;
+  /** Печатка з підписом у КП (PNG з прозорим фоном); немає — у КП лише «Виписав(ла): ____». */
+  stampUrl?: string | null;
   kpFooter: string | null;
   isDefault: boolean;
   isActive: boolean;

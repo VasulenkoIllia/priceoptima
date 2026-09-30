@@ -192,6 +192,8 @@ model OwnCompany {
   website      String?
   slogan       String?
   logoUrl      String?
+  /// Печатка з підписом у КП (data URL PNG з прозорим фоном); своя в кожної юрособи.
+  stampUrl     String?
   kpFooter     String?
   isDefault    Boolean  @default(false)
   isActive     Boolean  @default(true)

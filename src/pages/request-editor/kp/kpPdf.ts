@@ -1,5 +1,5 @@
 // PDF бланка КП (pdfmake у браузері, окремим чанком). Кирилиця — вбудований Roboto; знака «₴» у ньому немає, тому «грн».
-import type { Content, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
+import type { Content, ContentImage, ContentSvg, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
 import {
@@ -45,19 +45,21 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 
 /** Місце логотипа в шапці, pt. */
 const LOGO_FIT: [number, number] = [150, 56];
+/** Печатка з підписом біля «Виписав(ла)», pt (у бланку замовника — близько 170 × 100). */
+const STAMP_FIT: [number, number] = [165, 100];
 
-/** Логотип: SVG (data URL) — як svg-вузол; PNG/JPEG — як зображення. Не вдалося — без логотипа. */
-async function logoContent(url: string | null): Promise<Content | null> {
+/** Логотип чи печатка: SVG (data URL) — як svg-вузол; PNG/JPEG — як зображення. Не вдалося — без нього. */
+async function pictureContent(url: string | null | undefined, fit: [number, number]): Promise<ContentImage | ContentSvg | null> {
   if (!url) return null;
   try {
     if (url.startsWith('data:image/svg+xml')) {
       const comma = url.indexOf(',');
       const meta = url.slice(0, comma);
       const body = url.slice(comma + 1);
-      return { svg: meta.includes(';base64') ? atob(body) : decodeURIComponent(body), fit: LOGO_FIT, alignment: 'right' };
+      return { svg: meta.includes(';base64') ? atob(body) : decodeURIComponent(body), fit };
     }
     const image = url.startsWith('data:') ? url : await blobToDataUrl(await (await fetch(url)).blob());
-    return { image, fit: LOGO_FIT, alignment: 'right' };
+    return { image, fit };
   } catch {
     return null;
   }
@@ -142,7 +144,13 @@ const rule = (margin: [number, number, number, number]): Content => ({
 /** PDF-документ зі знімка (без завантаження — для файлу й перевірок). */
 export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['createPdf']>> {
   const photoPaths = s.columns.showImages ? s.rows.map((r) => r.imagePath).filter((p): p is string => !!p) : [];
-  const [lib, logo, rowPhotos] = await Promise.all([loadPdfMake(), logoContent(s.header.logoPath), loadRowPhotos(photoPaths)]);
+  const [lib, logoPicture, stamp, rowPhotos] = await Promise.all([
+    loadPdfMake(),
+    pictureContent(s.header.logoPath, LOGO_FIT),
+    pictureContent(s.stampPath, STAMP_FIT),
+    loadRowPhotos(photoPaths),
+  ]);
+  const logo: Content | null = logoPicture ? ({ ...logoPicture, alignment: 'right' } as Content) : null;
 
   const parties: TableCell[][] = kpPartyRows(s).map((r) => {
     const gap = r.gap ? 8 : 0;
@@ -226,15 +234,21 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
       ...(terms.length ? [{ table: { widths: [120, '*'], body: terms }, layout: 'noBorders', margin: [0, 8, 0, 0] } as Content] : []),
       ...(s.managerName ? [{ text: `Менеджер: ${s.managerName}`, margin: [0, 14, 0, 0] } as Content] : []),
       rule([0, 12, 0, 4]),
-      ...(s.footer ? [{ text: s.footer, fontSize: 8, margin: [0, 0, 190, 0] } as Content] : []),
+      ...(s.footer ? [{ text: s.footer, fontSize: 8, margin: [0, 0, 205, 0] } as Content] : []),
       {
-        columns: [
-          { width: '*', text: '' },
-          { width: 'auto', text: KP_SIGN_LABEL },
-          { width: 150, canvas: [{ type: 'line', x1: 0, y1: 10, x2: 150, y2: 10, lineWidth: 0.6, lineColor: INK }] },
+        stack: [
+          {
+            columns: [
+              { width: '*', text: '' },
+              { width: 'auto', text: KP_SIGN_LABEL },
+              { width: 150, canvas: [{ type: 'line', x1: 0, y1: 10, x2: 150, y2: 10, lineWidth: 0.6, lineColor: INK }] },
+            ],
+            columnGap: 6,
+          },
+          // печатка з підписом поверх «Виписав(ла)» і лінії, як у бланку замовника; місця в потоці не займає
+          ...(stamp ? [{ ...stamp, relativePosition: { x: 523 - STAMP_FIT[0] - 35, y: -60 } } as Content] : []),
         ],
-        columnGap: 6,
-        margin: [0, 22, 0, 0],
+        margin: [0, 22, 0, stamp ? 34 : 0],
         unbreakable: true,
       } as Content,
     ],

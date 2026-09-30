@@ -23,7 +23,7 @@ import { isActiveLine } from './lines';
 /** Реквізити нашої юрособи для бланка. */
 export type KpSeller = Pick<
   OwnCompanyDto,
-  'nameShort' | 'nameFull' | 'edrpou' | 'ipn' | 'isVatPayer' | 'iban' | 'bankName' | 'addressLegal' | 'phone' | 'email' | 'website' | 'slogan' | 'logoUrl' | 'kpFooter'
+  'nameShort' | 'nameFull' | 'edrpou' | 'ipn' | 'isVatPayer' | 'iban' | 'bankName' | 'addressLegal' | 'phone' | 'email' | 'website' | 'slogan' | 'logoUrl' | 'stampUrl' | 'kpFooter'
 >;
 
 export interface KpBuyer {
@@ -149,6 +149,8 @@ export function buildKpSnapshot(input: KpSnapshotInput): KpSnapshot {
     managerName: kpShownManager(settings, input.managerName),
     validUntil: settings.validityDays > 0 ? addDaysIso(input.date, settings.validityDays) : null,
     footer: seller.kpFooter?.trim() || KP_FOOTNOTE,
+    // печатка з підписом з картки юрособи (правки замовника 30.09)
+    stampPath: seller.stampUrl ?? null,
     terms: cleanKpTerms(input.terms),
   };
 }

@@ -55,6 +55,7 @@ export function kpChangesSince(
   if (!same(was.terms, preview.terms)) changes.push('умови');
   if ((was.extraInfo ?? null) !== (preview.extraInfo ?? null)) changes.push('дод. інформація');
   if (was.managerName !== preview.managerName) changes.push('менеджер');
+  if ((was.stampPath ?? null) !== (preview.stampPath ?? null)) changes.push('печатка');
   // КП до 29.09 без примітки: типова примітка в новому бланку — не зміна, яку треба повідомляти
   const wasFooter = was.footer ?? KP_FOOTNOTE;
   if (wasFooter !== preview.footer) changes.push('примітка');

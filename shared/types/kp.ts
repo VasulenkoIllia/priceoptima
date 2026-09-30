@@ -82,6 +82,8 @@ export interface KpSnapshot {
   managerName: string;
   validUntil: ISODate | null;
   footer: string | null;
+  /** Печатка з підписом юрособи біля «Виписав(ла)»; у знімках до 30.09 немає. */
+  stampPath?: string | null;
   /** Умови внизу КП (порожні не друкуються); у старих знімках немає. */
   terms?: KpTerm[];
 }

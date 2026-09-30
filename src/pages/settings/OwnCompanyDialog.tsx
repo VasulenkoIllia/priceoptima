@@ -21,6 +21,7 @@ type FormValues = Pick<
   | 'website'
   | 'slogan'
   | 'logoUrl'
+  | 'stampUrl'
   | 'isDefault'
 >;
 
@@ -33,7 +34,7 @@ const GRID_3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap:
 function toInput(c: OwnCompanyDto | null, v: FormValues): OwnCompanyInput {
   const rest: Omit<OwnCompanyInput, 'version'> = c
     ? (({ id: _id, version: _version, ...keep }) => keep)(c)
-    : { code: '', nameShort: '', nameFull: '', edrpou: null, ipn: null, isVatPayer: true, iban: null, bankName: null, addressLegal: null, phone: null, email: null, website: null, slogan: null, logoUrl: null, kpFooter: null, isDefault: false, isActive: true };
+    : { code: '', nameShort: '', nameFull: '', edrpou: null, ipn: null, isVatPayer: true, iban: null, bankName: null, addressLegal: null, phone: null, email: null, website: null, slogan: null, logoUrl: null, stampUrl: null, kpFooter: null, isDefault: false, isActive: true };
   return {
     ...rest,
     ...(c ? { version: c.version } : {}),
@@ -51,6 +52,7 @@ function toInput(c: OwnCompanyDto | null, v: FormValues): OwnCompanyInput {
     website: text(v.website),
     slogan: text(v.slogan),
     logoUrl: v.logoUrl ?? null,
+    stampUrl: v.stampUrl ?? null,
     isDefault: !!v.isDefault,
   };
 }
@@ -164,6 +166,9 @@ export function OwnCompanyDialog({ open, company, isFirst = false, onClose }: Ow
             <LogoField hint="PNG, JPEG або SVG; зменшимо самі" maxSide={640} />
           </Form.Item>
         </div>
+        <Form.Item name="stampUrl" label="Печатка з підписом (у КП)" extra="Ставиться біля «Виписав(ла)» у кожному КП від цієї юрособи. Найкраще PNG з прозорим фоном">
+          <LogoField hint="PNG з прозорим фоном; зменшимо самі" maxSide={640} />
+        </Form.Item>
         <Form.Item name="isDefault" valuePropName="checked" style={{ marginBottom: 0 }}>
           <Checkbox disabled={company?.isDefault || isFirst}>
             <Tooltip title={isFirst ? 'Перша юрособа стає основною' : company?.isDefault ? 'Щоб змінити, позначте іншу юрособу' : undefined}>

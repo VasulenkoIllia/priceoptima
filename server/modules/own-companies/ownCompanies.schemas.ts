@@ -21,6 +21,8 @@ export const ownCompanyInputSchema = z.object({
   slogan: optionalText(200),
   // логотип зберігаємо як посилання або data-URL зображення
   logoUrl: imageSrcField(300_000, 'Логотип'),
+  // печатка з підписом для КП (правки замовника 30.09)
+  stampUrl: imageSrcField(300_000, 'Печатка'),
   kpFooter: optionalText(2000),
   isDefault: z.boolean().default(false),
   isActive: z.boolean().default(true),

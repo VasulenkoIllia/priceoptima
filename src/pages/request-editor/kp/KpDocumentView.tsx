@@ -155,8 +155,9 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
       {s.managerName ? <p className="po-kp-manager">Менеджер: {s.managerName}</p> : null}
       <div className="po-kp-bottom">
         {s.footer ? <p className="po-kp-footer">{s.footer}</p> : null}
-        <div className="po-kp-sign">
+        <div className={s.stampPath ? 'po-kp-sign po-kp-sign-stamped' : 'po-kp-sign'}>
           {KP_SIGN_LABEL} <span className="po-kp-sign-line" />
+          {s.stampPath ? <img className="po-kp-stamp" src={s.stampPath} alt="" /> : null}
         </div>
       </div>
     </article>

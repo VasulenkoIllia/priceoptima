@@ -79,6 +79,11 @@ describe('знімок КП', () => {
     expect(kpNumberLabel(null, 7)).toBe('чернетка / 000007');
   });
 
+  it('печатка з підписом — з картки юрособи (правки замовника 30.09)', () => {
+    expect(base.stampPath).toBeNull();
+    expect(buildKpSnapshot({ ...BASE_INPUT, seller: { ...seller, stampUrl: 'data:image/png;base64,ST' } }).stampPath).toBe('data:image/png;base64,ST');
+  });
+
   it('логотип з Налаштувань — для будь-якої юрособи; немає — логотип юрособи (правки замовника 29.09)', () => {
     const own = { ...seller, logoUrl: 'data:image/png;base64,OWN' };
     expect(buildKpSnapshot({ ...BASE_INPUT, seller: own, logoUrl: 'data:image/png;base64,APP' }).header.logoPath).toBe('data:image/png;base64,APP');

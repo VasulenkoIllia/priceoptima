@@ -21,6 +21,7 @@ export function toOwnCompanyDto(row: OwnCompany): OwnCompanyDto {
     website: row.website,
     slogan: row.slogan,
     logoUrl: row.logoUrl,
+    stampUrl: row.stampUrl,
     kpFooter: row.kpFooter,
     isDefault: row.isDefault,
     isActive: row.isActive,
