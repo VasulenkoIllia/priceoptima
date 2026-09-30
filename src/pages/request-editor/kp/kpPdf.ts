@@ -45,8 +45,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 
 /** Місце логотипа в шапці, pt. */
 const LOGO_FIT: [number, number] = [150, 56];
-/** Печатка з підписом біля «Виписав(ла)», pt (у бланку замовника — близько 170 × 100). */
-const STAMP_FIT: [number, number] = [165, 100];
+/** Печатка з підписом на лінії підпису, pt (правий край — край сторінки без поля). */
+const STAMP_FIT: [number, number] = [140, 86];
 
 /** Логотип чи печатка: SVG (data URL) — як svg-вузол; PNG/JPEG — як зображення. Не вдалося — без нього. */
 async function pictureContent(url: string | null | undefined, fit: [number, number]): Promise<ContentImage | ContentSvg | null> {
@@ -245,8 +245,8 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
             ],
             columnGap: 6,
           },
-          // печатка з підписом поверх «Виписав(ла)» і лінії, як у бланку замовника; місця в потоці не займає
-          ...(stamp ? [{ ...stamp, relativePosition: { x: 523 - STAMP_FIT[0] - 35, y: -60 } } as Content] : []),
+          // печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09); місця в потоці не займає
+          ...(stamp ? [{ ...stamp, relativePosition: { x: 523 - STAMP_FIT[0], y: -50 } } as Content] : []),
         ],
         margin: [0, 22, 0, stamp ? 34 : 0],
         unbreakable: true,

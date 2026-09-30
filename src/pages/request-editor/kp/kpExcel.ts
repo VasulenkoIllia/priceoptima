@@ -34,7 +34,9 @@ const PHOTO_ROW_PT = 46;
 const HEAD_ROW_PT = 30;
 const LOGO_MAX_H_PX = 68;
 /** Ширина печатки з підписом, пікселі. */
-const STAMP_W_PX = 260;
+const STAMP_W_PX = 225;
+/** EMU (одиниці розмітки Office) в одному пікселі. */
+const EMU_PER_PX = 9525;
 
 interface TextOptions {
   bold?: boolean;
@@ -78,25 +80,29 @@ export async function buildKpWorkbook(
   ws.columns = widths.map((width) => ({ width }));
   let r = 1;
 
-  /** Частка колонки (від 0) для якоря зображення: x пікселів від лівого краю таблиці. */
-  const colAt = (x: number) => {
-    let left = Math.max(0, x);
-    for (let c = 0; c < widths.length; c++) {
-      const cw = colPx(widths[c]);
-      if (left < cw) return c + left / cw;
-      left -= cw;
-    }
-    return widths.length;
+  /** Висота рядка (з 1) у пікселях; без заданої — типові 15 pt. */
+  const rowPx = (row: number) => ((ws.getRow(row).height || 15) * 4) / 3;
+  /** Верх рядка (з 1) у пікселях від верху аркуша. */
+  const rowTop = (row: number) => {
+    let y = 0;
+    for (let i = 1; i < row; i++) y += rowPx(i);
+    return y;
   };
-  /** Частка рядка (від 0) для якоря зображення: на px пікселів вище верху рядка row (з 1), з урахуванням висоти рядків. */
-  const rowAbove = (row: number, px: number) => {
-    let left = px;
-    for (let i = row - 1; i >= 1; i--) {
-      const rh = ((ws.getRow(i).height || 15) * 4) / 3;
-      if (left <= rh) return i - 1 + (rh - left) / rh;
-      left -= rh;
-    }
-    return 0;
+  /** Лівий край колонки (з 0) у пікселях. */
+  const colLeft = (col: number) => widths.slice(0, col).reduce((sum, c) => sum + colPx(c), 0);
+  /**
+   * Точка для зображення: x, y пікселів від лівого верхнього кута аркуша. Колонку й рядок з зсувом у EMU задаємо напряму:
+   * частки колонок ExcelJS рахує від неправильної ширини (ширина × 10000), і зображення в широких колонках зсувається.
+   */
+  const anchorAt = (x: number, y: number) => {
+    let col = 0;
+    let left = Math.max(0, x);
+    while (col < widths.length - 1 && left >= colPx(widths[col])) left -= colPx(widths[col++]);
+    let row = 1;
+    let top = Math.max(0, y);
+    while (top >= rowPx(row)) top -= rowPx(row++);
+    const anchor = { nativeCol: col, nativeColOff: Math.round(left * EMU_PER_PX), nativeRow: row - 1, nativeRowOff: Math.round(top * EMU_PER_PX) };
+    return anchor as unknown as { col: number; row: number };
   };
 
   const styleText = (c: Cell, o: TextOptions) => {
@@ -146,11 +152,9 @@ export async function buildKpWorkbook(
       const maxW = left + right - 12;
       const h = Math.min(LOGO_MAX_H_PX, logo.height, (maxW * logo.height) / logo.width);
       const w = Math.round((logo.width * h) / logo.height);
-      // зсув від початку передостанньої колонки — частками колонок
-      const offset = Math.max(4, left + right - w - 8);
-      const col = offset < left ? COLS - 2 + offset / left : COLS - 1 + (offset - left) / right;
+      const tableW = colLeft(COLS);
       const id = wb.addImage({ base64: logo.dataUrl, extension: 'png' });
-      ws.addImage(id, { tl: { col, row: headRows[0] - 1 + 0.1 }, ext: { width: w, height: Math.round(h) } });
+      ws.addImage(id, { tl: anchorAt(tableW - w - 8, rowTop(headRows[0]) + 4), ext: { width: w, height: Math.round(h) } });
     }
     r += 3;
   }
@@ -222,8 +226,10 @@ export async function buildKpWorkbook(
     if (withPhotos) x.height = PHOTO_ROW_PT;
     if (photo) {
       const id = wb.addImage({ base64: photo, extension: 'jpeg' });
-      // зсув у межах клітинки (частки колонки/рядка), щоб фото не лягало на рамку
-      ws.addImage(id, { tl: { col: 2.1, row: r - 1 + 0.08 }, ext: { width: PHOTO_SIDE_PX, height: PHOTO_SIDE_PX } });
+      // по центру клітинки «Фото», щоб не лягало на рамку
+      const x = colLeft(2) + (colPx(widths[2]) - PHOTO_SIDE_PX) / 2;
+      const y = rowTop(r) + (rowPx(r) - PHOTO_SIDE_PX) / 2;
+      ws.addImage(id, { tl: anchorAt(x, y), ext: { width: PHOTO_SIDE_PX, height: PHOTO_SIDE_PX } });
     }
     r++;
   }
@@ -283,13 +289,12 @@ export async function buildKpWorkbook(
   sign.alignment = { horizontal: 'right' };
   for (let c = COLS - 1; c <= COLS; c++) setBorder(ws.getCell(r, c), { bottom: LINE });
   if (stamp) {
-    // печатка з підписом поверх «Виписав(ла)» і лінії, як у бланку замовника: правий край — трохи лівіше краю таблиці,
-    // більша частина вище рядка підпису
+    // печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09): правий край — край
+    // таблиці, більша частина вище рядка підпису
     const w = STAMP_W_PX;
     const h = Math.round((w * stamp.height) / stamp.width);
-    const tableW = widths.reduce((sum, c) => sum + colPx(c), 0);
     const id = wb.addImage({ base64: stamp.dataUrl, extension: 'png' });
-    ws.addImage(id, { tl: { col: colAt(tableW - 40 - w), row: rowAbove(r, Math.round(h * 0.6)) }, ext: { width: w, height: h } });
+    ws.addImage(id, { tl: anchorAt(colLeft(COLS) - 4 - w, rowTop(r) - h * 0.6), ext: { width: w, height: h } });
     // низ печатки — у друк
     ws.pageSetup.printArea = `A1:${ws.getColumn(COLS).letter}${r + 3}`;
   }

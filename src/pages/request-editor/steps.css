@@ -429,7 +429,7 @@
   width: 190px;
   border-bottom: 1px solid #222;
 }
-/* печатка з підписом поверх «Виписав(ла)» і лінії, як у бланку замовника */
+/* печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09) */
 .po-kp-sign {
   position: relative;
 }
@@ -438,9 +438,9 @@
 }
 .po-kp-stamp {
   position: absolute;
-  right: 60px;
-  bottom: -46px;
-  width: 210px;
+  right: 0;
+  bottom: -40px;
+  width: 185px;
   pointer-events: none;
 }
 
