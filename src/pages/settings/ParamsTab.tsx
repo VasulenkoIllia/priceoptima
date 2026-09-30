@@ -17,7 +17,7 @@ import {
 } from '@shared/enums';
 import { markupValueMax } from '@shared/pricing';
 import type { AppSettings, AppSettingsPatch, KpTerm } from '@shared/types';
-import { KpTermsEditor, LoadError } from '@/components';
+import { KpTermsEditor, LoadError, LogoField } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 
 type FormValues = Pick<
@@ -33,6 +33,7 @@ type FormValues = Pick<
   | 'kpDefaultVatMode'
   | 'fopPriceBasis'
   | 'kpTerms'
+  | 'logoUrl'
   | 'nextRequestNumber'
   | 'nextKpNumber'
 > & {
@@ -66,6 +67,7 @@ function pickValues(s: AppSettings): FormValues {
     kpDefaultVatMode: s.kpDefaultVatMode,
     fopPriceBasis: s.fopPriceBasis,
     kpTerms: s.kpTerms,
+    logoUrl: s.logoUrl,
     nextRequestNumber: s.nextRequestNumber,
     nextKpNumber: s.nextKpNumber,
   };
@@ -140,7 +142,14 @@ function ParamsForm({ settings }: { settings: AppSettings }) {
           </Form.Item>
         </Card>
         <Card title="Комерційні пропозиції (КП)" size="small">
-          <Form.Item name="kpValidityDays" label="КП: термін дії, днів" extra="Порожньо — у КП немає рядка «Пропозиція дійсна до…»">
+          <Form.Item
+            name="logoUrl"
+            label="Логотип (у шапці КП і програми)"
+            extra="Один для всіх КП, від будь-якої нашої юрособи. Якщо порожньо, у КП логотип юрособи з її картки"
+          >
+            <LogoField hint="PNG, JPEG або SVG; зменшимо самі" maxSide={640} />
+          </Form.Item>
+          <Form.Item name="kpValidityDays" label="КП: термін дії, днів" extra="Якщо порожньо, у КП немає рядка «Пропозиція дійсна до…»">
             <InputNumber {...NUM} min={0} max={365} precision={0} />
           </Form.Item>
           <Form.Item name="kpNameSource" label="Назва товару в КП">

@@ -180,6 +180,10 @@ body {
   max-width: 96px;
   object-fit: contain;
 }
+.po-header-company img.po-header-logo {
+  height: 34px;
+  max-width: 130px;
+}
 .po-sider {
   border-right: 1px solid var(--po-border);
 }

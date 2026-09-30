@@ -9,6 +9,7 @@ import {
   PRICE_ROUNDINGS,
 } from '@shared/enums';
 import { KP_TERMS_MAX } from '@shared/pricing';
+import { imageSrcField } from '../../lib/fields';
 
 function enumOf<T extends readonly [string, ...string[]]>(values: T, label: string) {
   return z.enum(values, { message: `Невідоме значення: ${label}` });
@@ -46,6 +47,8 @@ export const settingsPatchSchema = z
       )
       .max(KP_TERMS_MAX, `Умов у КП: не більше ${KP_TERMS_MAX}`)
       .transform((terms) => terms.filter((t) => t.label)),
+    /** Логотип КП і шапки програми для всіх юросіб (правки замовника 29.09). */
+    logoUrl: imageSrcField(300_000, 'Логотип'),
     fopPriceBasis: enumOf(FOP_PRICE_BASES, 'база ціни ФОП'),
     nextRequestNumber: int(1, 9_999_999, 'Наступний номер заявки'),
     /** Стала частина номера КП: «2114 / номер заявки». */

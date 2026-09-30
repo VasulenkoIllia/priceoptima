@@ -103,6 +103,17 @@ describe('перевірка налаштувань', () => {
     );
   });
 
+  it('логотип КП (29.09): лише зображення чи http(s); порожньо — прибрати; немає поля — не чіпати', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(parse(settingsPatchSchema, { logoUrl: png })).toEqual({ logoUrl: png });
+    expect(parse(settingsPatchSchema, { logoUrl: null })).toEqual({ logoUrl: null });
+    expect(parse(settingsPatchSchema, { logoUrl: '' })).toEqual({ logoUrl: null });
+    expect(parse(settingsPatchSchema, { vatRatePct: 20 })).not.toHaveProperty('logoUrl');
+    expect(errorOf(() => parse(settingsPatchSchema, { logoUrl: 'javascript:alert(1)' })).code).toBe('VALIDATION_ERROR');
+    expect(errorOf(() => parse(settingsPatchSchema, { logoUrl: 'data:text/html;base64,PHNjcmlwdD4=' })).code).toBe('VALIDATION_ERROR');
+    expect(errorOf(() => parse(settingsPatchSchema, { logoUrl: `data:image/png;base64,${'A'.repeat(300_000)}` })).code).toBe('VALIDATION_ERROR');
+  });
+
   it('умови КП: пробіли прибираються, без назви — не зберігаються, не більше 12', () => {
     expect(
       parse(settingsPatchSchema, {

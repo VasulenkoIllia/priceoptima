@@ -163,6 +163,8 @@ export interface AppSettings {
   kpValidityDays: number;
   /** Типові умови в КП (у бланку можна змінити під клієнта). */
   kpTerms: KpTerm[];
+  /** Логотип у шапці кожного КП і програми (data URL); null — логотип юрособи КП. */
+  logoUrl: string | null;
   /** 'net' — базова ціна КП від ФОП */
   fopPriceBasis: FopPriceBasis;
   /** 'keep' */

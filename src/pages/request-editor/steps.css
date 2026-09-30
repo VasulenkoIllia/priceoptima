@@ -223,6 +223,8 @@
 .po-kp-paper {
   position: relative;
   max-width: 840px;
+  /* у вузькому вікні аркуш не стискається, а прокручується вбік (як сторінка PDF) */
+  min-width: 760px;
   margin: 0 auto;
   padding: 30px 40px 36px;
   background: #fff;
@@ -241,51 +243,67 @@
   color: #ad6800;
   font-size: 11px;
 }
+/* бланк як у замовника (зразок 29.09): шапка в рамці, заголовок з лінією, таблиця з блакитною шапкою */
 .po-kp-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--po-brand);
+  gap: 16px;
+  padding: 12px 18px;
+  border: 1px solid #222;
+}
+.po-kp-head-text {
+  flex: 1 1 280px;
+  min-width: 0;
+  text-align: center;
 }
 .po-kp-logo {
-  height: 52px;
-  max-width: 150px;
+  height: 64px;
+  max-width: 200px;
   object-fit: contain;
 }
 .po-kp-slogan {
   font-weight: 700;
-  font-size: 14px;
-  color: var(--po-brand);
-  letter-spacing: 0.3px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
 }
 .po-kp-contacts {
-  margin-top: 2px;
-  color: #555;
-  font-size: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin-top: 10px;
+  font-weight: 600;
+}
+.po-kp-contacts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 .po-kp-title {
-  margin: 18px 0 4px;
-  text-align: center;
-  font-size: 17px;
+  margin: 20px 0 12px;
+  padding-bottom: 3px;
+  border-bottom: 2px solid #222;
+  font-size: 18px;
   font-weight: 700;
+  white-space: normal;
 }
 .po-kp-final {
-  margin-bottom: 6px;
-  text-align: center;
+  margin: -6px 0 8px;
   color: #6a1b9a;
   font-weight: 600;
 }
 .po-kp-parties {
-  margin: 12px 0 14px;
+  margin: 0 0 14px;
   border-collapse: collapse;
 }
 .po-kp-terms {
   margin: 8px 0 0;
   border-collapse: collapse;
 }
-.po-kp-terms th,
-.po-kp-parties th {
+.po-kp-terms th {
   padding: 2px 14px 2px 0;
   text-align: left;
   vertical-align: top;
@@ -293,9 +311,35 @@
   color: #555;
   white-space: nowrap;
 }
+.po-kp-parties th {
+  padding: 1px 16px 1px 0;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+  white-space: nowrap;
+}
 .po-kp-terms td,
 .po-kp-parties td {
-  padding: 2px 0;
+  padding: 1px 0;
+}
+.po-kp-party td {
+  padding-bottom: 12px;
+  font-size: 11.5px;
+}
+.po-kp-party-title {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.po-kp-detail th {
+  text-align: right;
+}
+.po-kp-detail th,
+.po-kp-detail td {
+  font-size: 11.5px;
+}
+.po-kp-gap th,
+.po-kp-gap td {
+  padding-top: 14px;
 }
 .po-kp-table {
   width: 100%;
@@ -304,16 +348,29 @@
 }
 .po-kp-table th,
 .po-kp-table td {
-  padding: 4px 6px;
-  border: 1px solid #b8c2d0;
+  padding: 3px 6px;
+  border: 1px solid #222;
   vertical-align: top;
 }
-.po-kp-table th {
-  background: #eef2f8;
+.po-kp-table thead th {
+  white-space: pre-line;
+  background: #c6d9f1;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 700;
   text-align: center;
   vertical-align: middle;
+}
+/* підсумки під колонкою суми: підпис без рамки, сума в клітинці */
+.po-kp-table .po-kp-total th {
+  border: none;
+  padding: 2px 6px;
+  text-align: right;
+  font-weight: 700;
+}
+.po-kp-table .po-kp-total td {
+  padding: 2px 6px;
+  text-align: right;
+  font-weight: 700;
 }
 .po-kp-c {
   text-align: center;
@@ -344,32 +401,33 @@
   min-width: 240px;
   margin-left: 4px;
 }
-.po-kp-totals {
-  margin: 8px 0 8px auto;
-  border-collapse: collapse;
-}
-.po-kp-totals th {
-  padding: 2px 14px 2px 0;
-  text-align: right;
-  font-weight: 400;
-}
-.po-kp-totals td {
-  min-width: 110px;
-  text-align: right;
-}
-.po-kp-strong th,
-.po-kp-strong td {
-  font-weight: 700;
-}
 .po-kp-words {
-  margin: 6px 0;
+  margin: 18px 0 8px;
 }
 .po-kp-manager {
   margin-top: 16px;
 }
+.po-kp-bottom {
+  margin-top: 14px;
+  padding-top: 6px;
+  border-top: 2px solid #222;
+}
 .po-kp-footer {
-  color: #666;
+  max-width: 62%;
+  margin: 0;
   font-size: 11px;
+}
+.po-kp-sign {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: 6px;
+  margin-top: 28px;
+}
+.po-kp-sign-line {
+  display: inline-block;
+  width: 190px;
+  border-bottom: 1px solid #222;
 }
 
 /* ── Погодження ──────────────────────────────────────────────── */

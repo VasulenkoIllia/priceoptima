@@ -1,6 +1,7 @@
 // Що змінилось у КП після останньої сформованої версії: перегляд за поточними цінами й налаштуваннями проти збереженої
 // версії. Сформована версія — документ, його не змінюють; щоб зміни (ціни, галочка «менеджер», умови…) увійшли в КП,
 // потрібна нова версія (правки замовника 28.09 п.5: зняли галочку після формування, а у відкритій версії менеджер лишився).
+import { KP_FOOTNOTE } from '@shared/pricing';
 import type { KpDocumentDto, KpSnapshot } from '@shared/types';
 
 /**
@@ -32,8 +33,11 @@ export function kpChangesSince(
 ): string[] {
   const was = base.snapshot;
   const changes: string[] = [];
-  // реквізити, шапка (слоган, телефон, логотип) і підпис унизу — усе з картки нашої юрособи
-  if (!same(was.seller, preview.seller) || !same(was.header, preview.header) || !same(was.footer, preview.footer)) changes.push('наша юрособа');
+  // логотип — спільний з Налаштувань (29.09); реквізити, слоган і контакти шапки — з картки нашої юрособи
+  const { logoPath: wasLogo, ...wasHead } = was.header;
+  const { logoPath: nowLogo, ...nowHead } = preview.header;
+  if (!same(wasLogo, nowLogo)) changes.push('логотип');
+  if (!same(was.seller, preview.seller) || !same(wasHead, nowHead)) changes.push('наша юрособа');
   if (!same(was.buyer, preview.buyer)) changes.push('покупець');
   if (was.totals.vatMode !== preview.totals.vatMode) changes.push('ціни з ПДВ чи без');
   if (was.rows.length !== preview.rows.length) changes.push('кількість позицій');
@@ -51,5 +55,8 @@ export function kpChangesSince(
   if (!same(was.terms, preview.terms)) changes.push('умови');
   if ((was.extraInfo ?? null) !== (preview.extraInfo ?? null)) changes.push('дод. інформація');
   if (was.managerName !== preview.managerName) changes.push('менеджер');
+  // КП до 29.09 без примітки: типова примітка в новому бланку — не зміна, яку треба повідомляти
+  const wasFooter = was.footer ?? KP_FOOTNOTE;
+  if (wasFooter !== preview.footer) changes.push('примітка');
   return changes;
 }

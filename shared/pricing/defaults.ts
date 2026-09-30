@@ -49,6 +49,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   kpShowImages: false,
   kpValidityDays: 3,
   kpTerms: DEFAULT_KP_TERMS.map((t) => ({ ...t })),
+  logoUrl: null,
   // КП від ФОП — на рівні цін з ПДВ (як у ТОВ), без виділення ПДВ (п.6 правок клієнта)
   fopPriceBasis: 'gross',
   nextRequestNumber: 1,

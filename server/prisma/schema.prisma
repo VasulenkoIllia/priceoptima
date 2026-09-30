@@ -163,6 +163,8 @@ model AppSettings {
   kpValidityDays              Int      @default(3)
   /// Типові умови КП [{label, value}]; null — вбудовані типові (Умови поставки, Термін, Оплата, Гарантія).
   kpTerms                     Json?
+  /// Логотип у шапці кожного КП і програми (data URL); null — логотип юрособи КП.
+  logoUrl                     String?
   fopPriceBasis               String   @default("gross")
   nextRequestNumber           Int      @default(1)
   nextKpNumber                Int      @default(2114)

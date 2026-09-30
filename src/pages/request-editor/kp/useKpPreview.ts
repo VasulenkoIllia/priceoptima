@@ -16,13 +16,15 @@ export function useKpPreview(): { snapshot: KpSnapshot | null; checks: KpChecks 
   const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
   // номер КП сталий, тож у перегляді він уже відомий
   const kpNumber = settings.data?.nextKpNumber ?? null;
+  // логотип і номер — з налаштувань: без них перегляд на мить був би з логотипом юрособи
+  const settingsPending = settings.isPending;
 
   return useMemo(() => {
     if (!doc || !ctx || !computed) return { snapshot: null, checks: null };
     const checks = kpChecks(doc.lines, computed);
     const { header, refs } = doc;
     const seller = own.data?.find((c) => c.id === header.ownCompanyId);
-    if (!seller) return { snapshot: null, checks };
+    if (!seller || settingsPending) return { snapshot: null, checks };
     // у перегляді фото беремо з каталогу (у збереженому КП — копія в нашому сховищі)
     const images = new Map<string, string>();
     if (header.kpSettings.showImages) {
@@ -40,7 +42,8 @@ export function useKpPreview(): { snapshot: KpSnapshot | null; checks: KpChecks 
       buyer: kpBuyerOf(refs.counterparty, refs.client?.name, refs.contact),
       managerName: kpManagerName(users.data?.find((u) => u.id === header.managerId) ?? refs.manager),
       terms: resolveKpTerms(header.kpSettings.terms, settings.data?.kpTerms),
+      logoUrl: settings.data?.logoUrl,
     });
     return { snapshot, checks };
-  }, [doc, ctx, computed, own.data, users.data, kpNumber, settings.data?.kpTerms]);
+  }, [doc, ctx, computed, own.data, users.data, kpNumber, settingsPending, settings.data?.kpTerms, settings.data?.logoUrl]);
 }

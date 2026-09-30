@@ -49,12 +49,19 @@ export interface KpSnapshotInput {
   managerName: string;
   /** Умови внизу КП (resolveKpTerms: свої в заявці або типові). */
   terms: readonly KpTerm[];
+  /** Спільний логотип КП з Налаштувань (для всіх юросіб); немає — логотип юрособи. */
+  logoUrl?: string | null;
 }
 
+/** Примітка внизу КП, як у бланку замовника (зразок 29.09); своя примітка юрособи її замінює. */
+export const KP_FOOTNOTE =
+  '* Ця комерційна пропозиція має інформаційний характер і не є підставою для здійснення оплати. ' +
+  'Оплата здійснюється на підставі рахунку, який виставляється після узгодження цієї пропозиції.';
+
 const PRICE_HEADERS: Record<KpVatMode, { priceHeader: string; sumHeader: string }> = {
-  without_vat: { priceHeader: 'Ціна без ПДВ, грн', sumHeader: 'Сума без ПДВ, грн' },
-  with_vat: { priceHeader: 'Ціна з ПДВ, грн', sumHeader: 'Сума з ПДВ, грн' },
-  no_vat: { priceHeader: 'Ціна, грн', sumHeader: 'Сума, грн' },
+  without_vat: { priceHeader: 'Ціна, грн. без ПДВ', sumHeader: 'Сума, грн. без ПДВ' },
+  with_vat: { priceHeader: 'Ціна, грн. з ПДВ', sumHeader: 'Сума, грн. з ПДВ' },
+  no_vat: { priceHeader: 'Ціна, грн.', sumHeader: 'Сума, грн.' },
 };
 
 /** Рядок «Менеджер» за галочкою «Вказати менеджера в КП»: знята — рядка немає; немає поля (заявки до 28.09) — є. */
@@ -123,7 +130,8 @@ export function buildKpSnapshot(input: KpSnapshotInput): KpSnapshot {
     final: false,
     date: input.date,
     dateLabel: formatDateLong(input.date),
-    header: { slogan: seller.slogan, phone: seller.phone, email: seller.email, website: seller.website, logoPath: seller.logoUrl },
+    // логотип з Налаштувань однаковий для всіх юросіб (правки замовника 29.09)
+    header: { slogan: seller.slogan, phone: seller.phone, email: seller.email, website: seller.website, logoPath: input.logoUrl || seller.logoUrl },
     seller: kpSellerBlock(seller),
     buyer: {
       title: buyer.name ?? '',
@@ -140,7 +148,7 @@ export function buildKpSnapshot(input: KpSnapshotInput): KpSnapshot {
     // галочку «Вказати менеджера» зняли — рядка «Менеджер» у КП немає (правки замовника 28.09 п.5)
     managerName: kpShownManager(settings, input.managerName),
     validUntil: settings.validityDays > 0 ? addDaysIso(input.date, settings.validityDays) : null,
-    footer: seller.kpFooter,
+    footer: seller.kpFooter?.trim() || KP_FOOTNOTE,
     terms: cleanKpTerms(input.terms),
   };
 }

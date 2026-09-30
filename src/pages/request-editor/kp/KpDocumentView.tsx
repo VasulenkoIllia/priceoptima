@@ -1,7 +1,29 @@
 // Бланк КП (КП-1) у HTML — попередній перегляд і перегляд сформованих версій. PDF і Excel будуються з того самого знімка.
+import { GlobalOutlined, MailFilled, PhoneFilled } from '@ant-design/icons';
+import type { ReactNode } from 'react';
 import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
-import { kpAmountLine, kpContactsLine, kpPartyRows, kpTermRows, kpTitle, kpTotalLines, kpValidLine } from './kpLayout';
+import {
+  KP_SIGN_LABEL,
+  kpAmountLine,
+  kpContacts,
+  kpCountLine,
+  kpHasHead,
+  kpPartyRows,
+  kpPartyTitle,
+  kpTableHead,
+  kpTermRows,
+  kpTitle,
+  kpTotalLines,
+  kpValidLine,
+  type KpContact,
+} from './kpLayout';
+
+const CONTACT_ICONS: Record<KpContact['kind'], ReactNode> = {
+  phone: <PhoneFilled />,
+  email: <MailFilled />,
+  site: <GlobalOutlined />,
+};
 
 export interface KpDocumentViewProps {
   snapshot: KpSnapshot;
@@ -13,16 +35,29 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
   const valid = kpValidLine(s);
   const terms = kpTermRows(s);
   const photos = s.columns.showImages;
+  const cols = photos ? 8 : 7;
+  const contacts = kpContacts(s);
   return (
     <article className="po-kp-paper">
       {draft ? <div className="po-kp-draft">Попередній перегляд: КП ще не сформовано</div> : null}
-      <header className="po-kp-head">
-        {s.header.logoPath ? <img className="po-kp-logo" src={s.header.logoPath} alt="" /> : null}
-        <div>
-          {s.header.slogan ? <div className="po-kp-slogan">{s.header.slogan}</div> : null}
-          <div className="po-kp-contacts">{kpContactsLine(s)}</div>
-        </div>
-      </header>
+      {kpHasHead(s, !!s.header.logoPath) ? (
+        <header className="po-kp-head">
+          <div className="po-kp-head-text">
+            {s.header.slogan ? <div className="po-kp-slogan">{s.header.slogan}</div> : null}
+            {contacts.length ? (
+              <div className="po-kp-contacts">
+                {contacts.map((c) => (
+                  <span key={c.kind}>
+                    {CONTACT_ICONS[c.kind]}
+                    {c.text}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          {s.header.logoPath ? <img className="po-kp-logo" src={s.header.logoPath} alt="" /> : null}
+        </header>
+      ) : null}
 
       <h2 className="po-kp-title po-num">{kpTitle(s)}</h2>
       {s.final ? <div className="po-kp-final">Фінальна: погоджені позиції і кількості</div> : null}
@@ -30,10 +65,10 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
       <table className="po-kp-parties">
         <tbody>
           {kpPartyRows(s).map((r) => (
-            <tr key={r.label}>
-              <th>{r.label}</th>
+            <tr key={r.label} className={`po-kp-${r.kind}${r.gap ? ' po-kp-gap' : ''}`}>
+              <th>{r.kind === 'party' ? <u>{r.label}</u> : r.label}</th>
               <td>
-                {r.title ? <b>{r.title}</b> : null}
+                {r.title ? <div className="po-kp-party-title">{kpPartyTitle(r.title)}</div> : null}
                 {r.lines.map((l) => (
                   <div key={l}>{l}</div>
                 ))}
@@ -49,21 +84,16 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
           <col style={{ width: '12%' }} />
           {photos ? <col style={{ width: '7%' }} /> : null}
           <col />
-          <col style={{ width: '6%' }} />
+          <col style={{ width: '7%' }} />
           <col style={{ width: '9%' }} />
           <col style={{ width: '12%' }} />
           <col style={{ width: '13%' }} />
         </colgroup>
         <thead>
           <tr>
-            <th>№</th>
-            <th>Код</th>
-            {photos ? <th>Фото</th> : null}
-            <th>Товари (роботи, послуги)</th>
-            <th>Од.</th>
-            <th>Кількість</th>
-            <th>{s.columns.priceHeader}</th>
-            <th>{s.columns.sumHeader}</th>
+            {kpTableHead(s).map((h) => (
+              <th key={h}>{h}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -82,33 +112,33 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
                   {r.nameSecondary ? <div className="po-kp-secondary">{r.nameSecondary}</div> : null}
                 </td>
                 <td className="po-kp-c">{r.unit}</td>
-                <td className="po-kp-r po-num">{formatQty(r.qty)}</td>
+                <td className="po-kp-c po-num">{formatQty(r.qty)}</td>
                 <td className="po-kp-r po-num">{formatMoney(r.price)}</td>
                 <td className="po-kp-r po-num">{formatMoney(r.sum)}</td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={photos ? 8 : 7} className="po-kp-c po-muted">
+              <td colSpan={cols} className="po-kp-c po-muted">
                 Немає позицій з ціною продажу
               </td>
             </tr>
           )}
         </tbody>
-      </table>
-
-      <table className="po-kp-totals">
-        <tbody>
+        <tfoot>
           {kpTotalLines(s).map((t) => (
-            <tr key={t.label} className={t.strong ? 'po-kp-strong' : undefined}>
-              <th>{t.label}</th>
+            <tr key={t.label} className="po-kp-total">
+              <th colSpan={cols - 1}>{t.label}</th>
               <td className="po-num">{formatMoney(t.value)}</td>
             </tr>
           ))}
-        </tbody>
+        </tfoot>
       </table>
 
-      <p className="po-kp-words">{kpAmountLine(s)}</p>
+      <div className="po-kp-words">
+        <div>{kpCountLine(s)}</div>
+        <div>{kpAmountLine(s)}</div>
+      </div>
       {valid ? <p>{valid}</p> : null}
       {terms.length ? (
         <table className="po-kp-terms">
@@ -123,7 +153,12 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
         </table>
       ) : null}
       {s.managerName ? <p className="po-kp-manager">Менеджер: {s.managerName}</p> : null}
-      {s.footer ? <p className="po-kp-footer">{s.footer}</p> : null}
+      <div className="po-kp-bottom">
+        {s.footer ? <p className="po-kp-footer">{s.footer}</p> : null}
+        <div className="po-kp-sign">
+          {KP_SIGN_LABEL} <span className="po-kp-sign-line" />
+        </div>
+      </div>
     </article>
   );
 }

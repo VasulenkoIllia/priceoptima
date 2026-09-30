@@ -46,10 +46,13 @@ export function AppLayout() {
   const siderCollapsed = useUiPrefs((s) => s.siderCollapsed);
   const setSiderCollapsed = useUiPrefs((s) => s.setSiderCollapsed);
   const ownCompanies = useQuery({ queryKey: qk.ownCompanies, queryFn: () => ds.listOwnCompanies() });
+  const settings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
 
   const isAdmin = user.role === 'admin';
   const company = ownCompanies.data?.find((c) => c.isDefault) ?? ownCompanies.data?.[0];
   const brand = company?.brandName || company?.nameShort;
+  // спільний логотип з «Параметрів» (у ньому вже є назва); немає — логотип і назва основної юрособи
+  const appLogo = settings.data?.logoUrl;
   const selectedKey = `/${location.pathname.split('/')[1] || 'requests'}`;
 
   const menuItems: MenuProps['items'] = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin).map((i) => ({
@@ -105,7 +108,11 @@ export function AppLayout() {
       <Layout.Header className="po-header">
         <div className="po-header-brand">
           <span className="po-header-product">PriceOptima</span>
-          {brand ? (
+          {appLogo ? (
+            <span className="po-header-company" title={company?.nameShort}>
+              <img className="po-header-logo" src={appLogo} alt={brand ?? ''} />
+            </span>
+          ) : brand ? (
             <span className="po-header-company" title={company?.nameShort}>
               {company?.logoUrl ? <img src={company.logoUrl} alt="" /> : null}
               <span>{brand}</span>

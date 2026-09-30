@@ -8,6 +8,7 @@ import {
   kpBlockReason,
   kpBuyerOf,
   kpChecks,
+  KP_FOOTNOTE,
   kpManagerName,
   kpNumberLabel,
   kpSellerBlock,
@@ -71,11 +72,24 @@ describe('знімок КП', () => {
     expect(base.validUntil).toBe('2026-09-14');
     expect(base.totals).toMatchObject({ totalNet: 1460, vat: 292, totalGross: 1752, payable: 1752 });
     expect(base.amountInWords).toBe('Одна тисяча сімсот п’ятдесят дві гривні 00 копійок');
-    expect(base.columns.priceHeader).toBe('Ціна без ПДВ, грн');
+    expect(base.columns).toMatchObject({ priceHeader: 'Ціна, грн. без ПДВ', sumHeader: 'Сума, грн. без ПДВ' });
     expect(base.extraInfo).toBeNull();
     expect(base.buyer).toMatchObject({ title: 'ТОВ «КЛІЄНТ»', lines: ['код ЄДРПОУ 41000011'], contactName: 'Петренко Андрій', phone: '067' });
     expect(base.managerName).toBe('Коваль О.В., тел. 067 000');
     expect(kpNumberLabel(null, 7)).toBe('чернетка / 000007');
+  });
+
+  it('логотип з Налаштувань — для будь-якої юрособи; немає — логотип юрособи (правки замовника 29.09)', () => {
+    const own = { ...seller, logoUrl: 'data:image/png;base64,OWN' };
+    expect(buildKpSnapshot({ ...BASE_INPUT, seller: own, logoUrl: 'data:image/png;base64,APP' }).header.logoPath).toBe('data:image/png;base64,APP');
+    expect(buildKpSnapshot({ ...BASE_INPUT, seller: own, logoUrl: null }).header.logoPath).toBe('data:image/png;base64,OWN');
+    expect(base.header.logoPath).toBeNull();
+  });
+
+  it('примітка внизу: типова, як у бланку замовника; своя примітка юрособи її замінює', () => {
+    expect(base.footer).toBe(KP_FOOTNOTE);
+    expect(buildKpSnapshot({ ...BASE_INPUT, seller: { ...seller, kpFooter: '  ' } }).footer).toBe(KP_FOOTNOTE);
+    expect(buildKpSnapshot({ ...BASE_INPUT, seller: { ...seller, kpFooter: 'Своя примітка' } }).footer).toBe('Своя примітка');
   });
 
   it('умови КП (п.3 правок): без порожніх; свої в заявці або типові з Налаштувань', () => {

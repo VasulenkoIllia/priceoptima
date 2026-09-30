@@ -160,8 +160,8 @@ export function OwnCompanyDialog({ open, company, isFirst = false, onClose }: Ow
           <Form.Item name="slogan" label="Слоган (у шапці КП)">
             <Input />
           </Form.Item>
-          <Form.Item name="logoUrl" label="Логотип (у шапці КП)">
-            <LogoField hint="PNG, JPEG або SVG; зменшимо самі" />
+          <Form.Item name="logoUrl" label="Логотип юрособи" extra="У КП, лише якщо в «Параметрах» не задано спільний логотип">
+            <LogoField hint="PNG, JPEG або SVG; зменшимо самі" maxSide={640} />
           </Form.Item>
         </div>
         <Form.Item name="isDefault" valuePropName="checked" style={{ marginBottom: 0 }}>

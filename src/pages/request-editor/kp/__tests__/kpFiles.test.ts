@@ -58,7 +58,7 @@ describe('файли КП з одного знімка', () => {
     ws.eachRow((row) => {
       const values = row.values as unknown[];
       if (values[2] === 'PL0000134') pipe = values;
-      if (row.getCell(1).value === 'Всього з ПДВ:') total = row.getCell(7).value;
+      if (row.getCell(1).value === 'Всього із ПДВ:') total = row.getCell(7).value;
     });
     expect(pipe).not.toBeNull();
     expect(pipe!.slice(5, 8)).toEqual([120, 110, 13200]);
@@ -69,10 +69,34 @@ describe('файли КП з одного знімка', () => {
     expect(cells).toContain('Умови оплати:');
     expect(cells).toContain('Передоплата 100 %');
     expect(cells).toContain('Менеджер: Коваль О.В., тел. 067 000 11 22');
+    // як у бланку замовника: кількість найменувань, примітка, «Виписав(ла)»; назви сторін великими
+    expect(cells).toContain('Всього найменувань 2');
+    expect(cells).toContain(snapshot.footer);
+    expect(cells).toContain('Виписав(ла):');
+    expect(cells).toContain('ВСЕ ДЛЯ КОМПЛЕКТАЦІЇ ІНЖЕНЕРНИХ СИСТЕМ');
+    // сайт без «https://» (у картці юрособи зберігається посиланням)
+    expect(cells).toContain('тел. 044 000 00 00 · sales@test-trade.example · test-trade.example');
+    const withScheme = await buildKpWorkbook({ ...snapshot, header: { ...snapshot.header, website: 'https://test-trade.example/' } });
+    const heads: unknown[] = [];
+    withScheme.getWorksheet('КП')!.eachRow((row) => heads.push(row.getCell(1).value));
+    expect(heads).toContain('тел. 044 000 00 00 · sales@test-trade.example · test-trade.example');
+    const seller = cells.find((v) => typeof v === 'object' && v !== null && 'richText' in v) as { richText: { text: string }[] } | undefined;
+    expect(seller?.richText[0].text).toBe('ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ «ТЕСТ ТРЕЙД»');
     // галочку «Вказати менеджера» зняли (правки замовника 28.09 п.5) — рядка немає
     const noManager: unknown[] = [];
     (await buildKpWorkbook({ ...snapshot, managerName: '' })).getWorksheet('КП')!.eachRow((row) => noManager.push(row.getCell(1).value));
     expect(noManager.some((v) => typeof v === 'string' && v.startsWith('Менеджер'))).toBe(false);
+    expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
+  });
+
+  it('Excel з логотипом: зображення в шапці', async () => {
+    // 1×1 прозорий PNG
+    const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+    const wb = await buildKpWorkbook(snapshot, new Map(), { dataUrl: PNG, width: 640, height: 216 });
+    const images = wb.getWorksheet('КП')!.getImages();
+    expect(images).toHaveLength(1);
+    // праворуч, у двох останніх колонках
+    expect(images[0].range.tl.nativeCol).toBeGreaterThanOrEqual(5);
     expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
   });
 

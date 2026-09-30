@@ -6,8 +6,23 @@ import { shrinkImageToDataUrl } from '@/lib/images';
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/svg+xml';
 const MAX_BYTES = 5 * 1024 * 1024;
-/** Сторона, до якої зменшуємо логотип: у бланку він друкується не більшим за 120 pt. */
+/** Сторона, до якої зменшуємо логотип (логотип постачальника — маленький значок). */
 const MAX_SIDE = 320;
+/** Межа сервера для логотипа, символів data URL. */
+const MAX_DATA_URL = 300_000;
+/** Менша сторона, нижче якої вже не зменшуємо. */
+const MIN_SIDE = 160;
+
+/** Зменшений логотип у межах сервера: складна картинка в PNG важить більше — зменшуємо ще. null — не влазить. */
+async function logoDataUrl(file: File, maxSide: number): Promise<string | null> {
+  let side = maxSide;
+  let url = await shrinkImageToDataUrl(file, side);
+  while (url.length > MAX_DATA_URL && side > MIN_SIDE && file.type !== 'image/svg+xml') {
+    side = Math.round(side * 0.75);
+    url = await shrinkImageToDataUrl(file, side);
+  }
+  return url.length > MAX_DATA_URL ? null : url;
+}
 
 export interface LogoFieldProps {
   /** value і onChange підставляє Form.Item. */
@@ -15,9 +30,11 @@ export interface LogoFieldProps {
   onChange?: (value: string | null) => void;
   /** Підпис під кнопкою. */
   hint?: string;
+  /** Більша сторона після зменшення, пікселі (логотип КП — 640, щоб у друку був чітким). */
+  maxSide?: number;
 }
 
-export function LogoField({ value = null, onChange, hint }: LogoFieldProps) {
+export function LogoField({ value = null, onChange, hint, maxSide = MAX_SIDE }: LogoFieldProps) {
   const { message } = App.useApp();
 
   const pick = async (file: File) => {
@@ -26,7 +43,9 @@ export function LogoField({ value = null, onChange, hint }: LogoFieldProps) {
       return;
     }
     try {
-      onChange?.(await shrinkImageToDataUrl(file, MAX_SIDE));
+      const url = await logoDataUrl(file, maxSide);
+      if (url) onChange?.(url);
+      else message.error('Зображення завелике для логотипа, виберіть простіше (PNG з прозорим фоном або SVG)');
     } catch {
       message.error('Не вдалося прочитати зображення');
     }

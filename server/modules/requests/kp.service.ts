@@ -77,6 +77,7 @@ export async function createKp(requestId: UUID, body: KpCreateInput, actor: User
         parties: { ownCompanyId: own.id, seller: own, buyer: kpBuyerOf(cp, client?.name, contact), managerName: kpManagerName(manager) },
         images,
         defaultTerms: env.settings.kpTerms,
+        logoUrl: env.settings.logoUrl,
       });
     } catch (e) {
       if (e instanceof KpBuildError) throw new ApiError(e.code, e.message);

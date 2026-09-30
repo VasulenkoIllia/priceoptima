@@ -46,6 +46,8 @@ export interface KpBuildInput {
   defaultTerms: readonly KpTerm[] | null;
   /** Головні фото товарів для бланка (потрібні, лише коли settings.showImages). */
   images?: ReadonlyMap<UUID, string>;
+  /** Спільний логотип КП з Налаштувань. */
+  logoUrl?: string | null;
 }
 
 export interface KpBuilt {
@@ -84,6 +86,7 @@ export function buildKpVersion(i: KpBuildInput): KpBuilt {
     buyer: i.parties.buyer,
     managerName: i.parties.managerName,
     terms: resolveKpTerms(i.settings.terms, i.defaultTerms),
+    logoUrl: i.logoUrl,
   });
   return { snapshot, ownCompanyId: i.parties.ownCompanyId, settings: i.settings };
 }
