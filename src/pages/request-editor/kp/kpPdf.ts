@@ -43,10 +43,22 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Місце логотипа в шапці, pt. */
-const LOGO_FIT: [number, number] = [150, 56];
-/** Печатка з підписом на лінії підпису, pt (правий край — край сторінки без поля). */
-const STAMP_FIT: [number, number] = [140, 86];
+/** Пунктів в одному міліметрі. */
+const PT_PER_MM = 72 / 25.4;
+/** Поля сторінки A4 (правки замовника 01.10): ліворуч 2 см, праворуч 1 см; ширина вмісту між ними. */
+const MARGIN_LEFT = 20 * PT_PER_MM;
+const MARGIN_RIGHT = 10 * PT_PER_MM;
+const CONTENT_W = 595.28 - MARGIN_LEFT - MARGIN_RIGHT;
+
+/** Місце логотипа в шапці, pt (01.10 — на чверть більше: ~67 × 23 мм). */
+const LOGO_FIT: [number, number] = [190, 64];
+/**
+ * Печатка з підписом, pt: коло займає ~54 % ширини зображення, тож при 212 pt воно ~40 мм, як справжній відбиток
+ * (правки замовника 01.10).
+ */
+const STAMP_FIT: [number, number] = [212, 128];
+/** Лінія підпису, pt: довга, щоб коло печатки лягало на її початок, а «Виписав(ла):» лишалось видно. */
+const SIGN_LINE_W = 210;
 
 /** Логотип чи печатка: SVG (data URL) — як svg-вузол; PNG/JPEG — як зображення. Не вдалося — без нього. */
 async function pictureContent(url: string | null | undefined, fit: [number, number]): Promise<ContentImage | ContentSvg | null> {
@@ -129,15 +141,15 @@ const HEAD_BOX: CustomTableLayout = {
   vLineWidth: (i, node) => (i === 0 || i === (node.table.widths?.length ?? 0) ? 0.8 : 0),
   hLineColor: () => INK,
   vLineColor: () => INK,
-  paddingLeft: () => 12,
-  paddingRight: () => 12,
+  paddingLeft: () => 8,
+  paddingRight: () => 8,
   paddingTop: () => 8,
   paddingBottom: () => 8,
 };
 
-/** Лінія на всю ширину сторінки (A4 без полів 36 pt). */
+/** Лінія на всю ширину вмісту сторінки. */
 const rule = (margin: [number, number, number, number]): Content => ({
-  canvas: [{ type: 'line', x1: 0, y1: 0, x2: 523, y2: 0, lineWidth: 1.5, lineColor: INK }],
+  canvas: [{ type: 'line', x1: 0, y1: 0, x2: CONTENT_W, y2: 0, lineWidth: 1.5, lineColor: INK }],
   margin,
 });
 
@@ -190,7 +202,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
   const contacts = kpContacts(s);
   const headText: Content = {
     stack: [
-      ...(s.header.slogan ? [{ text: s.header.slogan.toLocaleUpperCase('uk-UA'), bold: true, fontSize: 9.5, alignment: 'center' } as Content] : []),
+      ...(s.header.slogan ? [{ text: s.header.slogan.toLocaleUpperCase('uk-UA'), bold: true, fontSize: 9, alignment: 'center' } as Content] : []),
       ...(contacts.length ? [contactsContent(contacts)] : []),
     ],
     // по вертикалі — приблизно на середину висоти логотипа
@@ -199,11 +211,11 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
 
   const doc: TDocumentDefinitions = {
     pageSize: 'A4',
-    pageMargins: [36, 32, 36, 40],
+    pageMargins: [MARGIN_LEFT, 32, MARGIN_RIGHT, 40],
     info: { title: kpTitle(s) },
     defaultStyle: { font: 'Roboto', fontSize: 9, lineHeight: 1.15 },
     styles: { th: { bold: true, fontSize: 8.5, fillColor: '#C6D9F1', alignment: 'center' } },
-    footer: (page, pages) => ({ text: `${page} / ${pages}`, alignment: 'right', fontSize: 7, color: '#999999', margin: [0, 12, 36, 0] }),
+    footer: (page, pages) => ({ text: `${page} / ${pages}`, alignment: 'right', fontSize: 7, color: '#999999', margin: [0, 12, MARGIN_RIGHT, 0] }),
     content: [
       // нічого для шапки (гасла, контактів, логотипа) — без порожньої рамки
       ...(kpHasHead(s, !!logo)
@@ -234,21 +246,22 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
       ...(terms.length ? [{ table: { widths: [120, '*'], body: terms }, layout: 'noBorders', margin: [0, 8, 0, 0] } as Content] : []),
       ...(s.managerName ? [{ text: `Менеджер: ${s.managerName}`, margin: [0, 14, 0, 0] } as Content] : []),
       rule([0, 12, 0, 4]),
-      ...(s.footer ? [{ text: s.footer, fontSize: 8, margin: [0, 0, 205, 0] } as Content] : []),
+      ...(s.footer ? [{ text: s.footer, fontSize: 8, margin: [0, 0, SIGN_LINE_W + 10, 0] } as Content] : []),
       {
         stack: [
           {
             columns: [
               { width: '*', text: '' },
               { width: 'auto', text: KP_SIGN_LABEL },
-              { width: 150, canvas: [{ type: 'line', x1: 0, y1: 10, x2: 150, y2: 10, lineWidth: 0.6, lineColor: INK }] },
+              { width: SIGN_LINE_W, canvas: [{ type: 'line', x1: 0, y1: 10, x2: SIGN_LINE_W, y2: 10, lineWidth: 0.6, lineColor: INK }] },
             ],
             columnGap: 6,
           },
-          // печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09); місця в потоці не займає
-          ...(stamp ? [{ ...stamp, relativePosition: { x: 523 - STAMP_FIT[0], y: -50 } } as Content] : []),
+          // печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09): коло на початку
+          // лінії, підпис — на її кінці; місця в потоці не займає
+          ...(stamp ? [{ ...stamp, relativePosition: { x: CONTENT_W - STAMP_FIT[0], y: 10 - STAMP_FIT[1] / 2 } } as Content] : []),
         ],
-        margin: [0, 22, 0, stamp ? 34 : 0],
+        margin: [0, 22, 0, stamp ? STAMP_FIT[1] / 2 : 0],
         unbreakable: true,
       } as Content,
     ],

@@ -89,18 +89,15 @@ describe('файли КП з одного знімка', () => {
     expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
   });
 
-  it('Excel з печаткою: зображення біля «Виписав(ла)», у друк входить', async () => {
+  it('Excel без печатки, навіть якщо вона є в КП; поля друку 2 і 1 см (правки замовника 01.10)', async () => {
     const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
-    const wb = await buildKpWorkbook({ ...snapshot, stampPath: PNG }, new Map(), null, { dataUrl: PNG, width: 435, height: 261 });
-    const ws = wb.getWorksheet('КП')!;
-    expect(ws.getImages()).toHaveLength(1);
-    let signRow = 0;
-    ws.eachRow((row, n) => {
-      if (row.getCell(1).value === 'Виписав(ла):') signRow = n;
-    });
-    // печатка над рядком підпису й трохи нижче; область друку — з запасом під неї
-    expect(ws.getImages()[0].range.tl.nativeRow).toBeLessThan(signRow);
-    expect(ws.pageSetup.printArea).toBe(`A1:G${signRow + 3}`);
+    const ws = (await buildKpWorkbook({ ...snapshot, stampPath: PNG })).getWorksheet('КП')!;
+    expect(ws.getImages()).toHaveLength(0);
+    const labels: unknown[] = [];
+    ws.eachRow((row) => labels.push(row.getCell(1).value));
+    expect(labels).toContain('Виписав(ла):');
+    expect(ws.pageSetup.margins?.left).toBeCloseTo(0.787, 3);
+    expect(ws.pageSetup.margins?.right).toBeCloseTo(0.394, 3);
   });
 
   it('Excel з логотипом: зображення в шапці', async () => {
@@ -109,8 +106,8 @@ describe('файли КП з одного знімка', () => {
     const wb = await buildKpWorkbook(snapshot, new Map(), { dataUrl: PNG, width: 640, height: 216 });
     const images = wb.getWorksheet('КП')!.getImages();
     expect(images).toHaveLength(1);
-    // праворуч, у двох останніх колонках
-    expect(images[0].range.tl.nativeCol).toBeGreaterThanOrEqual(5);
+    // праворуч, в останніх колонках
+    expect(images[0].range.tl.nativeCol).toBeGreaterThanOrEqual(4);
     expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);
   });
 

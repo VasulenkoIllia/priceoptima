@@ -18,7 +18,7 @@ import {
   kpTotalLines,
   kpValidLine,
 } from './kpLayout';
-import { loadKpLogo, loadKpStamp, loadRowPhotos, type KpLogoImage } from './kpPhotos';
+import { loadKpLogo, loadRowPhotos, type KpLogoImage } from './kpPhotos';
 
 const MONEY = '#,##0.00';
 const LINE: Partial<Border> = { style: 'thin', color: { argb: 'FF222222' } };
@@ -31,10 +31,12 @@ const FONT_NAME = 'Arial';
 const PHOTO_SIDE_PX = 56;
 const PHOTO_ROW_PT = 46;
 /** Шапка: два рядки по стільки пунктів; логотип — не вищий за них. */
-const HEAD_ROW_PT = 30;
-const LOGO_MAX_H_PX = 68;
-/** Ширина печатки з підписом, пікселі. */
-const STAMP_W_PX = 225;
+const HEAD_ROW_PT = 34;
+const LOGO_MAX_H_PX = 84;
+/** Колонок праворуч під логотип у шапці. */
+const LOGO_COLS = 3;
+/** Поля друку, дюйми (правки замовника 01.10): ліворуч 2 см, праворуч 1 см. */
+const PRINT_MARGINS = { left: 20 / 25.4, right: 10 / 25.4, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 };
 /** EMU (одиниці розмітки Office) в одному пікселі. */
 const EMU_PER_PX = 9525;
 
@@ -65,12 +67,11 @@ export async function buildKpWorkbook(
   s: KpSnapshot,
   photos: ReadonlyMap<string, string> = new Map(),
   logo: KpLogoImage | null = null,
-  stamp: KpLogoImage | null = null,
 ): Promise<Workbook> {
   const ExcelJS = await loadExcelJs();
   const wb = new ExcelJS.Workbook();
   const ws: Worksheet = wb.addWorksheet('КП', {
-    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: PRINT_MARGINS },
   });
   const withPhotos = s.columns.showImages;
   const COLS = withPhotos ? 8 : 7;
@@ -126,7 +127,7 @@ export async function buildKpWorkbook(
 
   // ── шапка в рамці: гасло й контакти ліворуч, логотип праворуч; нічого з цього немає — без рамки ──
   if (kpHasHead(s, !!logo)) {
-    const textCols = logo ? COLS - 2 : COLS;
+    const textCols = logo ? COLS - LOGO_COLS : COLS;
     const headRows = [r, r + 1];
     ws.mergeCells(r, 1, r, textCols);
     const slogan = ws.getCell(r, 1);
@@ -146,13 +147,11 @@ export async function buildKpWorkbook(
       setBorder(ws.getCell(row, COLS), { right: LINE });
     }
     if (logo) {
-      // праворуч у двох останніх колонках: не вище за шапку й не ширше за ці колонки (широкі логотипи-написи)
-      const left = colPx(widths[COLS - 2]);
-      const right = colPx(widths[COLS - 1]);
-      const maxW = left + right - 12;
+      // праворуч в останніх колонках: не вище за шапку й не ширше за ці колонки (широкі логотипи-написи)
+      const tableW = colLeft(COLS);
+      const maxW = tableW - colLeft(COLS - LOGO_COLS) - 12;
       const h = Math.min(LOGO_MAX_H_PX, logo.height, (maxW * logo.height) / logo.width);
       const w = Math.round((logo.width * h) / logo.height);
-      const tableW = colLeft(COLS);
       const id = wb.addImage({ base64: logo.dataUrl, extension: 'png' });
       ws.addImage(id, { tl: anchorAt(tableW - w - 8, rowTop(headRows[0]) + 4), ext: { width: w, height: Math.round(h) } });
     }
@@ -287,17 +286,8 @@ export async function buildKpWorkbook(
   const sign = ws.getCell(r, 1);
   sign.value = KP_SIGN_LABEL;
   sign.alignment = { horizontal: 'right' };
+  // печатки в Excel немає (правки замовника 01.10): файл редагують і друкують, печатку ставлять від руки
   for (let c = COLS - 1; c <= COLS; c++) setBorder(ws.getCell(r, c), { bottom: LINE });
-  if (stamp) {
-    // печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09): правий край — край
-    // таблиці, більша частина вище рядка підпису
-    const w = STAMP_W_PX;
-    const h = Math.round((w * stamp.height) / stamp.width);
-    const id = wb.addImage({ base64: stamp.dataUrl, extension: 'png' });
-    ws.addImage(id, { tl: anchorAt(colLeft(COLS) - 4 - w, rowTop(r) - h * 0.6), ext: { width: w, height: h } });
-    // низ печатки — у друк
-    ws.pageSetup.printArea = `A1:${ws.getColumn(COLS).letter}${r + 3}`;
-  }
 
   // один шрифт на весь бланк: клітинки без явного шрифту інакше отримують шрифт програми, що відкриває файл
   ws.eachRow((row) =>
@@ -309,11 +299,10 @@ export async function buildKpWorkbook(
 }
 
 export async function downloadKpExcel(s: KpSnapshot, version?: number): Promise<void> {
-  const [photos, logo, stamp] = await Promise.all([
+  const [photos, logo] = await Promise.all([
     s.columns.showImages ? loadRowPhotos(s.rows.map((r) => r.imagePath).filter((p): p is string => !!p)) : new Map<string, string>(),
     loadKpLogo(s.header.logoPath),
-    loadKpStamp(s.stampPath),
   ]);
-  const data = await (await buildKpWorkbook(s, photos, logo, stamp)).xlsx.writeBuffer();
+  const data = await (await buildKpWorkbook(s, photos, logo)).xlsx.writeBuffer();
   saveBlob(new Blob([data], { type: XLSX_MIME }), kpFileName(s, 'xlsx', version));
 }

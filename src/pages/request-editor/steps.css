@@ -226,7 +226,8 @@
   /* у вузькому вікні аркуш не стискається, а прокручується вбік (як сторінка PDF) */
   min-width: 760px;
   margin: 0 auto;
-  padding: 30px 40px 36px;
+  /* поля як у друку (правки замовника 01.10): аркуш 840 px ≈ 210 мм, ліворуч 2 см, праворуч 1 см */
+  padding: 30px 40px 36px 80px;
   background: #fff;
   box-shadow: 0 2px 14px rgba(16, 24, 40, 0.12);
   color: #1f2329;
@@ -248,8 +249,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  padding: 12px 18px;
+  gap: 12px;
+  padding: 12px 12px;
   border: 1px solid #222;
 }
 .po-kp-head-text {
@@ -258,13 +259,13 @@
   text-align: center;
 }
 .po-kp-logo {
-  height: 64px;
-  max-width: 200px;
+  height: 80px;
+  max-width: 250px;
   object-fit: contain;
 }
 .po-kp-slogan {
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.2px;
 }
@@ -426,7 +427,7 @@
 }
 .po-kp-sign-line {
   display: inline-block;
-  width: 190px;
+  width: 296px;
   border-bottom: 1px solid #222;
 }
 /* печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09) */
@@ -434,13 +435,14 @@
   position: relative;
 }
 .po-kp-sign-stamped {
-  margin-bottom: 44px;
+  margin-bottom: 90px;
 }
+/* коло печатки ~40 мм, як справжній відбиток (правки замовника 01.10) */
 .po-kp-stamp {
   position: absolute;
   right: 0;
-  bottom: -40px;
-  width: 185px;
+  bottom: -84px;
+  width: 298px;
   pointer-events: none;
 }
 

@@ -40,7 +40,7 @@ async function shrinkToJpeg(blob: Blob): Promise<string> {
   return canvas.toDataURL('image/jpeg', 0.82);
 }
 
-/** Логотип чи печатка для Excel: PNG (data URL) і розміри в пікселях. */
+/** Логотип для Excel: PNG (data URL) і розміри в пікселях. */
 export interface KpLogoImage {
   dataUrl: string;
   width: number;
@@ -49,14 +49,12 @@ export interface KpLogoImage {
 
 /** Висота растру логотипа для Excel — з запасом на друк. */
 const LOGO_PX = 160;
-/** Висота растру печатки для Excel. */
-const STAMP_PX = 240;
 
 /**
  * Логотип КП як PNG для Excel (ExcelJS не вставляє SVG і WebP). Не вдалося — без логотипа.
  * Через <img>, а не createImageBitmap: SVG без розмірів так теж малюється.
  */
-export async function loadKpLogo(url: string | null | undefined, heightPx = LOGO_PX): Promise<KpLogoImage | null> {
+export async function loadKpLogo(url: string | null | undefined): Promise<KpLogoImage | null> {
   if (!url) return null;
   try {
     const img = new Image();
@@ -64,10 +62,10 @@ export async function loadKpLogo(url: string | null | undefined, heightPx = LOGO
     await img.decode();
     const w = img.naturalWidth || 300;
     const h = img.naturalHeight || 150;
-    const scale = heightPx / h;
+    const scale = LOGO_PX / h;
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(w * scale));
-    canvas.height = heightPx;
+    canvas.height = LOGO_PX;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -75,9 +73,4 @@ export async function loadKpLogo(url: string | null | undefined, heightPx = LOGO
   } catch {
     return null;
   }
-}
-
-/** Печатка з підписом для Excel (PNG з прозорим фоном). */
-export function loadKpStamp(url: string | null | undefined): Promise<KpLogoImage | null> {
-  return loadKpLogo(url, STAMP_PX);
 }
