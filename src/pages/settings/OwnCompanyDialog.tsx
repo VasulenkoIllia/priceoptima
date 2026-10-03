@@ -166,7 +166,7 @@ export function OwnCompanyDialog({ open, company, isFirst = false, onClose }: Ow
             <LogoField hint="PNG, JPEG або SVG; зменшимо самі" maxSide={640} />
           </Form.Item>
         </div>
-        <Form.Item name="stampUrl" label="Печатка з підписом (у КП)" extra="Ставиться біля «Виписав(ла)» у кожному КП від цієї юрособи. Найкраще PNG з прозорим фоном">
+        <Form.Item name="stampUrl" label="Печатка з підписом (у КП)" extra="Ставиться біля «Виписав(ла)» у PDF і перегляді кожного КП від цієї юрособи; в Excel печатки немає. Найкраще PNG з прозорим фоном">
           <LogoField hint="PNG з прозорим фоном; зменшимо самі" maxSide={640} />
         </Form.Item>
         <Form.Item name="isDefault" valuePropName="checked" style={{ marginBottom: 0 }}>

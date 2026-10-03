@@ -443,6 +443,9 @@
   right: 0;
   bottom: -84px;
   width: 298px;
+  max-height: 180px;
+  object-fit: contain;
+  object-position: left center;
   pointer-events: none;
 }
 

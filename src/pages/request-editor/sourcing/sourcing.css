@@ -119,12 +119,15 @@
 .ag-cell.ag-cell-focus[col-id='ag-Grid-SelectionColumn']:focus-within {
   border-color: transparent;
 }
-/* «Примітка» в блоці постачальника — дрібнішим шрифтом (правки замовника 23.09 п.4), по центру (01.10) */
+/* «Примітка» (клієнта й у блоці постачальника) — дрібнішим шрифтом (правки замовника 23.09 п.4) */
 .ag-cell.po-note-cell {
   font-size: calc(1em - 2px);
+}
+/* «Примітка» в блоці постачальника — по центру (правки замовника 01.10) */
+.ag-cell.po-cell-text.po-offer-note-cell {
   text-align: center;
 }
-.ag-cell.po-note-cell .po-wrap {
+.ag-cell.po-offer-note-cell .po-wrap {
   justify-content: center;
 }
 /* точка, до якої прив'язане меню правого кліку по рядку */

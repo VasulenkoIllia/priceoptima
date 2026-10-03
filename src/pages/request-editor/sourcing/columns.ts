@@ -271,7 +271,7 @@ function blockColumn(blockId: UUID, field: BlockField, collapsed: boolean, first
         ...base,
         editable: (p) => canEditRow(p) && !!cellOf(p.data, blockId)?.offer,
         cellEditor: 'agTextCellEditor',
-        cellClass: cls('po-note-cell', 'po-cell-text'),
+        cellClass: cls('po-note-cell', 'po-offer-note-cell', 'po-cell-text'),
         valueGetter: (p) => offerOf(p)?.note ?? '',
         cellRenderer: NoteCell,
         autoHeight: true,

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildKpSnapshot, kpBuyerOf } from '@shared/pricing';
 import type { KpRow } from '@shared/types';
 import { buildKpWorkbook } from '../kpExcel';
-import { buildKpPdf } from '../kpPdf';
+import { buildKpPdf, kpPdfBottom } from '../kpPdf';
 
 // логотип-бейдж (SVG data URL), як завантажує користувач у Налаштуваннях
 const LOGO = `data:image/svg+xml;charset=utf-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="#1050B8"/></svg>')}`;
@@ -49,6 +49,21 @@ describe('файли КП з одного знімка', () => {
     expect(new TextDecoder().decode(buf.subarray(0, 5))).toBe('%PDF-');
     expect(buf.length).toBeGreaterThan(10_000);
   }, 30_000);
+
+  it('PDF: низ бланка (лінія, примітка, підпис, місце під печатку) — один блок, що не розривається (аудит 03.10)', () => {
+    const block = kpPdfBottom('Примітка', { image: 'data:image/png;base64,AA', fit: [212, 128] }) as { unbreakable?: boolean; margin?: unknown; stack: unknown[] };
+    expect(block.unbreakable).toBe(true);
+    // відступ під печатку — всередині блоку, а не після нього (інакше переносився на окрему порожню сторінку)
+    expect(block.margin).toBeUndefined();
+    expect(block.stack).toHaveLength(3);
+    const sign = block.stack[2] as { margin: number[]; stack: { relativePosition?: unknown }[] };
+    expect(sign.margin[3]).toBe(64);
+    expect(sign.stack[1].relativePosition).toBeDefined();
+    // без печатки й примітки — лінія й підпис, без запасу знизу
+    const bare = kpPdfBottom(null, null) as { stack: { margin?: number[] }[] };
+    expect(bare.stack).toHaveLength(2);
+    expect(bare.stack[1].margin?.[3]).toBe(0);
+  });
 
   it('Excel: к-сті, ціни й суми — числові клітинки; підсумок як у знімку', async () => {
     const wb = await buildKpWorkbook(snapshot);
@@ -121,6 +136,20 @@ describe('файли КП з одного знімка', () => {
     });
     expect(term).toBeGreaterThan(0);
     expect(term).toBeLessThanOrEqual(18);
+    // 55–57 символів у назві з фото: не нижче фото; без фото висоту рядка товару не задаємо — Excel підбирає сам
+    const mid = { ...withPhotos, rows: [{ ...snapshot.rows[0], name: 'Змішувач для раковини одноважільний Grohe Eurosmart 32467', nameSecondary: null }] };
+    const midWs = (await buildKpWorkbook(mid)).getWorksheet('КП')!;
+    let midHeight = 0;
+    midWs.eachRow((row) => {
+      if (row.getCell(2).value === 'ЦР0000123') midHeight = row.height;
+    });
+    expect(midHeight).toBeGreaterThanOrEqual(46);
+    const noPhotoWs = (await buildKpWorkbook({ ...snapshot, rows: [{ ...snapshot.rows[0], nameSecondary: long }] })).getWorksheet('КП')!;
+    let noPhotoHeight: number | undefined = -1;
+    noPhotoWs.eachRow((row) => {
+      if (row.getCell(2).value === 'ЦР0000123') noPhotoHeight = row.height;
+    });
+    expect(noPhotoHeight).toBeFalsy();
   });
 
   it('Excel з логотипом: зображення в шапці', async () => {

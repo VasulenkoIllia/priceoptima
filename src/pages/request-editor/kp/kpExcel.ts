@@ -25,6 +25,8 @@ const LINE: Partial<Border> = { style: 'thin', color: { argb: 'FF222222' } };
 const THICK: Partial<Border> = { style: 'medium', color: { argb: 'FF222222' } };
 const BOX: Partial<Borders> = { top: LINE, left: LINE, bottom: LINE, right: LINE };
 const HEAD_FILL = 'FFC6D9F1';
+/** Найбільша висота рядка в Excel, pt. */
+const MAX_ROW_PT = 409;
 /** Шрифт бланка (як у бланку замовника); розмір за замовчуванням — 10. */
 const FONT_NAME = 'Arial';
 /** Сторона фото в клітинці, пікселі; висота рядка з фото — у пунктах. */
@@ -110,16 +112,19 @@ export async function buildKpWorkbook(
   /** Ширина злитих колонок from..to (з 1) у символах Excel. */
   const spanChars = (from: number, to: number) => widths.slice(from - 1, to).reduce((sum, w) => sum + w, 0);
   /**
-   * Висота під текст з переносами, pt. Excel сам висоту рядка не підбирає (текст обрізається), тож рахуємо рядки тексту
-   * з запасом: літера Arial у середньому ~0,85 ширини символу колонки (жирні великі — ~1,1) на 10 pt.
+   * Висота під текст з переносами, pt. Злиті клітинки й рядки з фіксованою висотою Excel сам не підбирає (текст
+   * обрізається), тож рахуємо рядки тексту з запасом: літера Arial 10 pt у середньому ~1 символ ширини колонки
+   * (з переносом по словах), жирна ~1,1, жирна велика ~1,35. Не вище за межу Excel (409 pt).
    */
-  const heightFor = (parts: readonly { text: string; size?: number; wide?: boolean }[], chars: number) =>
-    parts.reduce((pt, { text, size = 10, wide }) => {
-      const lines = text
-        .split('\n')
-        .reduce((n, line) => n + Math.max(1, Math.ceil((line.length * (wide ? 1.1 : 0.85) * size) / (chars * 10))), 0);
-      return pt + lines * size * 1.4;
-    }, 3);
+  const heightFor = (parts: readonly { text: string; size?: number; weight?: 'bold' | 'caps' }[], chars: number) =>
+    Math.min(
+      MAX_ROW_PT,
+      parts.reduce((pt, { text, size = 10, weight }) => {
+        const k = weight === 'caps' ? 1.35 : weight === 'bold' ? 1.1 : 1;
+        const lines = text.split('\n').reduce((n, line) => n + Math.max(1, Math.ceil((line.length * k * size) / (chars * 10))), 0);
+        return pt + lines * size * 1.4;
+      }, 3),
+    );
 
   const styleText = (c: Cell, o: TextOptions) => {
     c.font = { bold: o.bold, underline: o.underline, size: o.size ?? 10, ...(o.color ? { color: { argb: o.color } } : {}) };
@@ -132,7 +137,7 @@ export async function buildKpWorkbook(
     const c = ws.getCell(r, 1);
     c.value = value;
     styleText(c, o);
-    const h = heightFor([{ text: value, size: o.size, wide: o.bold }], spanChars(1, COLS));
+    const h = heightFor([{ text: value, size: o.size, weight: o.bold ? 'bold' : undefined }], spanChars(1, COLS));
     if (h > 18) ws.getRow(r).height = h;
     return r++;
   };
@@ -170,7 +175,8 @@ export async function buildKpWorkbook(
       const h = Math.min(LOGO_MAX_H_PX, logo.height, (maxW * logo.height) / logo.width);
       const w = Math.round((logo.width * h) / logo.height);
       const id = wb.addImage({ base64: logo.dataUrl, extension: 'png' });
-      ws.addImage(id, { tl: anchorAt(tableW - w - 8, rowTop(headRows[0]) + 4), ext: { width: w, height: Math.round(h) } });
+      // відступ від правої рамки з запасом: ширина колонок у пікселях оцінена приблизно
+      ws.addImage(id, { tl: anchorAt(tableW - w - 14, rowTop(headRows[0]) + 4), ext: { width: w, height: Math.round(h) } });
     }
     r += 3;
   }
@@ -197,7 +203,7 @@ export async function buildKpWorkbook(
         ],
       };
       value.alignment = { vertical: 'top', wrapText: true };
-      const parts = [...(p.title ? [{ text: kpPartyTitle(p.title), wide: true }] : []), ...p.lines.map((text) => ({ text, size: 9 }))];
+      const parts = [...(p.title ? [{ text: kpPartyTitle(p.title), weight: 'caps' as const }] : []), ...p.lines.map((text) => ({ text, size: 9 }))];
       ws.getRow(r).height = Math.max(15, heightFor(parts, spanChars(3, COLS)));
       r++;
       r++;
@@ -241,8 +247,9 @@ export async function buildKpWorkbook(
     x.getCell(at(6)).alignment = { vertical: 'top' };
     x.getCell(at(7)).alignment = { vertical: 'top' };
     const photo = withPhotos && row.imagePath ? photos.get(row.imagePath) : undefined;
-    // висота під назву (з другою назвою), не нижча за фото
-    x.height = Math.max(withPhotos ? PHOTO_ROW_PT : 15, heightFor([{ text: name }], widths[at(3) - 1]));
+    // з фото — висота під назву (з другою назвою), не нижча за фото; без фото висоту не задаємо: клітинки не злиті,
+    // Excel підбирає її сам
+    if (withPhotos) x.height = Math.max(PHOTO_ROW_PT, heightFor([{ text: name }], widths[at(3) - 1]));
     if (photo) {
       const id = wb.addImage({ base64: photo, extension: 'jpeg' });
       // по центру клітинки «Фото», щоб не лягало на рамку
@@ -285,7 +292,7 @@ export async function buildKpWorkbook(
     const value = ws.getCell(r, 3);
     value.value = t.value;
     value.alignment = { vertical: 'top', wrapText: true };
-    ws.getRow(r).height = Math.max(15, heightFor([{ text: t.label, wide: true }], spanChars(1, 2)), heightFor([{ text: t.value }], spanChars(3, COLS)));
+    ws.getRow(r).height = Math.max(15, heightFor([{ text: t.label, weight: 'bold' }], spanChars(1, 2)), heightFor([{ text: t.value }], spanChars(3, COLS)));
     r++;
   }
   r++;

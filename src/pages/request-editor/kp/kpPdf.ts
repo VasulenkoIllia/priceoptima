@@ -59,6 +59,8 @@ const LOGO_FIT: [number, number] = [190, 64];
 const STAMP_FIT: [number, number] = [212, 128];
 /** Лінія підпису, pt: довга, щоб коло печатки лягало на її початок, а «Виписав(ла):» лишалось видно. */
 const SIGN_LINE_W = 210;
+/** Висота рядка «Виписав(ла)»: 9 pt Roboto (висота рядка шрифту 1,172) × міжрядковий 1,15. */
+const SIGN_ROW_H = 9 * 1.171875 * 1.15;
 
 /** Логотип чи печатка: SVG (data URL) — як svg-вузол; PNG/JPEG — як зображення. Не вдалося — без нього. */
 async function pictureContent(url: string | null | undefined, fit: [number, number]): Promise<ContentImage | ContentSvg | null> {
@@ -153,6 +155,38 @@ const rule = (margin: [number, number, number, number]): Content => ({
   margin,
 });
 
+/**
+ * Низ бланка — одним блоком, що не розривається: лінія, примітка, «Виписав(ла)» і місце під нижню половину печатки.
+ * Не вміщається — переходить на наступну сторінку цілком: без порожньої сторінки, печатки в нижньому полі чи підпису,
+ * відірваного від примітки (аудит 03.10: відступ поза блоком переносився на окрему сторінку).
+ */
+export function kpPdfBottom(footer: string | null, stamp: ContentImage | ContentSvg | null): Content {
+  return {
+    stack: [
+      rule([0, 12, 0, 4]),
+      ...(footer ? [{ text: footer, fontSize: 8, margin: [0, 0, SIGN_LINE_W + 10, 0] } as Content] : []),
+      {
+        stack: [
+          {
+            columns: [
+              { width: '*', text: '' },
+              { width: 'auto', text: KP_SIGN_LABEL },
+              { width: SIGN_LINE_W, canvas: [{ type: 'line', x1: 0, y1: 10, x2: SIGN_LINE_W, y2: 10, lineWidth: 0.6, lineColor: INK }] },
+            ],
+            columnGap: 6,
+          },
+          // печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09): коло на початку
+          // лінії, підпис — на її кінці, центр — на лінії (y 10 у рядку); relativePosition рахується від низу рядка,
+          // місця в потоці не займає
+          ...(stamp ? [{ ...stamp, relativePosition: { x: CONTENT_W - STAMP_FIT[0], y: 10 - SIGN_ROW_H - STAMP_FIT[1] / 2 } } as Content] : []),
+        ],
+        margin: [0, 22, 0, stamp ? STAMP_FIT[1] / 2 : 0],
+      },
+    ],
+    unbreakable: true,
+  } as Content;
+}
+
 /** PDF-документ зі знімка (без завантаження — для файлу й перевірок). */
 export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['createPdf']>> {
   const photoPaths = s.columns.showImages ? s.rows.map((r) => r.imagePath).filter((p): p is string => !!p) : [];
@@ -245,25 +279,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
       ...(valid ? [{ text: valid } as Content] : []),
       ...(terms.length ? [{ table: { widths: [120, '*'], body: terms }, layout: 'noBorders', margin: [0, 8, 0, 0] } as Content] : []),
       ...(s.managerName ? [{ text: `Менеджер: ${s.managerName}`, margin: [0, 14, 0, 0] } as Content] : []),
-      rule([0, 12, 0, 4]),
-      ...(s.footer ? [{ text: s.footer, fontSize: 8, margin: [0, 0, SIGN_LINE_W + 10, 0] } as Content] : []),
-      {
-        stack: [
-          {
-            columns: [
-              { width: '*', text: '' },
-              { width: 'auto', text: KP_SIGN_LABEL },
-              { width: SIGN_LINE_W, canvas: [{ type: 'line', x1: 0, y1: 10, x2: SIGN_LINE_W, y2: 10, lineWidth: 0.6, lineColor: INK }] },
-            ],
-            columnGap: 6,
-          },
-          // печатка з підписом на лінії підпису праворуч від «Виписав(ла):» (прохання замовника 30.09): коло на початку
-          // лінії, підпис — на її кінці; місця в потоці не займає
-          ...(stamp ? [{ ...stamp, relativePosition: { x: CONTENT_W - STAMP_FIT[0], y: 10 - STAMP_FIT[1] / 2 } } as Content] : []),
-        ],
-        margin: [0, 22, 0, stamp ? STAMP_FIT[1] / 2 : 0],
-        unbreakable: true,
-      } as Content,
+      kpPdfBottom(s.footer, stamp),
     ],
   };
   return lib.createPdf(doc);
