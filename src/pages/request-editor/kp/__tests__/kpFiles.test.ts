@@ -100,6 +100,29 @@ describe('файли КП з одного знімка', () => {
     expect(ws.pageSetup.margins?.right).toBeCloseTo(0.394, 3);
   });
 
+  it('Excel: висота рядків під текст — довга назва з фото, реквізити, «Гарантійний термін:» (правки замовника 01.10)', async () => {
+    const long = 'Шланг напірний, діаметр 50 мм, бухта 20 м, внутр. діам. 50 мм, прогумований синій, бухти по 50 метрів, для насосу відкачування води';
+    const withPhotos = { ...snapshot, columns: { ...snapshot.columns, showImages: true }, rows: [{ ...snapshot.rows[0], nameSecondary: long }] };
+    const ws = (await buildKpWorkbook(withPhotos)).getWorksheet('КП')!;
+    const heights = new Map<unknown, number>();
+    ws.eachRow((row) => heights.set(row.getCell(2).value ?? row.getCell(1).value, row.height));
+    // назва з другою назвою — 4+ рядки, вище за фото (46 pt)
+    expect(heights.get('ЦР0000123')).toBeGreaterThan(46);
+    // постачальник: назва + 3 рядки реквізитів
+    let seller = 0;
+    ws.eachRow((row) => {
+      if (row.getCell(1).value === 'Постачальник:') seller = row.height;
+    });
+    expect(seller).toBeGreaterThanOrEqual(50);
+    // підпис умови в один рядок
+    let term = 0;
+    ws.eachRow((row) => {
+      if (row.getCell(1).value === 'Гарантійний термін:') term = row.height;
+    });
+    expect(term).toBeGreaterThan(0);
+    expect(term).toBeLessThanOrEqual(18);
+  });
+
   it('Excel з логотипом: зображення в шапці', async () => {
     // 1×1 прозорий PNG
     const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';

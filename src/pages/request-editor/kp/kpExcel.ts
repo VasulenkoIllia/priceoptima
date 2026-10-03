@@ -77,7 +77,8 @@ export async function buildKpWorkbook(
   const COLS = withPhotos ? 8 : 7;
   // колонки після «Код» зсуваються на одну, коли є «Фото»
   const at = (col: number) => (withPhotos && col >= 3 ? col + 1 : col);
-  const widths = [5, 14, ...(withPhotos ? [10] : []), 52, 8, 10, 15, 16];
+  // «Код» ширший, щоб у підпис умови влазило «Гарантійний термін:» (правки замовника 01.10)
+  const widths = [5, 17, ...(withPhotos ? [10] : []), 49, 8, 10, 15, 16];
   ws.columns = widths.map((width) => ({ width }));
   let r = 1;
 
@@ -106,6 +107,20 @@ export async function buildKpWorkbook(
     return anchor as unknown as { col: number; row: number };
   };
 
+  /** Ширина злитих колонок from..to (з 1) у символах Excel. */
+  const spanChars = (from: number, to: number) => widths.slice(from - 1, to).reduce((sum, w) => sum + w, 0);
+  /**
+   * Висота під текст з переносами, pt. Excel сам висоту рядка не підбирає (текст обрізається), тож рахуємо рядки тексту
+   * з запасом: літера Arial у середньому ~0,85 ширини символу колонки (жирні великі — ~1,1) на 10 pt.
+   */
+  const heightFor = (parts: readonly { text: string; size?: number; wide?: boolean }[], chars: number) =>
+    parts.reduce((pt, { text, size = 10, wide }) => {
+      const lines = text
+        .split('\n')
+        .reduce((n, line) => n + Math.max(1, Math.ceil((line.length * (wide ? 1.1 : 0.85) * size) / (chars * 10))), 0);
+      return pt + lines * size * 1.4;
+    }, 3);
+
   const styleText = (c: Cell, o: TextOptions) => {
     c.font = { bold: o.bold, underline: o.underline, size: o.size ?? 10, ...(o.color ? { color: { argb: o.color } } : {}) };
     c.alignment = { horizontal: o.align ?? 'left', vertical: 'middle', wrapText: true };
@@ -117,6 +132,8 @@ export async function buildKpWorkbook(
     const c = ws.getCell(r, 1);
     c.value = value;
     styleText(c, o);
+    const h = heightFor([{ text: value, size: o.size, wide: o.bold }], spanChars(1, COLS));
+    if (h > 18) ws.getRow(r).height = h;
     return r++;
   };
 
@@ -180,7 +197,8 @@ export async function buildKpWorkbook(
         ],
       };
       value.alignment = { vertical: 'top', wrapText: true };
-      ws.getRow(r).height = Math.max(15, 13 * ((p.title ? 1 : 0) + p.lines.length));
+      const parts = [...(p.title ? [{ text: kpPartyTitle(p.title), wide: true }] : []), ...p.lines.map((text) => ({ text, size: 9 }))];
+      ws.getRow(r).height = Math.max(15, heightFor(parts, spanChars(3, COLS)));
       r++;
       r++;
     } else {
@@ -189,6 +207,7 @@ export async function buildKpWorkbook(
       value.value = p.lines.join('\n');
       value.font = { size: 9 };
       value.alignment = { vertical: 'top', wrapText: true };
+      ws.getRow(r).height = Math.max(15, heightFor([{ text: value.value, size: 9 }], spanChars(3, COLS)));
       r++;
     }
   }
@@ -222,7 +241,8 @@ export async function buildKpWorkbook(
     x.getCell(at(6)).alignment = { vertical: 'top' };
     x.getCell(at(7)).alignment = { vertical: 'top' };
     const photo = withPhotos && row.imagePath ? photos.get(row.imagePath) : undefined;
-    if (withPhotos) x.height = PHOTO_ROW_PT;
+    // висота під назву (з другою назвою), не нижча за фото
+    x.height = Math.max(withPhotos ? PHOTO_ROW_PT : 15, heightFor([{ text: name }], widths[at(3) - 1]));
     if (photo) {
       const id = wb.addImage({ base64: photo, extension: 'jpeg' });
       // по центру клітинки «Фото», щоб не лягало на рамку
@@ -265,6 +285,7 @@ export async function buildKpWorkbook(
     const value = ws.getCell(r, 3);
     value.value = t.value;
     value.alignment = { vertical: 'top', wrapText: true };
+    ws.getRow(r).height = Math.max(15, heightFor([{ text: t.label, wide: true }], spanChars(1, 2)), heightFor([{ text: t.value }], spanChars(3, COLS)));
     r++;
   }
   r++;
@@ -278,7 +299,7 @@ export async function buildKpWorkbook(
     note.value = s.footer;
     note.font = { size: 8 };
     note.alignment = { vertical: 'top', wrapText: true };
-    ws.getRow(r).height = 36;
+    ws.getRow(r).height = Math.max(15, heightFor([{ text: s.footer, size: 8 }], spanChars(1, at(3))));
     r++;
   }
   r++;
