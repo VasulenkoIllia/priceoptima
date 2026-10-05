@@ -131,8 +131,8 @@ describe('вигрузка SANWELL (XML)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ code: '0045', name: 'Перший', rrp: 10, categoryPath: 'Змішувачі' });
     expect(warnings).toEqual([
-      'Пропущено позицій без коду: 2',
-      'Повтори коду: 1, узято перший рядок (0045)',
+      'Пропущено позицій без артикула: 2',
+      'Повтори артикула: 1, узято перший рядок (0045)',
       NO_PURCHASE_PRICES_WARNING,
     ]);
   });

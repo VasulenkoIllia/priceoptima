@@ -230,8 +230,8 @@ describe('buildPriceRows — рядки прайсу', () => {
     ];
     const res = buildPriceRows(rows, detectColumns(rows), DEFAULT_BUILD_OPTIONS);
     expect(res.rows.map((r) => r.code)).toEqual(['A-1']);
-    expect(res.stats).toEqual({ total: 5, withPrice: 3, noCode: 1, duplicates: 1, invalidPrice: 1, withoutPrice: 2 });
-    expect(res.preview.map((p) => p.errors)).toEqual([[], ['Порожній код'], ['Код повторюється'], ['Ціна не число'], ['Немає ціни']]);
+    expect(res.stats).toEqual({ total: 5, withPrice: 3, noCode: 1, fromMakerArticle: 0, duplicates: 1, invalidPrice: 1, withoutPrice: 2 });
+    expect(res.preview.map((p) => p.errors)).toEqual([[], ['Порожній артикул'], ['Артикул повторюється'], ['Ціна не число'], ['Немає ціни']]);
   });
 
   it('рядки без ціни можна не пропускати', () => {
@@ -304,5 +304,108 @@ describe('курс прайсу у файлі', () => {
     expect(res.rows[0]).toMatchObject({ code: '000000101', name: 'Муфта 25х1"', availability: 'in_stock', imageUrls: ['https://img/a.jpeg', 'https://img/b.jpeg'] });
     // 43,34 з ПДВ → вхід без ПДВ, як у каталозі
     expect(res.rows[0].purchasePrice).toBeCloseTo(43.34 / 1.2, 4);
+  });
+});
+
+describe('артикул: одна назва в усій програмі (правки замовника 06.10)', () => {
+  it('новий шаблон: «Артикул» — артикул, «Артикул виробника» — артикул виробника', () => {
+    expect(mapHeaderRow(['Артикул*', 'Артикул виробника', 'Назва*', 'Ціна закупівлі з ПДВ*'])).toMatchObject({ code: 0, sku: 1, name: 2, purchasePrice: 3 });
+  });
+
+  it('старий шаблон і прайси з «Код…» та «Артикул»: як раніше — код є артикулом, «Артикул» — артикулом виробника', () => {
+    expect(mapHeaderRow(['Код постачальника*', 'Артикул', 'Назва*', 'Ціна закупівлі з ПДВ*'])).toMatchObject({ code: 0, sku: 1 });
+    expect(mapHeaderRow(['Артикул', 'Код товару', 'Назва'])).toMatchObject({ code: 1, sku: 0 });
+  });
+
+  it('файл лише з «Артикул» (або SKU) — це артикул; «Модель», «Код виробника» — артикул виробника', () => {
+    expect(mapHeaderRow(['Артикул', 'Назва', 'Ціна'])).toMatchObject({ code: 0, sku: null });
+    expect(mapHeaderRow(['SKU', 'Модель', 'Назва'])).toMatchObject({ code: 0, sku: 1 });
+    expect(mapHeaderRow(['Код виробника', 'Артикул', 'Назва'])).toMatchObject({ code: 1, sku: 0 });
+  });
+
+  it('«Код УКТ ЗЕД» (митний код) не стає артикулом', () => {
+    expect(headerRole('Код УКТ ЗЕД')).toBeNull();
+    expect(mapHeaderRow(['Код УКТ ЗЕД', 'Артикул', 'Назва', 'Ціна'])).toMatchObject({ code: 1, sku: null });
+  });
+
+  it('XML-вигрузка: «Артикул (штрихкод)» — артикул, «Артикул виробника» — артикул виробника', () => {
+    expect(mapHeaderRow([...PRICE_XML_HEADER])).toMatchObject({ code: 0, sku: 1 });
+  });
+
+  it('файл як у замовника: «Код постачальника» порожній, «Артикул» заповнений → артикулом стає «Артикул»', () => {
+    const table = [
+      ['Код постачальника*', 'Артикул', 'Назва*', 'Бренд', 'Одиниця', 'Ціна закупівлі з ПДВ*', 'Валюта', 'РРЦ з ПДВ'],
+      ['', 'TL-15-0,6', 'Теплолічильник DN15, 0,6 м³/год', 'Приклад', 'шт', '84,7', 'EUR', '106'],
+      ['', 'TL-15-1,5', 'Теплолічильник DN15, 1,5 м³/год', 'Приклад', 'шт', '84,7', 'EUR', '106'],
+      ['К-1', 'TL-20-1,5', 'Теплолічильник з власним артикулом', 'Приклад', 'шт', '94', 'EUR', '118'],
+    ];
+    const mapping = detectColumns(table);
+    expect(mapping).toMatchObject({ headerRow: 0, code: 0, sku: 1 });
+    const res = buildPriceRows(table, mapping, { ...DEFAULT_BUILD_OPTIONS, pricesIncludeVat: true });
+    expect(res.rows.map((r) => r.code)).toEqual(['TL-15-0,6', 'TL-15-1,5', 'К-1']);
+    expect(res.rows[0].sku).toBe('TL-15-0,6');
+    expect(res.stats).toMatchObject({ total: 3, noCode: 0, fromMakerArticle: 2, duplicates: 0 });
+    expect(res.preview[0].warnings).toContain('Артикул взято з артикула виробника');
+    expect(res.preview[2].warnings).not.toContain('Артикул взято з артикула виробника');
+  });
+
+  it('порожні і артикул, і артикул виробника — рядок пропускається', () => {
+    const table = [
+      ['Артикул', 'Артикул виробника', 'Назва', 'Ціна'],
+      ['', '', 'Без артикула', '10'],
+    ];
+    const res = buildPriceRows(table, detectColumns(table), DEFAULT_BUILD_OPTIONS);
+    expect(res.rows).toHaveLength(0);
+    expect(res.preview[0].errors).toEqual(['Порожній артикул']);
+  });
+});
+
+describe('артикул: граничні випадки (аудит 06.10)', () => {
+  it('явна «Артикул виробника» має перевагу над простим «Артикул», коли є «Код»', () => {
+    expect(mapHeaderRow(['Код', 'Артикул', 'Назва', 'Артикул виробника', 'Ціна'])).toMatchObject({ code: 0, sku: 3 });
+  });
+
+  it('«Код …», що не є артикулом (групи, валюти, одиниці, країни), не розпізнається; «Код производителя» — артикул виробника', () => {
+    expect(mapHeaderRow(['Артикул', 'Назва', 'Код групи', 'Ціна'])).toMatchObject({ code: 0, sku: null });
+    expect(headerRole('Код валюти')).toBeNull();
+    expect(headerRole('Код одиниці')).toBeNull();
+    expect(mapHeaderRow(['Артикул', 'Код производителя', 'Назва', 'Ціна'])).toMatchObject({ code: 0, sku: 1 });
+    // «Код виробу» — код товару (артикул)
+    expect(mapHeaderRow(['Код виробу', 'Назва', 'Ціна'])).toMatchObject({ code: 0 });
+    // назва з уточненням «(код УКТ ЗЕД)» лишається назвою
+    expect(headerRole('Найменування (код УКТ ЗЕД)')?.role).toBe('name');
+  });
+
+  it('«Артикул заміни», «Артикул 2» не претендують на артикул', () => {
+    expect(mapHeaderRow(['Артикул заміни', 'Артикул', 'Назва', 'Ціна'])).toMatchObject({ code: 1, sku: 0 });
+  });
+
+  it('рядок з власним артикулом має перевагу над рядком, де артикул узято з артикула виробника', () => {
+    const table = [
+      ['Код', 'Артикул виробника', 'Назва', 'Ціна'],
+      ['', 'X-1', 'Узято з артикула виробника', '10'],
+      ['X-1', 'Y-9', 'Власний артикул', '12'],
+    ];
+    const res = buildPriceRows(table, detectColumns(table), DEFAULT_BUILD_OPTIONS);
+    expect(res.rows.map((r) => [r.code, r.name])).toEqual([['X-1', 'Власний артикул']]);
+    expect(res.preview[0].errors).toEqual(['Артикул повторюється']);
+  });
+
+  it('колонку «Артикул» не вибрано — усі рядки беруть артикул виробника; «Разом» з артикулом виробника пропускається', () => {
+    const table = [
+      ['Артикул виробника', 'Назва', 'Ціна'],
+      ['M-1', 'Товар', '10'],
+      ['M-2', 'Разом', '10'],
+    ];
+    const mapping = detectColumns(table);
+    expect(mapping).toMatchObject({ code: null, sku: 0 });
+    const res = buildPriceRows(table, mapping, DEFAULT_BUILD_OPTIONS);
+    expect(res.rows.map((r) => r.code)).toEqual(['M-1']);
+    expect(res.stats).toMatchObject({ total: 1, fromMakerArticle: 1 });
+  });
+
+  it('рядок заголовка «Код + Артикул + Назва» знаходиться під «шапкою» файлу', () => {
+    const table = [['Прайс ТОВ «Приклад»'], ['Код', 'Артикул', 'Назва'], ['A-1', 'M-1', 'Товар']];
+    expect(detectColumns(table)).toMatchObject({ headerRow: 1, code: 0, sku: 1, name: 2 });
   });
 });

@@ -204,7 +204,7 @@ export default function ApprovalTab() {
 
   const columns: TableColumnsType<ApprovalRow> = [
     { key: 'n', title: '№', width: 48, render: (_, r) => r.kp.n },
-    { key: 'code', title: 'Код', width: 118, render: (_, r) => <span className="po-num">{r.kp.code ?? ''}</span> },
+    { key: 'code', title: 'Артикул', width: 118, render: (_, r) => <span className="po-num">{r.kp.code ?? ''}</span> },
     {
       key: 'name',
       title: 'Назва',

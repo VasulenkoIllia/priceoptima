@@ -51,11 +51,11 @@ export function finishRows(candidates: Iterable<PriceRow | null>): { rows: Price
   }
 
   const warnings: string[] = [];
-  if (withoutCode) warnings.push(`Пропущено позицій без коду: ${withoutCode}`);
+  if (withoutCode) warnings.push(`Пропущено позицій без артикула: ${withoutCode}`);
   if (duplicateCount) {
     const examples = [...duplicates].slice(0, DUPLICATE_EXAMPLES).join(', ');
     const more = duplicates.size > DUPLICATE_EXAMPLES ? ', …' : '';
-    warnings.push(`Повтори коду: ${duplicateCount}, узято перший рядок (${examples}${more})`);
+    warnings.push(`Повтори артикула: ${duplicateCount}, узято перший рядок (${examples}${more})`);
   }
   warnings.push(...priceWarnings(rows));
   return { rows, warnings };

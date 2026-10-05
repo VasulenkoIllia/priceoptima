@@ -30,7 +30,7 @@ const DETAIL_FIELD_LABELS: Record<PriceDetailField, string> = {
 const num = (v: number) => <span className="po-num">{formatQty(v)}</span>;
 
 const BIG_COLUMNS: TableColumnsType<PriceBigChange> = [
-  { title: 'Код', dataIndex: 'code', width: 150 },
+  { title: 'Артикул', dataIndex: 'code', width: 150 },
   { title: 'Ціна', dataIndex: 'field', width: 90, render: (f: PriceBigChange['field']) => (f === 'rrp' ? 'РРЦ' : 'Вхідна') },
   { title: 'Було', dataIndex: 'old', render: (v: number) => <span className="po-num">{formatMoney(v)}</span> },
   { title: 'Стане', dataIndex: 'new', render: (v: number) => <span className="po-num">{formatMoney(v)}</span> },
@@ -47,7 +47,7 @@ const BIG_COLUMNS: TableColumnsType<PriceBigChange> = [
 ];
 
 const DIFF_COLUMNS: TableColumnsType<PriceDetailDiff> = [
-  { title: 'Код', dataIndex: 'code', width: 150 },
+  { title: 'Артикул', dataIndex: 'code', width: 150 },
   { title: 'Поле', dataIndex: 'field', width: 100, render: (f: PriceDetailField) => DETAIL_FIELD_LABELS[f] ?? f },
   { title: 'У каталозі (лишається)', dataIndex: 'catalog', className: 'po-cell-text' },
   { title: 'У прайсі', dataIndex: 'price', className: 'po-cell-text', render: (v: string) => <span className="po-muted">{v}</span> },
@@ -56,7 +56,7 @@ const DIFF_COLUMNS: TableColumnsType<PriceDetailDiff> = [
 const replacedLabel = (f: PriceReplacedField) => (f === 'name1c' ? 'Назва 1С' : PRICE_UPDATE_FIELD_LABELS[f]);
 
 const REPLACED_COLUMNS: TableColumnsType<PriceReplacedItem> = [
-  { title: 'Код', dataIndex: 'code', width: 150 },
+  { title: 'Артикул', dataIndex: 'code', width: 150 },
   { title: 'Поле', dataIndex: 'field', width: 110, render: replacedLabel },
   { title: 'Було', dataIndex: 'old', className: 'po-cell-text', render: (v: string) => <span className="po-muted">{v}</span> },
   { title: 'Стане', dataIndex: 'new', className: 'po-cell-text' },
@@ -64,20 +64,20 @@ const REPLACED_COLUMNS: TableColumnsType<PriceReplacedItem> = [
 
 const NOT_FOUND_COLUMNS: TableColumnsType<PriceNotFoundRow> = [
   { title: 'Рядок', dataIndex: 'row', width: 70, render: num },
-  { title: 'Код', dataIndex: 'code', width: 150 },
+  { title: 'Артикул', dataIndex: 'code', width: 150 },
   { title: 'Назва', dataIndex: 'name', className: 'po-cell-text', render: (v: string | null) => v ?? null },
 ];
 
 const SKIPPED_COLUMNS: TableColumnsType<PriceSkippedRow> = [
   { title: 'Рядок', dataIndex: 'row', width: 70, render: num },
-  { title: 'Код', dataIndex: 'code', width: 150, render: (v: string) => v || null },
+  { title: 'Артикул', dataIndex: 'code', width: 150, render: (v: string) => v || null },
   { title: 'Причина', dataIndex: 'reason', className: 'po-cell-text' },
 ];
 
 const RELINKED_COLUMNS: TableColumnsType<PriceRelinkedItem> = [
-  { title: 'Код у прайсі', dataIndex: 'code', width: 160 },
-  { title: 'Був код у каталозі', dataIndex: 'previousSku', width: 160 },
-  { title: 'Знайдено за', dataIndex: 'by', render: (v: PriceRelinkedItem['by']) => (v === 'barcode' ? 'штрихкодом' : 'артикулом') },
+  { title: 'Артикул у прайсі', dataIndex: 'code', width: 160 },
+  { title: 'Був артикул у каталозі', dataIndex: 'previousSku', width: 160 },
+  { title: 'Знайдено за', dataIndex: 'by', render: (v: PriceRelinkedItem['by']) => (v === 'barcode' ? 'штрихкодом' : 'артикулом виробника') },
 ];
 
 function sectionTable<T extends object>(section: PriceReportSection<T>, columns: TableColumnsType<T>): ReactNode {
@@ -131,7 +131,7 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
     { label: 'Позначено «немає у прайсі»', value: formatQty(u.missing) },
   ];
   if (u.restored) counters.push({ label: 'Повернуто з архіву', value: formatQty(u.restored) });
-  if (u.relinked) counters.push({ label: 'Знайдено за штрихкодом / артикулом', value: formatQty(u.relinked) });
+  if (u.relinked) counters.push({ label: 'Знайдено за штрихкодом / артикулом виробника', value: formatQty(u.relinked) });
   const replacedCounts = Object.entries(report?.replacedCounts ?? {}).filter(([, n]) => n) as [PriceReplacedField, number][];
   if (replacedCounts.length) {
     counters.push({
@@ -208,7 +208,7 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
               children: (
                 <>
                   <div className="po-muted po-pu-hint">
-                    Ці коди не оновлено й не додано: нові товари не додавались (знято «Додати нові товари» або в гібридному режимі
+                    Ці артикули не оновлено й не додано: нові товари не додавались (знято «Додати нові товари» або в гібридному режимі
                     нові позиції приходять лише за посиланням).
                   </div>
                   {sectionTable(report.notFound, NOT_FOUND_COLUMNS)}
@@ -232,12 +232,12 @@ export function PriceUpdateReportView({ update: u, preview }: PriceUpdateReportV
               key: 'relinked',
               label: (
                 <span>
-                  Знайдено за штрихкодом / артикулом <Tag>{formatQty(report.relinked.total)}</Tag>
+                  Знайдено за штрихкодом / артикулом виробника <Tag>{formatQty(report.relinked.total)}</Tag>
                 </span>
               ),
               children: (
                 <>
-                  <div className="po-muted po-pu-hint">Код товару в каталозі замінено кодом із прайсу, ціни й історія лишаються при товарі.</div>
+                  <div className="po-muted po-pu-hint">Артикул товару в каталозі замінено артикулом із прайсу, ціни й історія лишаються при товарі.</div>
                   {sectionTable(report.relinked, RELINKED_COLUMNS)}
                 </>
               ),

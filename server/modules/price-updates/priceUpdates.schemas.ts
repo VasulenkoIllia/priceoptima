@@ -48,10 +48,10 @@ export const runBodySchema = z.object({
 });
 
 export const priceImportRowSchema = z.object({
-  // код із Excel буває числом — приймаємо й так
+  // артикул (внутрішнє поле code) із Excel буває числом — приймаємо й так
   code: z.preprocess(
     (v) => (typeof v === 'number' ? String(v) : (v ?? '')),
-    z.string({ message: 'Код товару: вкажіть текст' }).max(120, 'Код товару задовгий (до 120 символів)'),
+    z.string({ message: 'Артикул: вкажіть текст' }).max(120, 'Артикул задовгий (до 120 символів)'),
   ),
   sku: optionalText(120),
   name: optionalText(1000),

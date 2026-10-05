@@ -190,7 +190,7 @@ describe('файли КП з одного знімка', () => {
       if (values[1] === '№') head = values;
       if (values[2] === 'PL0000134') pipe = values;
     });
-    expect(head!.slice(1, 5)).toEqual(['№', 'Код', 'Фото', 'Товари (роботи, послуги)']);
+    expect(head!.slice(1, 5)).toEqual(['№', 'Артикул', 'Фото', 'Товари (роботи, послуги)']);
     expect(pipe!.slice(6, 9)).toEqual([120, 110, 13200]);
     expect(ws.getImages()).toHaveLength(1);
     expect((await wb.xlsx.writeBuffer()).byteLength).toBeGreaterThan(3000);

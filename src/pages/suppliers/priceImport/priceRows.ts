@@ -9,9 +9,11 @@ import { parseStockText } from './stock';
 
 export { PRICE_COLUMN_ROLES, type PriceColumnRole };
 
+// Назви як у всій програмі (правки замовника 06.10): «Артикул» — ідентифікатор товару постачальника в каталозі
+// (внутрішня роль code), «Артикул виробника» — необов'язковий, лише для звірки (роль sku).
 export const ROLE_LABELS: Record<PriceColumnRole, string> = {
-  code: 'Код постачальника',
-  sku: 'Артикул',
+  code: 'Артикул',
+  sku: 'Артикул виробника',
   name: 'Назва',
   brand: 'Бренд',
   unit: 'Одиниця',
@@ -25,8 +27,8 @@ export const ROLE_LABELS: Record<PriceColumnRole, string> = {
 };
 
 export const ROLE_HINTS: Partial<Record<PriceColumnRole, string>> = {
-  code: 'Код 1С, код товару або артикул постачальника: за ним звіряємо каталог',
-  sku: 'Артикул виробника',
+  code: 'Артикул постачальника (код товару в його системі, 1С): за ним звіряємо каталог. Порожній у рядку — береться артикул виробника',
+  sku: 'Необов\'язково: артикул виробника. Лише для звірки, якщо постачальник змінив свій артикул',
   purchasePrice: 'Ціна опт / закупівельна. З ПДВ вона чи без, вкажіть нижче',
   rrp: 'Рекомендована роздрібна ціна, завжди читається як ціна з ПДВ',
   stock: 'Наявність, залишок або кількість: «100+», «є», «під замовлення»',
@@ -53,18 +55,22 @@ export const EMPTY_COLUMN_MAP: PriceColumnMap = {
 
 /** Ключ заголовка: без регістру, пробілів і розділових знаків — «Ціна опт з ПДВ» → «цінаоптзпдв». */
 export function headerKey(cell: string): string {
-  return cell.toLocaleLowerCase('uk').replace(/[\s.,\-_/\\'’ʼ"()«»:;]+/gu, '');
+  return cell.toLocaleLowerCase('uk').replace(/[\s.,\-_/\\'’ʼ"()«»:;*]+/gu, '');
 }
 
 // Порядок важливий: перше правило, що збіглося, і виграє. rank — пріоритет у межах ролі (менше = краще).
-const HEADER_RULES: { re: RegExp; role: PriceColumnRole; rank: number }[] = [
+const HEADER_RULES: { re: RegExp; role: PriceColumnRole; rank: number; plainArticle?: boolean }[] = [
   // РРЦ — до «ціни», бо «Ціна РРЦ» теж починається з «ціна»
   { re: /(ррц|rrp|msrp|роздрібн|розничн|рекомендован)/u, role: 'rrp', rank: 0 },
+  // артикул виробника — до «Код…» і «Артикул»
+  { re: /^(артикулвиробн|артикулпроизвод|кодвиробн|кодпроизвод|кодзаводс|модель|партномер|partnumber|каталожнийномер|mpn$)/u, role: 'sku', rank: 0 },
   { re: /^код1[сc]/u, role: 'code', rank: 0 },
-  { re: /^код(виробн|вироб|заводс)/u, role: 'sku', rank: 1 },
   { re: /^код/u, role: 'code', rank: 1 },
   { re: /артикулпостачальн|артикулпост|^ідпостачальн/u, role: 'code', rank: 2 },
-  { re: /^(артикул|sku|модель|партномер|partnumber|каталожнийномер)/u, role: 'sku', rank: 0 },
+  // саме «Артикул» / SKU — артикул (або артикул виробника, якщо у файлі є «Код…»)
+  { re: /^(артикул|артикултовару|артикулштрихкод|sku)$/u, role: 'code', rank: 3, plainArticle: true },
+  // інші «Артикул …» («заміни», «2», «ТМ») — лише слабкий кандидат на артикул виробника
+  { re: /^(артикул|sku)/u, role: 'sku', rank: 2 },
   { re: /(назва|найменуван|наименован|номенклатур|^товар|^опис|^описан|^name)/u, role: 'name', rank: 0 },
   { re: /(бренд|виробник|производител|торговамарк|^тм$|^brand|^марка)/u, role: 'brand', rank: 0 },
   { re: /(^одвим|^одиниц|^од$|^едизм|^единиц|^ед$|^unit|^uom)/u, role: 'unit', rank: 0 },
@@ -80,22 +86,35 @@ const HEADER_RULES: { re: RegExp; role: PriceColumnRole; rank: number }[] = [
 export interface HeaderMatch {
   role: PriceColumnRole;
   rank: number;
+  /** Просто «Артикул» (без уточнення): артикул, якщо у файлі немає колонки «Код…», інакше — артикул виробника. */
+  plainArticle?: boolean;
 }
+
+/**
+ * «Код…», що не є артикулом товару: митний (УКТ ЗЕД / ТН ВЭД), валюти, одиниці, країни, групи, складу тощо — такі колонки
+ * не розпізнаємо зовсім (аудит 06.10).
+ */
+const NOT_PRODUCT_CODE =
+  /^(код)?(укт?зед|уктвед|тнвэд|тнвед|hscode)|^код(валют|одиниц|едизм|одвим|країн|стран|груп|категор|склад|бренд|торговоїмарк|упаков|єдрпоу|едрпоу|клієнт|контрагент|покупц|замовн)/u;
 
 /** Роль колонки за текстом заголовка; null — не впізнали. */
 export function headerRole(cell: string): HeaderMatch | null {
   const key = headerKey(cell);
-  if (!key) return null;
+  if (!key || NOT_PRODUCT_CODE.test(key)) return null;
   const rule = HEADER_RULES.find((r) => r.re.test(key));
-  return rule ? { role: rule.role, rank: rule.rank } : null;
+  return rule ? { role: rule.role, rank: rule.rank, ...(rule.plainArticle ? { plainArticle: true } : {}) } : null;
 }
 
 /** Колонки рядка заголовка → ролі (найкращий кандидат на роль; за однакового рангу — лівіший). */
 export function mapHeaderRow(header: readonly string[]): Record<PriceColumnRole, number | null> {
+  const matches = header.map((cell) => headerRole(cell ?? ''));
+  // старий шаблон і прайси з «Код…» і «Артикул»: код — артикул, а «Артикул» — артикул виробника (каталог уже звірено так)
+  const hasCodeColumn = matches.some((m) => m?.role === 'code' && !m.plainArticle);
   const best = new Map<PriceColumnRole, { index: number; rank: number }>();
-  header.forEach((cell, index) => {
-    const m = headerRole(cell ?? '');
-    if (!m) return;
+  matches.forEach((match, index) => {
+    if (!match) return;
+    // ранг 1: явна колонка «Артикул виробника» (ранг 0) має перевагу
+    const m = match.plainArticle && hasCodeColumn ? { role: 'sku' as const, rank: 1 } : match;
     const prev = best.get(m.role);
     if (!prev || m.rank < prev.rank) best.set(m.role, { index, rank: m.rank });
   });
@@ -106,9 +125,9 @@ export function mapHeaderRow(header: readonly string[]): Record<PriceColumnRole,
 
 const HEADER_SEARCH_ROWS = 20;
 
-/** Скільки ролей упізнано в рядку — так шукаємо рядок заголовка під «шапкою» файлу. */
+/** Скільки ролей упізнано в рядку (після розподілу «Код…» / «Артикул») — так шукаємо рядок заголовка під «шапкою». */
 function headerScore(row: readonly string[]): number {
-  return new Set(row.map((c) => headerRole(c ?? '')?.role).filter(Boolean)).size;
+  return Object.values(mapHeaderRow(row)).filter((index) => index != null).length;
 }
 
 /** Рядок заголовка (з 0) серед перших 20 рядків; null — заголовка не знайдено. */
@@ -256,6 +275,8 @@ export interface BuildRowsResult {
     total: number;
     withPrice: number;
     noCode: number;
+    /** Рядків, де артикул порожній і взято артикул виробника. */
+    fromMakerArticle: number;
     duplicates: number;
     invalidPrice: number;
     withoutPrice: number;
@@ -279,7 +300,8 @@ function positive(raw: string): number | null {
 
 /**
  * Таблиця + зіставлення колонок → рядки прайсу. Ціна зводиться до входу без ПДВ, РРЦ читається як ціна з ПДВ.
- * Порожні рядки й «Разом» пропускаються; за однакового коду лишається перший рядок.
+ * Порожні рядки й «Разом» пропускаються; за однакового артикула лишається перший рядок. Артикул порожній — береться
+ * артикул виробника (правки замовника 06.10: файл лише з колонкою «Артикул»).
  */
 export function buildPriceRows(
   rows: readonly string[][],
@@ -289,15 +311,24 @@ export function buildPriceRows(
   const preview: PreviewRow[] = [];
   const out: PriceImportRow[] = [];
   const seen = new Set<string>();
-  const stats = { total: 0, withPrice: 0, noCode: 0, duplicates: 0, invalidPrice: 0, withoutPrice: 0 };
+  const stats = { total: 0, withPrice: 0, noCode: 0, fromMakerArticle: 0, duplicates: 0, invalidPrice: 0, withoutPrice: 0 };
   const start = mapping.headerRow == null ? 0 : mapping.headerRow + 1;
+  // власні артикули файлу: рядок, де артикул узято з артикула виробника, не відбирає його в рядка з таким власним артикулом
+  const ownCodes = new Set<string>();
+  for (let i = start; i < rows.length; i++) {
+    const own = text(rows[i] ?? [], mapping.code);
+    if (own) ownCodes.add(own);
+  }
 
   for (let i = start; i < rows.length; i++) {
     const raw = rows[i] ?? [];
     if (raw.every((c) => (c ?? '').trim() === '')) continue;
     const name = text(raw, mapping.name);
-    const code = text(raw, mapping.code);
-    if (!code && TOTAL_ROW.test(name)) continue;
+    const ownCode = text(raw, mapping.code);
+    const makerArticle = text(raw, mapping.sku);
+    const code = ownCode || makerArticle;
+    const fromMaker = !ownCode && !!makerArticle;
+    if (!ownCode && TOTAL_ROW.test(name)) continue;
 
     stats.total++;
     const errors: string[] = [];
@@ -332,11 +363,14 @@ export function buildPriceRows(
     }
 
     if (!code) {
-      errors.push('Порожній код');
+      errors.push('Порожній артикул');
       stats.noCode++;
-    } else if (seen.has(code)) {
-      errors.push('Код повторюється');
+    } else if (seen.has(code) || (fromMaker && ownCodes.has(code))) {
+      errors.push('Артикул повторюється');
       stats.duplicates++;
+    } else if (fromMaker) {
+      warnings.push('Артикул взято з артикула виробника');
+      stats.fromMakerArticle++;
     }
 
     // валюту з колонки не розпізнали — рядок не імпортуємо: інакше ціна потрапить у каталог не в тій валюті (ІМП-3)
@@ -349,7 +383,7 @@ export function buildPriceRows(
     const unitRaw = text(raw, mapping.unit);
     const row: PriceImportRow = {
       code,
-      sku: text(raw, mapping.sku) || null,
+      sku: makerArticle || null,
       name: name || null,
       brand: text(raw, mapping.brand) || null,
       unitCode: unitRaw ? (normalizeUnit(unitRaw) ?? unitRaw) : null,

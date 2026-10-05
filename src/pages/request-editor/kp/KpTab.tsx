@@ -93,7 +93,7 @@ function KpSettingsForm() {
           }
         />
       </Field>
-      <Field label="Назва товару в КП" hint="У колонці «Код» завжди артикул постачальника">
+      <Field label="Назва товару в КП" hint="У колонці «Артикул» завжди артикул постачальника">
         <Select<KpNameSource>
           value={k.nameSource}
           disabled={readOnly}

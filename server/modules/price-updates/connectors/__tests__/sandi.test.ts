@@ -109,7 +109,7 @@ describe('вигрузка САНДІ (JSON)', () => {
     });
     const { rows, warnings } = parseSandiJson(body);
     expect(rows.map((r) => r.code)).toEqual(['TS10045403', 'TS10045504', 'TS10045605']);
-    expect(warnings).toEqual(['Пропущено позицій без коду: 2']);
+    expect(warnings).toEqual(['Пропущено позицій без артикула: 2']);
   });
 
   it('повтор коду: лишається перший рядок', () => {
@@ -121,7 +121,7 @@ describe('вигрузка САНДІ (JSON)', () => {
     const { rows, warnings } = parseSandiJson(body);
     expect(rows).toHaveLength(5);
     expect(byCode(rows, 'TS10045201')?.stockQty).toBe(99);
-    expect(warnings).toEqual(['Повтори коду: 1, узято перший рядок (TS10045201)']);
+    expect(warnings).toEqual(['Повтори артикула: 1, узято перший рядок (TS10045201)']);
   });
 
   it('частина позицій без закупівельної ціни', () => {

@@ -182,7 +182,8 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
     setMapping(headerRow == null ? { ...EMPTY_COLUMN_MAP } : { headerRow, ...mapHeaderRow(rows[headerRow] ?? []) });
   };
 
-  const missingRoles = REQUIRED_ROLES.filter((r) => mapping[r] == null);
+  // артикул обов'язковий; без колонки артикула береться артикул виробника
+  const missingRoles = mapping.sku == null ? REQUIRED_ROLES.filter((r) => mapping[r] == null) : [];
   // галочки без колонки у файлі (і в гібриді — нові й зниклі) вимкнені
   const unavailable = useMemo(() => unavailableFileFields(mapping, sourceKind), [mapping, sourceKind]);
   const sendFields = useMemo(() => effectiveFields(fields, unavailable), [fields, unavailable]);
@@ -288,7 +289,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
         type="info"
         showIcon
         message="Гібрид: файл оновлює лише ціни (і наявність, якщо вибрано її колонку)"
-        description="Нові позиції з файлу не створюються й відсутні не позначаються: асортимент веде вигрузка за посиланням. Коди, яких немає в каталозі, покажемо у звіті перед записом."
+        description="Нові позиції з файлу не створюються й відсутні не позначаються: асортимент веде вигрузка за посиланням. Артикули, яких немає в каталозі, покажемо у звіті перед записом."
       />
     ) : null;
 
@@ -320,10 +321,15 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
         З них із ціною: <b>{formatQty(built.stats.withPrice)}</b>
       </span>
       <span>
-        Без коду: <b>{formatQty(built.stats.noCode)}</b>
+        Без артикула: <b>{formatQty(built.stats.noCode)}</b>
       </span>
+      {built.stats.fromMakerArticle ? (
+        <span title="Артикул у рядку порожній: взято артикул виробника">
+          Артикул з артикула виробника: <b>{formatQty(built.stats.fromMakerArticle)}</b>
+        </span>
+      ) : null}
       <span>
-        Дублікати коду: <b>{formatQty(built.stats.duplicates)}</b>
+        Дублікати артикула: <b>{formatQty(built.stats.duplicates)}</b>
       </span>
       <span>
         Піде в каталог: <b>{formatQty(built.rows.length)}</b>
@@ -398,7 +404,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               <Input.TextArea
                 rows={3}
                 value={pasted}
-                placeholder="Код&#9;Назва&#9;Ціна&#9;Наявність"
+                placeholder="Артикул&#9;Назва&#9;Ціна&#9;Наявність"
                 onChange={(e) => setPasted(e.target.value)}
               />
               <Button
@@ -514,6 +520,14 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
                 type="warning"
                 showIcon
                 message={`Вкажіть колонку: ${missingRoles.map((r) => ROLE_LABELS[r]).join(', ')}`}
+              />
+            ) : null}
+            {mapping.code == null && mapping.sku != null ? (
+              <Alert
+                type="info"
+                showIcon
+                message="Колонку «Артикул» не вибрано: артикулом стане «Артикул виробника» в кожному рядку"
+                description="Якщо товари цього постачальника вже є в каталозі з іншими артикулами, оберіть колонку «Артикул», інакше вони додадуться як нові."
               />
             ) : null}
             {mapping.purchasePrice == null ? (

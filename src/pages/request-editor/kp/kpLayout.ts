@@ -61,7 +61,7 @@ export function kpTableHead(s: KpSnapshot): string[] {
   const twoLines = (h: string) => h.replace(/\. (без|з) ПДВ$/u, '.\n$1 ПДВ');
   return [
     '№',
-    'Код',
+    'Артикул',
     ...(s.columns.showImages ? ['Фото'] : []),
     'Товари (роботи, послуги)',
     'Од. виміру',
