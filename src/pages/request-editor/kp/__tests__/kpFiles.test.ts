@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildKpSnapshot, kpBuyerOf } from '@shared/pricing';
 import type { KpRow } from '@shared/types';
 import { buildKpWorkbook } from '../kpExcel';
-import { buildKpPdf, kpPdfBottom } from '../kpPdf';
+import { buildKpPdf, fittingSize, kpPdfBottom } from '../kpPdf';
 
 // логотип-бейдж (SVG data URL), як завантажує користувач у Налаштуваннях
 const LOGO = `data:image/svg+xml;charset=utf-8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="#1050B8"/></svg>')}`;
@@ -49,6 +49,15 @@ describe('файли КП з одного знімка', () => {
     expect(new TextDecoder().decode(buf.subarray(0, 5))).toBe('%PDF-');
     expect(buf.length).toBeGreaterThan(10_000);
   }, 30_000);
+
+  it('PDF: шрифт гасла й контактів у шапці — найбільший, з яким рядок вміщається (правки замовника 05.10)', () => {
+    const contacts = ['+380 (99) 000 00 00', 'zakaz@example.ua', 'exampletrade.com.ua'];
+    // ширина тексту шапки 306 pt, значки й проміжки 63 pt
+    expect(fittingSize(contacts, 306, 63, 0.5)).toBe(9);
+    // довший сайт: при 8,5 pt 58 знаків займуть 309,5 pt > 306, тож 8 pt
+    expect(fittingSize([...contacts.slice(0, 2), 'www.exampletrade.com.ua'], 306, 63, 0.5)).toBe(8);
+    expect(fittingSize(['x'.repeat(200)], 306, 0, 0.5)).toBe(7);
+  });
 
   it('PDF: низ бланка (лінія, примітка, підпис, місце під печатку) — один блок, що не розривається (аудит 03.10)', () => {
     const block = kpPdfBottom('Примітка', { image: 'data:image/png;base64,AA', fit: [212, 128] }) as { unbreakable?: boolean; margin?: unknown; stack: unknown[] };

@@ -50,8 +50,10 @@ const MARGIN_LEFT = 20 * PT_PER_MM;
 const MARGIN_RIGHT = 10 * PT_PER_MM;
 const CONTENT_W = 595.28 - MARGIN_LEFT - MARGIN_RIGHT;
 
-/** Місце логотипа в шапці, pt (01.10 — на чверть більше: ~67 × 23 мм). */
-const LOGO_FIT: [number, number] = [190, 64];
+/** Місце логотипа в шапці, pt (01.10 — більше: ~63 × 21 мм; 05.10 — трохи вужче, щоб контакти стояли в один рядок). */
+const LOGO_FIT: [number, number] = [180, 64];
+/** Внутрішні відступи рамки шапки, pt. */
+const HEAD_PAD = 6;
 /**
  * Печатка з підписом, pt: коло займає ~54 % ширини зображення, тож при 212 pt воно ~40 мм, як справжній відбиток
  * (правки замовника 01.10).
@@ -89,19 +91,42 @@ const CONTACT_ICONS: Record<KpContact['kind'], string> = {
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g fill="none" stroke="#222" stroke-width="1.3"><circle cx="8" cy="8" r="6.3"/><ellipse cx="8" cy="8" rx="2.7" ry="6.3"/><path d="M1.7 8h12.6M2.7 5h10.6M2.7 11h10.6"/></g></svg>',
 };
 
-/** Рядок контактів по центру: значок + текст. */
-function contactsContent(contacts: readonly KpContact[]): Content {
+/** Значок контакту, проміжок між групами «значок + текст» і між колонками, pt. */
+const CONTACT_ICON = 8;
+const CONTACT_SPACER = 6;
+const CONTACT_GAP = 3;
+/** Розміри шрифту гасла й контактів у шапці: беремо найбільший, з яким рядок вміщається. */
+const HEAD_FONT_SIZES = [9, 8.5, 8, 7.5, 7] as const;
+
+/**
+ * Найбільший розмір шрифту, з яким рядок вміщається в ширину, pt. Ширина тексту — оцінка: середня літера жирного Roboto
+ * ~0,5 розміру (виміряно 0,46–0,5 на контактах), великі — ~0,62; extra — значки й проміжки.
+ */
+export function fittingSize(texts: readonly string[], width: number, extra: number, perChar: number): number {
+  const chars = texts.reduce((n, t) => n + t.length, 0);
+  return HEAD_FONT_SIZES.find((size) => chars * size * perChar + extra <= width) ?? HEAD_FONT_SIZES[HEAD_FONT_SIZES.length - 1];
+}
+
+/** Рядок контактів по центру, завжди в один рядок (правки замовника 05.10): значок + текст. */
+function contactsContent(contacts: readonly KpContact[], width: number): Content {
+  const extra = contacts.length * CONTACT_ICON + (contacts.length - 1) * CONTACT_SPACER + 3 * contacts.length * CONTACT_GAP;
+  const size = fittingSize(
+    contacts.map((c) => c.text),
+    width,
+    extra,
+    0.5,
+  );
   return {
     columns: [
       { width: '*', text: '' },
       ...contacts.flatMap((c, i) => [
-        ...(i ? [{ width: 8, text: '' } as Content] : []),
-        { width: 8, svg: CONTACT_ICONS[c.kind], fit: [8, 8], margin: [0, 1.5, 0, 0] } as Content,
-        { width: 'auto', text: c.text, bold: true } as Content,
+        ...(i ? [{ width: CONTACT_SPACER, text: '' } as Content] : []),
+        { width: CONTACT_ICON, svg: CONTACT_ICONS[c.kind], fit: [CONTACT_ICON, CONTACT_ICON], margin: [0, 1.5, 0, 0] } as Content,
+        { width: 'auto', text: c.text, bold: true, fontSize: size, noWrap: true } as Content,
       ]),
       { width: '*', text: '' },
     ],
-    columnGap: 4,
+    columnGap: CONTACT_GAP,
     margin: [0, 8, 0, 0],
   } as Content;
 }
@@ -143,8 +168,8 @@ const HEAD_BOX: CustomTableLayout = {
   vLineWidth: (i, node) => (i === 0 || i === (node.table.widths?.length ?? 0) ? 0.8 : 0),
   hLineColor: () => INK,
   vLineColor: () => INK,
-  paddingLeft: () => 8,
-  paddingRight: () => 8,
+  paddingLeft: () => HEAD_PAD,
+  paddingRight: () => HEAD_PAD,
   paddingTop: () => 8,
   paddingBottom: () => 8,
 };
@@ -234,10 +259,13 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
   const valid = kpValidLine(s);
   const terms: TableCell[][] = kpTermRows(s).map((t) => [{ text: t.label, bold: true, color: '#555555' }, { text: t.value }]);
   const contacts = kpContacts(s);
+  // ширина тексту шапки: рамка без місця логотипа й відступів клітинок
+  const headTextW = CONTENT_W - (logo ? LOGO_FIT[0] + 4 * HEAD_PAD : 2 * HEAD_PAD);
+  const slogan = s.header.slogan?.toLocaleUpperCase('uk-UA');
   const headText: Content = {
     stack: [
-      ...(s.header.slogan ? [{ text: s.header.slogan.toLocaleUpperCase('uk-UA'), bold: true, fontSize: 9, alignment: 'center' } as Content] : []),
-      ...(contacts.length ? [contactsContent(contacts)] : []),
+      ...(slogan ? [{ text: slogan, bold: true, fontSize: fittingSize([slogan], headTextW, 0, 0.62), alignment: 'center' } as Content] : []),
+      ...(contacts.length ? [contactsContent(contacts, headTextW)] : []),
     ],
     // по вертикалі — приблизно на середину висоти логотипа
     margin: [0, logo ? 12 : 0, 0, 0],

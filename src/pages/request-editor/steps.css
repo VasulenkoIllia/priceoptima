@@ -269,12 +269,13 @@
   text-transform: uppercase;
   letter-spacing: 0.2px;
 }
+/* контакти завжди в один рядок по центру (правки замовника 05.10) */
 .po-kp-contacts {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: 4px 16px;
+  gap: 12px;
   margin-top: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 .po-kp-contacts > span {
