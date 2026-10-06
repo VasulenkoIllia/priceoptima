@@ -1,8 +1,9 @@
 // Бланк КП (КП-1) у HTML — попередній перегляд і перегляд сформованих версій. PDF і Excel будуються з того самого знімка.
 import { GlobalOutlined, MailFilled, PhoneFilled } from '@ant-design/icons';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
+import { trimImageMargins } from '@/lib/images';
 import {
   KP_SIGN_LABEL,
   kpAmountLine,
@@ -31,7 +32,28 @@ export interface KpDocumentViewProps {
   draft?: boolean;
 }
 
+/** Логотип без порожніх полів навколо малюнка — щоб текст шапки стояв по центру (як у PDF); поки обрізається — як є. */
+function useTrimmedLogo(url: string | null): string | null {
+  const [src, setSrc] = useState(url);
+  useEffect(() => {
+    let alive = true;
+    setSrc(url);
+    if (url) {
+      trimImageMargins(url)
+        .then((t) => {
+          if (alive && t) setSrc(t.dataUrl);
+        })
+        .catch(() => undefined);
+    }
+    return () => {
+      alive = false;
+    };
+  }, [url]);
+  return src;
+}
+
 export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
+  const logoSrc = useTrimmedLogo(s.header.logoPath);
   const valid = kpValidLine(s);
   const terms = kpTermRows(s);
   const photos = s.columns.showImages;
@@ -55,7 +77,7 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
               </div>
             ) : null}
           </div>
-          {s.header.logoPath ? <img className="po-kp-logo" src={s.header.logoPath} alt="" /> : null}
+          {logoSrc ? <img className="po-kp-logo" src={logoSrc} alt="" /> : null}
         </header>
       ) : null}
 

@@ -1,4 +1,5 @@
 // Фото рядків КП для PDF і Excel: з нашого сховища (знімок КП зберігає саме такі посилання), стиснуті до JPEG.
+import { trimImageMargins } from '@/lib/images';
 
 /** Пікселі растру фото — щоб файл не важив зайвого. */
 const PHOTO_PX = 96;
@@ -57,8 +58,10 @@ const LOGO_PX = 160;
 export async function loadKpLogo(url: string | null | undefined): Promise<KpLogoImage | null> {
   if (!url) return null;
   try {
+    // без порожніх полів навколо малюнка (правки замовника 06.10)
+    const trimmed = await trimImageMargins(url).catch(() => null);
     const img = new Image();
-    img.src = url;
+    img.src = trimmed?.dataUrl ?? url;
     await img.decode();
     const w = img.naturalWidth || 300;
     const h = img.naturalHeight || 150;

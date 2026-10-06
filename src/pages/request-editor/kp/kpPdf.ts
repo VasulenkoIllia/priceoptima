@@ -2,6 +2,7 @@
 import type { Content, ContentImage, ContentSvg, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
+import { trimImageMargins } from '@/lib/images';
 import {
   KP_SIGN_LABEL,
   kpAmountLine,
@@ -79,6 +80,19 @@ async function pictureContent(url: string | null | undefined, fit: [number, numb
   } catch {
     return null;
   }
+}
+
+/**
+ * Логотип шапки: без порожніх полів навколо малюнка, місце — рівно під його ширину (за пропорціями), щоб гасло й контакти
+ * стояли по центру між рамкою й логотипом (правки замовника 06.10). Не вдалося обрізати (SVG) — повна ширина місця.
+ */
+async function headLogoContent(url: string | null): Promise<{ content: Content; width: number } | null> {
+  if (!url) return null;
+  const trimmed = await trimImageMargins(url).catch(() => null);
+  const picture = await pictureContent(trimmed?.dataUrl ?? url, LOGO_FIT);
+  if (!picture) return null;
+  const width = trimmed ? Math.min(LOGO_FIT[0], (LOGO_FIT[1] * trimmed.width) / trimmed.height) : LOGO_FIT[0];
+  return { content: { ...picture, alignment: 'right' } as Content, width };
 }
 
 /** Позначки контактів у шапці (у Roboto немає значків телефону й конверта). */
@@ -168,7 +182,8 @@ const HEAD_BOX: CustomTableLayout = {
   vLineWidth: (i, node) => (i === 0 || i === (node.table.widths?.length ?? 0) ? 0.8 : 0),
   hLineColor: () => INK,
   vLineColor: () => INK,
-  paddingLeft: () => HEAD_PAD,
+  // у клітинки логотипа немає лівого відступу: центр тексту — рівно посередині між рамкою й логотипом
+  paddingLeft: (i) => (i === 1 ? 0 : HEAD_PAD),
   paddingRight: () => HEAD_PAD,
   paddingTop: () => 8,
   paddingBottom: () => 8,
@@ -215,13 +230,13 @@ export function kpPdfBottom(footer: string | null, stamp: ContentImage | Content
 /** PDF-документ зі знімка (без завантаження — для файлу й перевірок). */
 export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['createPdf']>> {
   const photoPaths = s.columns.showImages ? s.rows.map((r) => r.imagePath).filter((p): p is string => !!p) : [];
-  const [lib, logoPicture, stamp, rowPhotos] = await Promise.all([
+  const [lib, headLogo, stamp, rowPhotos] = await Promise.all([
     loadPdfMake(),
-    pictureContent(s.header.logoPath, LOGO_FIT),
+    headLogoContent(s.header.logoPath),
     pictureContent(s.stampPath, STAMP_FIT),
     loadRowPhotos(photoPaths),
   ]);
-  const logo: Content | null = logoPicture ? ({ ...logoPicture, alignment: 'right' } as Content) : null;
+  const logo = headLogo?.content ?? null;
 
   const parties: TableCell[][] = kpPartyRows(s).map((r) => {
     const gap = r.gap ? 8 : 0;
@@ -260,7 +275,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
   const terms: TableCell[][] = kpTermRows(s).map((t) => [{ text: t.label, bold: true, color: '#555555' }, { text: t.value }]);
   const contacts = kpContacts(s);
   // ширина тексту шапки: рамка без місця логотипа й відступів клітинок
-  const headTextW = CONTENT_W - (logo ? LOGO_FIT[0] + 4 * HEAD_PAD : 2 * HEAD_PAD);
+  const headTextW = CONTENT_W - (headLogo ? headLogo.width + 3 * HEAD_PAD : 2 * HEAD_PAD);
   const slogan = s.header.slogan?.toLocaleUpperCase('uk-UA');
   const headText: Content = {
     stack: [
@@ -281,7 +296,7 @@ export async function buildKpPdf(s: KpSnapshot): Promise<ReturnType<PdfMake['cre
     content: [
       // нічого для шапки (гасла, контактів, логотипа) — без порожньої рамки
       ...(kpHasHead(s, !!logo)
-        ? [{ table: { widths: logo ? ['*', LOGO_FIT[0]] : ['*'], body: [logo ? [headText, logo] : [headText]] }, layout: HEAD_BOX } as Content]
+        ? [{ table: { widths: headLogo ? ['*', headLogo.width] : ['*'], body: [logo ? [headText, logo] : [headText]] }, layout: HEAD_BOX } as Content]
         : []),
       { text: kpTitle(s), bold: true, fontSize: 13.5, margin: [0, 16, 0, 2] },
       rule([0, 0, 0, s.final ? 4 : 12]),
