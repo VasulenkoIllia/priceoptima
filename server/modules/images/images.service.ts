@@ -1,6 +1,7 @@
 // Фото товару: список, завантаження файлу, посилання з прайсу, головне фото й видалення.
 // Product.imageUrl тримаємо синхронним із головним фото — списки й КП беруть звідти одне поле.
 import type { Prisma, ProductImage, User } from '@prisma/client';
+import { directImageUrl } from '@shared/catalog/imageUrl';
 import type { ProductImageDto, UUID } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
@@ -34,6 +35,9 @@ const IMAGE_ORDER: Prisma.ProductImageOrderByWithRelationInput[] = [
 const FEED_IMAGE_TIMEOUT_MS = 10_000;
 const FEED_IMAGE_PARALLEL = 6;
 const FEED_IMAGE_BUDGET_MS = 20_000;
+/** Повтори, коли сайт фото відповідає «забагато запитів» (429), і пауза перед ними (×1, ×2). */
+const RATE_LIMIT_RETRIES = 2;
+const RATE_LIMIT_WAIT_MS = 1_500;
 
 /**
  * Головні фото товарів для КП: посилання на файл у нашому сховищі.
@@ -83,7 +87,15 @@ async function storeFeedImage(row: ProductImage): Promise<ProductImage | null> {
 
 /** Посилання на фото приходить із прайсу постачальника (недовірені дані): лише публічні адреси (lib/publicFetch). */
 async function downloadImage(url: string): Promise<{ data: Buffer; type: ImageMimeType }> {
-  const { response } = await fetchPublic(new URL(url), { signal: AbortSignal.timeout(FEED_IMAGE_TIMEOUT_MS) });
+  // посилання Google Диска на файл — пряме на зображення (у збережених до 07.10 воно ще у вигляді сторінки перегляду)
+  const target = new URL(directImageUrl(url));
+  let { response } = await fetchPublic(target, { signal: AbortSignal.timeout(FEED_IMAGE_TIMEOUT_MS) });
+  // «забагато запитів» (Google Диск обмежує часті звернення з однієї адреси) — коротка пауза й ще спроба
+  for (let attempt = 1; response.status === 429 && attempt <= RATE_LIMIT_RETRIES; attempt++) {
+    await response.body?.cancel().catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_WAIT_MS * attempt));
+    ({ response } = await fetchPublic(target, { signal: AbortSignal.timeout(FEED_IMAGE_TIMEOUT_MS) }));
+  }
   if (!response.ok) throw new Error(`Фото недоступне (HTTP ${response.status})`);
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) throw new Error('Фото завелике');
@@ -159,7 +171,9 @@ export async function addFeedImage(
   input: ProductImageUrlBody,
 ): Promise<{ image: ProductImageDto; created: boolean }> {
   await productOrFail(productId);
-  const existing = await prisma.productImage.findFirst({ where: { productId, source: 'feed', url: input.url } });
+  // у збережених до 07.10 посилання Диска ще «сире» — порівнюємо пряме з прямим
+  const feedRows = await prisma.productImage.findMany({ where: { productId, source: 'feed' } });
+  const existing = feedRows.find((row) => row.url != null && directImageUrl(row.url) === input.url);
   if (existing) return { image: toProductImageDto(existing), created: false };
 
   const image = await prisma.$transaction(async (tx) => {

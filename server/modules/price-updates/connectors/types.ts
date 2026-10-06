@@ -1,6 +1,7 @@
 // Один внутрішній рядок прайсу для всіх джерел: вигрузки постачальників і файли від менеджера
 // зводяться до нього, далі каталог оновлює одна й та сама процедура (priceUpdates.apply).
 // Поля — як у PriceImportRow (shared/types), плюс те, що є лише у вигрузках: штрихкод, категорія, фото.
+import { directImageUrl } from '@shared/catalog/imageUrl';
 import type { AvailabilityStatus, CurrencyCode } from '@shared/enums';
 import { parseLocaleNumber } from '@shared/parse';
 
@@ -98,11 +99,14 @@ export function availabilityForQty(qty: number | null): AvailabilityStatus {
 /**
  * Посилання на фото: лише http(s), без повторів, не більше MAX_FEED_IMAGES.
  * У вигрузках трапляються пробіли й кирилиця в шляху ('…/5168 /5168 _2.jpg') — кодуємо їх через URL.
+ * Посилання Google Диска на файл стає прямим посиланням на зображення.
  */
 export function imageList(urls: readonly unknown[]): string[] {
   const out: string[] = [];
   for (const raw of urls) {
-    const url = normalizedUrl(raw);
+    const normalized = normalizedUrl(raw);
+    // посилання Google Диска на файл — пряме посилання на зображення (правки замовника 07.10)
+    const url = normalized ? directImageUrl(normalized) : null;
     if (!url || out.includes(url)) continue;
     out.push(url);
     if (out.length >= MAX_FEED_IMAGES) break;

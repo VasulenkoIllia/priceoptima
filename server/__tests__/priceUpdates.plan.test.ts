@@ -697,6 +697,14 @@ describe('звірка: вибір полів (ручне оновлення, п
     expect(result.report.replaced?.sample).toEqual([{ code: changed.sku, field: 'images', old: '1 фото', new: '2 фото' }]);
   });
 
+  it('«Фото»: збережене «сире» посилання Google Диска і те саме пряме з прайсу — не заміна (07.10)', () => {
+    const id = '1_Gz6FsrJyDX8ePqB7DgajOYQOyabc-XY';
+    const p = product({ hasImages: true, feedImageUrls: [`https://drive.google.com/file/d/${id}/view?usp=drive_link`] });
+    const result = plan({ existing: [p], rows: [rowOf(p, { imageUrls: [`https://drive.google.com/open?id=${id}`] })], fields: [...FEED_DEFAULT, 'images'] });
+    expect(result.imageReplacements).toEqual([]);
+    expect(result.report.replaced?.sample ?? []).toEqual([]);
+  });
+
   it('заміна описів діє й для джерела без ролі асортименту (файл у гібриді); порожні тоді не заповнюються', () => {
     const p = product({ nameWork: 'Стара', brand: null });
     const result = plan({ existing: [p], rows: [rowOf(p, { name: 'Нова', brand: 'Бренд' })], roles: HYBRID_FILE, fields: ['purchasePrice', 'nameWork'] });

@@ -1,4 +1,5 @@
 // Перевірка даних фото. Сам файл перевіряє images.storage — за вмістом, а не за назвою.
+import { directImageUrl } from '@shared/catalog/imageUrl';
 import { z } from 'zod';
 
 const HTTP_URL = /^https?:\/\//iu;
@@ -30,7 +31,8 @@ export const productImageUrlSchema = z.object({
     .trim()
     .min(1, 'Вкажіть посилання на фото')
     .max(1000, 'Задовге посилання')
-    .refine((v) => HTTP_URL.test(v), 'Посилання має починатися з http:// або https://'),
+    .refine((v) => HTTP_URL.test(v), 'Посилання має починатися з http:// або https://')
+    .transform(directImageUrl),
   fileName: z
     .string()
     .trim()

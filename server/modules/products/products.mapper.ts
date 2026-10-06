@@ -1,6 +1,7 @@
 // Каталог у базі → DTO фронта. Decimal перетворюємо на number,
 // ціну в гривні й ознаку «ціна застаріла» рахують правила з shared/pricing — тут їх не дублюємо.
 import type { PriceHistory, Prisma, Product, Supplier, User } from '@prisma/client';
+import { directImageUrlOrNull } from '@shared/catalog/imageUrl';
 import { toIsoDate } from '@shared/format';
 import { isPriceStale, priceAgeDays, round2, supplierDefaultRates } from '@shared/pricing';
 import type { ISODate, PriceHistoryEntry, ProductDetail, ProductListItem, RatesPair, SupplierRef, UUID } from '@shared/types';
@@ -84,7 +85,7 @@ export function toProductDetail(p: Product, ctx: CatalogContext): ProductDetail 
     priceUpdatedAt,
     isStale: isPriceStale(priceAgeDays(priceUpdatedAt, ctx.now), staleDays),
     missingSince: p.missingSince ? toIsoDate(p.missingSince) : null,
-    imageUrl: p.imageUrl,
+    imageUrl: directImageUrlOrNull(p.imageUrl),
     productUrl: p.productUrl,
     isArchived: p.isArchived,
     minOrderQty: num(p.minOrderQty),

@@ -12,6 +12,7 @@
 // зниклі — лише відмічені; відмічені поля опису замінюються значенням із прайсу (не відмічені — як в автооновленні);
 // фото «замінити» — фото з прайсу замінюються новими; «назва 1С» — робоча назва в порожню назву 1С.
 import { randomUUID } from 'node:crypto';
+import { directImageUrl } from '@shared/catalog/imageUrl';
 import {
   FEED_DEFAULT_FIELDS,
   NAME1C_MAX_LENGTH,
@@ -518,7 +519,8 @@ export function planApply(input: PlanInput): PlanResult {
     const urls = imageList(row.imageUrls ?? []);
     if (replaceImages) {
       // рядок без фото — фото товару не чіпаємо; ті самі фото — не переписуємо
-      const before = current.feedImageUrls ?? [];
+      // у збережених до 07.10 посилання Google Диска ще «сирі» — порівнюємо прямі з прямими
+      const before = (current.feedImageUrls ?? []).map(directImageUrl);
       if (urls.length && !sameList(urls, before)) {
         plan.imageReplacements.push({ productId: current.id, urls, version: current.version });
         replaced.push({ field: 'images', old: `${before.length} фото`, new: `${urls.length} фото` });
