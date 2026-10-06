@@ -8,7 +8,7 @@ import { validationError } from '../../http/errors';
 import { parse, parseBody, parseParams, parseQuery } from '../../http/validate';
 import { currentUser, requireAdmin, requireAuth } from '../auth/middleware';
 import { addAttachment, attachmentFile, listAttachments, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB, removeAttachment } from './attachments.service';
-import { createKp, listKps } from './kp.service';
+import { createKp, deleteKp, listKps } from './kp.service';
 import { acquireLock, forceLock, heartbeatLock, lockStatus, releaseLock } from './locks.service';
 import {
   attachmentIdSchema,
@@ -16,6 +16,7 @@ import {
   createRequestSchema,
   documentPatchSchema,
   kpCreateSchema,
+  kpIdSchema,
   requestIdSchema,
   requestListQuerySchema,
   requestPageQuerySchema,
@@ -151,6 +152,15 @@ requestsRouter.post(
   asyncHandler(async (req, res) => {
     const { id } = parseParams(requestIdSchema, req);
     res.status(201).json(await createKp(id, parseBody(kpCreateSchema, req), currentUser(req)));
+  }),
+);
+
+requestsRouter.delete(
+  '/:id/kps/:kpId',
+  asyncHandler(async (req, res) => {
+    const { id, kpId } = parseParams(kpIdSchema, req);
+    await deleteKp(id, kpId, currentUser(req), sessionOf(req));
+    res.status(204).end();
   }),
 );
 

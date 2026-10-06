@@ -1,5 +1,5 @@
 // Вкладка «Файли» (РЕД-16, КП-4): сформовані КП (PDF / Excel з незмінного знімка) і файли заявки (від клієнта тощо).
-// Додає й прибирає файли лише той, хто редагує заявку; завантажити може кожен.
+// Додає й прибирає файли (і версії КП) лише той, хто редагує заявку; завантажити може кожен.
 import {
   DeleteOutlined,
   DownloadOutlined,
@@ -18,6 +18,7 @@ import { formatDateTime } from '@shared/format';
 import type { AttachmentDto, KpDocumentDto } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
 import { useRequestDoc } from '@/stores/requestDocStore';
+import { deleteKpVersion, KP_DELETE_HINT, kpDeleteTitle } from '../kp/deleteKp';
 import { downloadKpExcel } from '../kp/kpExcel';
 import { KpDocumentView } from '../kp/KpDocumentView';
 import { downloadKpPdf } from '../kp/kpPdf';
@@ -98,6 +99,18 @@ export default function FilesTab() {
     }
   };
 
+  const removeKp = async (kp: KpDocumentDto) => {
+    setBusy(`${kp.id}:delete`);
+    try {
+      await deleteKpVersion(queryClient, requestId, kp);
+      message.success(`КП № ${kp.numberLabel}, версію ${kp.version} видалено`);
+    } catch (e) {
+      message.error(errorMessage(e), 6);
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const rows: FileRow[] = [
     ...(kps.data ?? []).map((k): FileRow => ({ key: k.id, at: k.createdAt, by: k.createdBy?.shortName ?? null, kind: 'kp', kp: k })),
     ...(files.data ?? []).map((f): FileRow => ({ key: f.id, at: f.createdAt, by: f.uploadedBy?.shortName ?? null, kind: 'file', file: f })),
@@ -142,6 +155,21 @@ export default function FilesTab() {
                       <Button key="xlsx" size="small" icon={<FileExcelOutlined />} loading={busy === `${r.key}:xlsx`} onClick={() => void downloadKp(r.kp, 'xlsx')}>
                         Excel
                       </Button>,
+                      ...(readOnly
+                        ? []
+                        : [
+                            <Popconfirm
+                              key="del"
+                              title={kpDeleteTitle(r.kp)}
+                              description={KP_DELETE_HINT}
+                              okText="Видалити"
+                              okButtonProps={{ danger: true }}
+                              cancelText="Скасувати"
+                              onConfirm={() => removeKp(r.kp)}
+                            >
+                              <Button size="small" type="text" danger icon={<DeleteOutlined />} loading={busy === `${r.key}:delete`} aria-label="Видалити КП" />
+                            </Popconfirm>,
+                          ]),
                     ]
                   : [
                       <Button key="get" size="small" icon={<DownloadOutlined />} href={r.file.downloadUrl} download={r.file.originalFilename}>
@@ -169,6 +197,8 @@ export default function FilesTab() {
                 title={
                   <span className="po-num">
                     {r.kind === 'kp' ? `КП № ${r.kp.numberLabel}${r.kp.onlyApproved ? ' (фінальне)' : ''}` : r.file.originalFilename}{' '}
+                    {/* версії однієї КП мають той самий номер — розрізняються версією (вона ж у підтвердженні видалення) */}
+                    {r.kind === 'kp' ? <Typography.Text type="secondary">· версія {r.kp.version} </Typography.Text> : null}
                     {r.kind === 'kp' ? (
                       <Tag bordered={false} color={r.kp.onlyApproved ? 'purple' : 'blue'}>
                         КП

@@ -454,6 +454,10 @@ export class HttpDataSource implements DataSource {
     return api<void>(`/requests/${requestId}/files/${fileId}`, { method: 'DELETE' });
   }
 
+  deleteKp(requestId: UUID, kpId: UUID): Promise<void> {
+    return api<void>(`/requests/${requestId}/kps/${kpId}`, { method: 'DELETE' });
+  }
+
   // ── блокування ────────────────────────────────────────────────────
 
   acquireLock(id: UUID): Promise<LockAcquireResult> {

@@ -1,12 +1,13 @@
 // КП заявки: версії — незмінні знімки. Номер КП сталий (з Налаштувань), версії розрізняються датою й позначкою «фінальне».
 import type { User } from '@prisma/client';
 import { REQUEST_STATUS_LABELS } from '@shared/enums';
-import { toIsoDate } from '@shared/format';
-import { catalogSnapshotOf, kpBuyerOf, kpManagerName, kpVatModeFits } from '@shared/pricing';
+import { formatRequestNumber, toIsoDate } from '@shared/format';
+import { approvalBaseKp, catalogSnapshotOf, kpBuyerOf, kpManagerName, kpVatModeFits } from '@shared/pricing';
 import { buildKpVersion, KpBuildError, kpEventSummary, requestTotals } from '@shared/requests';
 import { isEditableStatus } from '@shared/status';
 import type { KpDocumentDto, UUID } from '@shared/types';
 import { prisma } from '../../db';
+import { audit } from '../audit/audit.service';
 import { ApiError, notFound } from '../../http/errors';
 import { mainImagesFor } from '../images/images.service';
 import { listOwnCompanies } from '../own-companies/ownCompanies.service';
@@ -88,7 +89,8 @@ export async function createKp(requestId: UUID, body: KpCreateInput, actor: User
       data: {
         requestId,
         kpNumber: env.settings.nextKpNumber,
-        version: kps.length + 1,
+        // наступна після найбільшої: після видалення версії кількість уже не дорівнює останньому номеру
+        version: kps.reduce((max, k) => Math.max(max, k.version), 0) + 1,
         vatMode: snapshot.totals.vatMode,
         ownCompanyId: built.ownCompanyId,
         onlyApproved: !!body.final,
@@ -124,3 +126,58 @@ export async function createKp(requestId: UUID, body: KpCreateInput, actor: User
   return kp;
 }
 
+
+/**
+ * Видалення версії КП (правки замовника 01.10 п.3: дубль від подвійного натискання). Може той, хто редагує заявку, з
+ * підтвердженням у вікні. КП-основу погодження з уже погодженими позиціями не видаляємо: погоджена сума рахується за її цінами.
+ */
+export async function deleteKp(requestId: UUID, kpId: UUID, actor: User, sessionId: string, now = new Date()): Promise<void> {
+  const env = await pricingEnv(now);
+  const removed = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Request" WHERE id = ${requestId} FOR UPDATE`;
+    const r = await loadRequest(requestId, tx);
+    if (!isEditableStatus(r.status)) {
+      throw new ApiError('READ_ONLY', `Заявка в статусі «${REQUEST_STATUS_LABELS[r.status]}», лише перегляд`);
+    }
+    await assertLockHolder(tx, requestId, actor, sessionId, now);
+    const kps = await kpsOf(requestId, tx);
+    const target = kps.find((k) => k.id === kpId);
+    if (!target) throw notFound('КП не знайдено');
+    const state = toDocState(r);
+    const base = approvalBaseKp(kps, state.header.approvalKpId);
+    if (base?.id === target.id && state.lines.some((l) => l.approval?.approved)) {
+      throw new ApiError(
+        'VALIDATION_ERROR',
+        `КП № ${target.numberLabel} (версія ${target.version}) є основою погодження, у заявці вже є погоджені позиції. Спершу оберіть іншу КП-основу на вкладці «Погодження» або зніміть погодження`,
+      );
+    }
+    await tx.kpDocument.delete({ where: { id: target.id } });
+    const rest = kps.filter((k) => k.id !== target.id);
+    const last = rest.reduce<KpDocumentDto | null>((acc, k) => (!acc || k.version > acc.version ? k : acc), null);
+    // обрану основою видалену КП забуваємо (без погоджень основою стає остання звичайна)
+    const approvalKpId = state.header.approvalKpId === target.id ? null : state.header.approvalKpId;
+    await tx.request.update({
+      where: { id: requestId },
+      data: {
+        ...totalsData(requestTotals({ ...state, header: { ...state.header, approvalKpId } }, env.ctx, rest)),
+        approvalKpId,
+        kpCount: rest.length,
+        lastKpNumber: last?.kpNumber ?? null,
+        lastKpFinal: last ? last.onlyApproved : null,
+        updatedAt: now,
+        updatedById: actor.id,
+      },
+    });
+    const summary = `Видалено КП № ${target.numberLabel}${target.onlyApproved ? ' (фінальне)' : ''}, версія ${target.version}`;
+    // вид події той самий, що й у формування КП («КП» в історії): стара версія програми при відкаті його знає
+    await tx.requestEvent.create({ data: { requestId, at: now, userId: actor.id, kind: 'kp_created', summary } });
+    return { summary, number: r.number };
+  }, TX);
+  await audit({
+    userId: actor.id,
+    action: 'request.kp.delete',
+    entityType: 'request',
+    entityId: requestId,
+    summary: `${removed.summary} (заявка № ${formatRequestNumber(removed.number)})`,
+  });
+}

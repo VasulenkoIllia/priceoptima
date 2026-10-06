@@ -431,12 +431,13 @@ export async function getRequestDocument(id: UUID, actor: User, sessionId: strin
 // ── збереження ────────────────────────────────────────────────────
 export async function saveRequestDocument(id: UUID, patch: DocumentPatch, actor: User, now = new Date()): Promise<SaveDocumentResponse> {
   const env = await pricingEnv(now);
-  const kps = await kpsOf(id);
   const at = now.toISOString();
   const result = await prisma.$transaction(async (tx) => {
     // одне збереження заявки за раз
     await tx.$queryRaw`SELECT id FROM "Request" WHERE id = ${id} FOR UPDATE`;
     const r = await loadRequest(id, tx);
+    // версії КП — після блокування: формування чи видалення КП, що йшли перед збереженням, уже враховано (погоджена сума)
+    const kps = await kpsOf(id, tx);
     if (!isEditableStatus(r.status)) {
       throw new ApiError('READ_ONLY', `Заявка в статусі «${REQUEST_STATUS_LABELS[r.status]}», лише перегляд`);
     }

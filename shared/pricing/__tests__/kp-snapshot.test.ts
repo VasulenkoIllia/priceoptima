@@ -65,6 +65,15 @@ describe('знімок КП', () => {
     expect(buildFinalKpSnapshot(noTerm, lines, { kpNumber: 2115, date: '2026-09-12', validityDays: 0 }).validUntil).toBeNull();
   });
 
+  it('покупець — повна назва контрагента, якщо заповнена; інакше коротка, далі клієнт (правки замовника 01.10 п.4)', () => {
+    const cp = { nameShort: 'ТОВ «КЛІЄНТ»', nameFull: 'ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ «КЛІЄНТ»', edrpou: '41000011' };
+    expect(kpBuyerOf(cp, 'Клієнт', null).name).toBe('ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ «КЛІЄНТ»');
+    expect(kpBuyerOf({ ...cp, nameFull: '  ' }, 'Клієнт', null).name).toBe('ТОВ «КЛІЄНТ»');
+    expect(kpBuyerOf({ ...cp, nameFull: null }, 'Клієнт', null).name).toBe('ТОВ «КЛІЄНТ»');
+    expect(kpBuyerOf(null, 'Клієнт', null).name).toBe('Клієнт');
+    expect(kpBuyerOf(null, null, null).name).toBeNull();
+  });
+
   it('номер, дата, строк дії, підсумки «ТОВ без ПДВ», сума прописом, сторони', () => {
     expect(base.numberLabel).toBe('2114 / 000001');
     expect(base.final).toBe(false);

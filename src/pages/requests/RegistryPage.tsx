@@ -272,6 +272,15 @@ export default function RegistryPage() {
           ) : null,
       },
       { headerName: 'Дата', field: 'requestDate', width: 100, sortable: true, valueFormatter: (p) => formatDate(p.value) },
+      // правки замовника 01.10 п.5; висота рядків реєстру стала (підвантаження сторінками), тож довга тема — у підказці
+      {
+        headerName: 'Тема заявки',
+        field: 'title',
+        flex: 1.2,
+        minWidth: 160,
+        cellClass: 'po-cell-text',
+        tooltipValueGetter: (p) => p.data?.title || null,
+      },
       {
         headerName: 'Клієнт',
         colId: 'client',
@@ -279,7 +288,7 @@ export default function RegistryPage() {
         flex: 1,
         minWidth: 130,
         cellClass: 'po-cell-text',
-        tooltipValueGetter: (p) => p.data?.title ?? null,
+        tooltipValueGetter: (p) => p.data?.client?.name || null,
       },
       { headerName: 'Контрагент', colId: 'counterparty', valueGetter: (p) => p.data?.counterparty?.nameShort ?? '', flex: 1.3, minWidth: 160, cellClass: 'po-cell-text' },
       { headerName: 'ЄДРПОУ', colId: 'edrpou', valueGetter: (p) => p.data?.counterparty?.edrpou ?? '', width: 104, cellClass: 'po-num' },
@@ -343,7 +352,7 @@ export default function RegistryPage() {
         <Input
           allowClear
           prefix={<SearchOutlined className="po-muted" />}
-          placeholder="Пошук: номер заявки чи КП, клієнт, ЄДРПОУ, позиція, артикул"
+          placeholder="Пошук: номер заявки чи КП, тема, клієнт, ЄДРПОУ, позиція, артикул"
           value={search}
           onChange={(e) => setFilters({ search: e.target.value })}
           style={{ width: 340 }}

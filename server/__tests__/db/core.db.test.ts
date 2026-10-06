@@ -17,7 +17,7 @@ import { importPriceRows } from '../../modules/price-updates/priceUpdates.servic
 import { productInputSchema, productPatchSchema, productPriceUpdateSchema, productsName1cSchema, productsUnitSchema } from '../../modules/products/products.schemas';
 import { createProduct, getPriceHistory, getProduct, setProductsName1c, setProductsUnit, updateProduct, updateProductPrice } from '../../modules/products/products.service';
 import { kpCreateSchema, createRequestSchema, documentPatchSchema } from '../../modules/requests/requests.schemas';
-import { createKp, listKps } from '../../modules/requests/kp.service';
+import { createKp, deleteKp, listKps } from '../../modules/requests/kp.service';
 import { acquireLock, activeLock, forceLock, releaseLock } from '../../modules/requests/locks.service';
 import { toProductForOffer } from '../../modules/requests/requests.context';
 import { changeStatus, createRequest, getRequestDocument, saveRequestDocument } from '../../modules/requests/requests.service';
@@ -310,6 +310,76 @@ describe('заявка: збереження, блокування, КП, ста
     expect(k1.snapshot.rows).toHaveLength(1);
     expect(k1.snapshot.totals.payable).toBeGreaterThan(0);
     expect(await listKps(requestId)).toHaveLength(2);
+  });
+
+  it('видалення КП (правки замовника 01.10 п.3): лише той, хто редагує; основу з погодженнями — ні; лічильники й номер версії', async () => {
+    const doc = await getRequestDocument(requestId, koval, sessionA);
+    const body = parse(kpCreateSchema, { settings: doc.header.kpSettings, sessionId: sessionA });
+    const k3 = await createKp(requestId, body, koval);
+    const [, k2, k1] = await listKps(requestId);
+
+    expect(['LOCK_LOST', 'LOCK_REQUIRED']).toContain(await errorCode(() => deleteKp(requestId, k2!.id, bondar, sessionB)));
+    expect(await errorCode(() => deleteKp(requestId, randomUUID(), koval, sessionA))).toBe('NOT_FOUND');
+
+    // середня версія: наступна нова — після найбільшої (не за кількістю, інакше збіг з версією 3)
+    await deleteKp(requestId, k2!.id, koval, sessionA);
+    expect((await listKps(requestId)).map((k) => k.version)).toEqual([k3.version, k1!.version]);
+    const k4 = await createKp(requestId, body, koval);
+    expect(k4.version).toBe(k3.version + 1);
+
+    // основа погодження (остання) з погодженою позицією не видаляється; інша — так
+    const cur = await getRequestDocument(requestId, koval, sessionA);
+    const approved = parse(documentPatchSchema, {
+      baseVersion: cur.version,
+      sessionId: sessionA,
+      upsert: { lines: cur.lines.map((l) => ({ ...l, approval: { approved: true, approvedQty: null } })) },
+    }) as DocumentPatch;
+    await saveRequestDocument(requestId, approved, koval);
+    expect(await errorCode(() => deleteKp(requestId, k4.id, koval, sessionA))).toBe('VALIDATION_ERROR');
+    await deleteKp(requestId, k3.id, koval, sessionA);
+
+    const r = await prisma.request.findUniqueOrThrow({ where: { id: requestId } });
+    expect(r.kpCount).toBe(2);
+    expect(r.lastKpNumber).toBe(k4.kpNumber);
+    expect(r.approvalKpId).toBeNull();
+    expect(Number(r.approvedSaleGross)).toBeGreaterThan(0);
+    const events = await prisma.requestEvent.findMany({ where: { requestId, summary: { startsWith: 'Видалено КП' } } });
+    expect(events).toHaveLength(2);
+    expect(await prisma.auditEvent.count({ where: { entityId: requestId, action: 'request.kp.delete' } })).toBe(2);
+  });
+
+  it('видалення КП: обрана основа без погоджень скидається; фінальна й остання видаляються, лічильники порожні', async () => {
+    const save = async (patch: object) => {
+      const cur = await getRequestDocument(requestId, koval, sessionA);
+      return saveRequestDocument(requestId, parse(documentPatchSchema, { baseVersion: cur.version, sessionId: sessionA, ...patch }) as DocumentPatch, koval);
+    };
+    const approveAll = async (approved: boolean) => {
+      const cur = await getRequestDocument(requestId, koval, sessionA);
+      await save({ upsert: { lines: cur.lines.map((l) => ({ ...l, approval: { approved, approvedQty: null } })) } });
+    };
+    const req = () => prisma.request.findUniqueOrThrow({ where: { id: requestId } });
+    const [newest, oldest] = await listKps(requestId);
+
+    // старша версія обрана основою, погоджень немає — видаляється, вибір скидається
+    await approveAll(false);
+    await save({ header: { approvalKpId: oldest!.id } });
+    expect((await req()).approvalKpId).toBe(oldest!.id);
+    await deleteKp(requestId, oldest!.id, koval, sessionA);
+    expect((await req()).approvalKpId).toBeNull();
+
+    // фінальна — не основа погодження: видаляється й з погодженнями
+    await approveAll(true);
+    const doc = await getRequestDocument(requestId, koval, sessionA);
+    const final = await createKp(requestId, parse(kpCreateSchema, { settings: doc.header.kpSettings, final: true, sessionId: sessionA }), koval);
+    expect(await req()).toMatchObject({ kpCount: 2, lastKpFinal: true });
+    await deleteKp(requestId, final.id, koval, sessionA);
+    expect(await req()).toMatchObject({ kpCount: 1, lastKpNumber: newest!.kpNumber, lastKpFinal: false });
+
+    // остання КП (погодження зняте)
+    await approveAll(false);
+    await deleteKp(requestId, newest!.id, koval, sessionA);
+    expect(await req()).toMatchObject({ kpCount: 0, lastKpNumber: null, lastKpFinal: null, approvalKpId: null });
+    expect(await listKps(requestId)).toHaveLength(0);
   });
 
   it('«Виконано» знімає блокування; «Перевідкрити» — з блокуванням іншого менеджера', async () => {

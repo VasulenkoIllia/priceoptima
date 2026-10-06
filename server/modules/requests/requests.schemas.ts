@@ -218,6 +218,7 @@ export const kpCreateSchema = z.object({ settings: kpSettingsSchema, final: z.bo
 
 export const requestIdSchema = z.object({ id: uuid('заявка') });
 export const attachmentIdSchema = z.object({ id: uuid('заявка'), fileId: uuid('файл') });
+export const kpIdSchema = z.object({ id: uuid('заявка'), kpId: uuid('КП') });
 
 export type RequestListQueryInput = z.infer<typeof requestListQuerySchema>;
 export type RequestPageQueryInput = z.infer<typeof requestPageQuerySchema>;

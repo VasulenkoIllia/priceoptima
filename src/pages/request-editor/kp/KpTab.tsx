@@ -1,9 +1,9 @@
 // Вкладка «КП» (КП-1…КП-4): налаштування бланка, перевірка, «Сформувати КП» (номер з лічильника, незмінний знімок),
 // версії КП і PDF / Excel. Попередній перегляд номер не витрачає.
-import { CopyOutlined, FileExcelOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons';
+import { CopyOutlined, DeleteOutlined, FileExcelOutlined, FilePdfOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, App, Button, Checkbox, Input, InputNumber, Radio, Select, Spin, Tag, Tooltip } from 'antd';
-import { useMemo, useState, type ReactNode } from 'react';
+import { Alert, App, Button, Checkbox, Input, InputNumber, Popconfirm, Radio, Select, Spin, Tag, Tooltip } from 'antd';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { KP_NAME_SOURCE_LABELS, KP_NAME_SOURCES, KP_VAT_MODE_LABELS, type KpNameSource, type KpVatMode } from '@shared/enums';
 import { formatDateTime, formatKpNumber, formatMoney } from '@shared/format';
@@ -13,6 +13,7 @@ import { KpTermsEditor, LoadError } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { getRequestDocStore, useRequestDoc } from '@/stores/requestDocStore';
 import { kpChangesSince } from './kpChanges';
+import { deleteKpVersion, KP_DELETE_HINT, kpDeleteTitle } from './deleteKp';
 import { KpDocumentView } from './KpDocumentView';
 import { downloadKpExcel } from './kpExcel';
 import { downloadKpPdf } from './kpPdf';
@@ -189,7 +190,7 @@ function VersionItem({ kp, active, onSelect }: { kp: KpDocumentDto; active: bool
         ) : null}
       </div>
       <div className="po-muted po-num">
-        {formatDateTime(kp.createdAt)}
+        версія {kp.version} · {formatDateTime(kp.createdAt)}
         {kp.createdBy ? ` · ${kp.createdBy.shortName}` : ''}
       </div>
       <div className="po-num">
@@ -212,7 +213,9 @@ export default function KpTab() {
   const kps = useQuery({ queryKey: qk.kps(requestId ?? ''), queryFn: () => ds.listKps(requestId!), enabled: !!requestId });
   const appSettings = useQuery({ queryKey: qk.settings, queryFn: () => ds.getSettings() });
   const [selectedId, setSelectedId] = useState<UUID | null>((location.state as { kpId?: UUID } | null)?.kpId ?? null);
-  const [busy, setBusy] = useState<'pdf' | 'xlsx' | null>(null);
+  const [busy, setBusy] = useState<'pdf' | 'xlsx' | 'delete' | null>(null);
+  // подвійне натискання «Сформувати КП» давало дві однакові версії: кнопка блокується лише після перемальовування
+  const creating = useRef(false);
 
   const create = useMutation({
     mutationFn: async () => {
@@ -231,7 +234,28 @@ export default function KpTab() {
       message.success(`Сформовано КП № ${kp.numberLabel} · ${formatMoney(kp.snapshot.totals.payable)} грн`);
     },
     onError: (e) => message.error(errorMessage(e)),
+    onSettled: () => {
+      creating.current = false;
+    },
   });
+  const startCreate = () => {
+    if (creating.current) return;
+    creating.current = true;
+    create.mutate();
+  };
+
+  const remove = async (kp: KpDocumentDto) => {
+    setBusy('delete');
+    try {
+      await deleteKpVersion(queryClient, requestId!, kp);
+      setSelectedId(null);
+      message.success(`КП № ${kp.numberLabel}, версію ${kp.version} видалено`);
+    } catch (e) {
+      message.error(errorMessage(e), 6);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const download = async (kp: KpDocumentDto, kind: 'pdf' | 'xlsx') => {
     setBusy(kind);
@@ -273,7 +297,7 @@ export default function KpTab() {
   // без клієнта КП можна сформувати (напр., на роздрук), але лише свідомо
   const onCreate = () => {
     if (hasBuyer) {
-      create.mutate();
+      startCreate();
       return;
     }
     modal.confirm({
@@ -281,7 +305,7 @@ export default function KpTab() {
       content: 'У КП не буде покупця. Сформувати КП без покупця?',
       okText: 'Сформувати без покупця',
       cancelText: 'Скасувати',
-      onOk: () => create.mutate(),
+      onOk: startCreate,
     });
   };
 
@@ -344,7 +368,7 @@ export default function KpTab() {
                   </Tag>
                 ) : null}
                 <span className="po-muted po-num">
-                  · сформовано {formatDateTime(selected.createdAt)}
+                  · версія {selected.version} · {formatDateTime(selected.createdAt)}
                   {selected.createdBy ? ` · ${selected.createdBy.shortName}` : ''}
                 </span>
                 {selected.id === base?.id && changesText ? (
@@ -369,6 +393,22 @@ export default function KpTab() {
               <Button icon={<FileExcelOutlined />} loading={busy === 'xlsx'} onClick={() => void download(selected, 'xlsx')}>
                 Excel
               </Button>
+              {readOnly ? null : (
+                <Popconfirm
+                  // підказка кнопки — зверху, підтвердження — знизу: не перекривають одне одного
+                  placement="bottomRight"
+                  title={kpDeleteTitle(selected)}
+                  description={KP_DELETE_HINT}
+                  okText="Видалити"
+                  okButtonProps={{ danger: true }}
+                  cancelText="Скасувати"
+                  onConfirm={() => remove(selected)}
+                >
+                  <Tooltip title="Видалити цю версію КП">
+                    <Button danger icon={<DeleteOutlined />} loading={busy === 'delete'} aria-label="Видалити цю версію КП" />
+                  </Tooltip>
+                </Popconfirm>
+              )}
             </>
           ) : (
             <span className="po-muted">Попередній перегляд за поточними цінами. PDF і Excel доступні у сформованих версіях.</span>

@@ -215,6 +215,8 @@ export interface DataSource {
   /** До 20 МБ; потрібне блокування цієї вкладки. */
   uploadAttachment(requestId: UUID, file: File): Promise<AttachmentDto>;
   deleteAttachment(requestId: UUID, fileId: UUID): Promise<void>;
+  /** Видалити версію КП (той, хто редагує заявку). */
+  deleteKp(requestId: UUID, kpId: UUID): Promise<void>;
 
   // ── Блокування (§6.11) ──────────────────────────────────────────
   acquireLock(id: UUID): Promise<LockAcquireResult>;

@@ -74,14 +74,15 @@ export function kpManagerName(u: { shortName: string; phone?: string | null } | 
   return u ? `${u.shortName}${u.phone ? `, тел. ${u.phone}` : ''}` : '';
 }
 
-/** Покупець бланка з контрагента (коротка назва), клієнта й контакту заявки. */
+/** Покупець бланка з контрагента (повна назва, інакше коротка), клієнта й контакту заявки. */
 export function kpBuyerOf(
-  counterparty: { nameShort: string; edrpou: string | null } | null | undefined,
+  counterparty: { nameShort: string; nameFull?: string | null; edrpou: string | null } | null | undefined,
   clientName: string | null | undefined,
   contact: { fullName: string; email: string | null; phone: string | null } | null | undefined,
 ): KpBuyer {
   return {
-    name: counterparty?.nameShort ?? clientName ?? null,
+    // «Повна назва» контрагента підписана «для КП і документів» (правки замовника 01.10 п.4); немає — коротка
+    name: counterparty?.nameFull?.trim() || counterparty?.nameShort || clientName || null,
     edrpou: counterparty?.edrpou ?? null,
     contactName: contact?.fullName ?? null,
     email: contact?.email ?? null,
