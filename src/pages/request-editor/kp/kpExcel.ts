@@ -169,14 +169,17 @@ export async function buildKpWorkbook(
       setBorder(ws.getCell(row, COLS), { right: LINE });
     }
     if (logo) {
-      // праворуч в останніх колонках: не вище за шапку й не ширше за ці колонки (широкі логотипи-написи)
+      // праворуч в останніх колонках: не вище за шапку й не ширше за ці колонки (широкі логотипи-написи); межі — для
+      // всього малюнка з полями, обрізаний — у тому самому масштабі (07.10: не більшає від обрізання полів)
       const tableW = colLeft(COLS);
       const maxW = tableW - colLeft(COLS - LOGO_COLS) - 12;
-      const h = Math.min(LOGO_MAX_H_PX, logo.height, (maxW * logo.height) / logo.width);
-      const w = Math.round((logo.width * h) / logo.height);
+      const k = Math.min(LOGO_MAX_H_PX / (logo.fullHeight ?? logo.height), maxW / (logo.fullWidth ?? logo.width), 1);
+      const w = Math.round(logo.width * k);
+      const h = logo.height * k;
       const id = wb.addImage({ base64: logo.dataUrl, extension: 'png' });
       // відступ від правої рамки з запасом: ширина колонок у пікселях оцінена приблизно
-      ws.addImage(id, { tl: anchorAt(tableW - w - 14, rowTop(headRows[0]) + 4), ext: { width: w, height: Math.round(h) } });
+      const top = rowTop(headRows[0]) + 4 + (logo.fullTop ?? 0) * k;
+      ws.addImage(id, { tl: anchorAt(tableW - w - 14, top), ext: { width: w, height: Math.round(h) } });
     }
     r += 3;
   }

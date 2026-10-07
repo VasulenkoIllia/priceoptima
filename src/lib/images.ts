@@ -32,6 +32,27 @@ export interface TrimmedImage {
   dataUrl: string;
   width: number;
   height: number;
+  /** Розміри всього малюнка з полями й верхнє поле: обрізаний ставимо в тому самому масштабі й на ту саму висоту. */
+  sourceWidth: number;
+  sourceHeight: number;
+  top: number;
+}
+
+/** Обрізаний малюнок у місці: розмір і порожнє місце над ним і під ним (верхнє й нижнє поле в тому самому масштабі). */
+export interface TrimmedPlacement {
+  width: number;
+  height: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Обрізаний малюнок так, як стояв би весь малюнок (з полями), вписаний у box: бічні поля зникають (текст шапки КП по
+ * центру, 06.10), а сам малюнок не більшає й стоїть на тій самій висоті (правки замовника 07.10: логотип став завеликим).
+ */
+export function trimmedPlacementIn(t: TrimmedImage, box: readonly [number, number]): TrimmedPlacement {
+  const k = Math.min(box[0] / t.sourceWidth, box[1] / t.sourceHeight);
+  return { width: t.width * k, height: t.height * k, top: t.top * k, bottom: (t.sourceHeight - t.top - t.height) * k };
 }
 
 /** Піксель тла: прозорий або майже білий. */
@@ -70,7 +91,8 @@ export async function trimImageMargins(url: string): Promise<TrimmedImage | null
     }
   }
   if (maxX < 0) return null;
-  if (minX === 0 && minY === 0 && maxX === width - 1 && maxY === height - 1) return { dataUrl: url, width, height };
+  const source = { sourceWidth: width, sourceHeight: height, top: minY };
+  if (minX === 0 && minY === 0 && maxX === width - 1 && maxY === height - 1) return { dataUrl: url, width, height, ...source };
   const w = maxX - minX + 1;
   const h = maxY - minY + 1;
   const out = document.createElement('canvas');
@@ -79,5 +101,5 @@ export async function trimImageMargins(url: string): Promise<TrimmedImage | null
   const octx = out.getContext('2d');
   if (!octx) return null;
   octx.drawImage(canvas, minX, minY, w, h, 0, 0, w, h);
-  return { dataUrl: out.toDataURL(PNG), width: w, height: h };
+  return { dataUrl: out.toDataURL(PNG), width: w, height: h, ...source };
 }

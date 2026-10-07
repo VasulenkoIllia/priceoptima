@@ -46,6 +46,10 @@ export interface KpLogoImage {
   dataUrl: string;
   width: number;
   height: number;
+  /** Весь малюнок з полями в тому самому масштабі й верхнє поле: розмір і висота в бланку — за ним (07.10: не більшає). */
+  fullWidth?: number;
+  fullHeight?: number;
+  fullTop?: number;
 }
 
 /** Висота растру логотипа для Excel — з запасом на друк. */
@@ -72,7 +76,14 @@ export async function loadKpLogo(url: string | null | undefined): Promise<KpLogo
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return { dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height };
+    return {
+      dataUrl: canvas.toDataURL('image/png'),
+      width: canvas.width,
+      height: canvas.height,
+      fullWidth: (trimmed?.sourceWidth ?? w) * scale,
+      fullHeight: (trimmed?.sourceHeight ?? h) * scale,
+      fullTop: (trimmed?.top ?? 0) * scale,
+    };
   } catch {
     return null;
   }

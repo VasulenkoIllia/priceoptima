@@ -1,9 +1,9 @@
 // Бланк КП (КП-1) у HTML — попередній перегляд і перегляд сформованих версій. PDF і Excel будуються з того самого знімка.
 import { GlobalOutlined, MailFilled, PhoneFilled } from '@ant-design/icons';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
-import { trimImageMargins } from '@/lib/images';
+import { trimImageMargins, trimmedPlacementIn, type TrimmedImage } from '@/lib/images';
 import {
   KP_SIGN_LABEL,
   kpAmountLine,
@@ -32,16 +32,32 @@ export interface KpDocumentViewProps {
   draft?: boolean;
 }
 
+/** Місце логотипа в шапці, px (як .po-kp-logo у steps.css). */
+const LOGO_BOX: [number, number] = [250, 80];
+
+interface HeadLogo {
+  src: string;
+  /** Обрізаний — розмір і відступи як у всього малюнка з полями (07.10: не більшає); немає — за стилем .po-kp-logo. */
+  style?: CSSProperties;
+}
+
+/** Як стояв би весь малюнок з полями в LOGO_BOX (object-fit: contain — по центру по висоті), лише без бічних полів. */
+function trimmedLogoStyle(t: TrimmedImage): CSSProperties {
+  const p = trimmedPlacementIn(t, LOGO_BOX);
+  const centering = (LOGO_BOX[1] - (p.top + p.height + p.bottom)) / 2;
+  return { width: p.width, height: p.height, marginTop: p.top + centering, marginBottom: p.bottom + centering };
+}
+
 /** Логотип без порожніх полів навколо малюнка — щоб текст шапки стояв по центру (як у PDF); поки обрізається — як є. */
-function useTrimmedLogo(url: string | null): string | null {
-  const [src, setSrc] = useState(url);
+function useTrimmedLogo(url: string | null): HeadLogo | null {
+  const [logo, setLogo] = useState<HeadLogo | null>(url ? { src: url } : null);
   useEffect(() => {
     let alive = true;
-    setSrc(url);
+    setLogo(url ? { src: url } : null);
     if (url) {
       trimImageMargins(url)
         .then((t) => {
-          if (alive && t) setSrc(t.dataUrl);
+          if (alive && t) setLogo({ src: t.dataUrl, style: trimmedLogoStyle(t) });
         })
         .catch(() => undefined);
     }
@@ -49,11 +65,11 @@ function useTrimmedLogo(url: string | null): string | null {
       alive = false;
     };
   }, [url]);
-  return src;
+  return logo;
 }
 
 export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
-  const logoSrc = useTrimmedLogo(s.header.logoPath);
+  const logo = useTrimmedLogo(s.header.logoPath);
   const valid = kpValidLine(s);
   const terms = kpTermRows(s);
   const photos = s.columns.showImages;
@@ -77,7 +93,14 @@ export function KpDocumentView({ snapshot: s, draft }: KpDocumentViewProps) {
               </div>
             ) : null}
           </div>
-          {logoSrc ? <img className="po-kp-logo" src={logoSrc} alt="" /> : null}
+          {logo ? (
+            <img
+              className="po-kp-logo"
+              src={logo.src}
+              style={logo.style}
+              alt=""
+            />
+          ) : null}
         </header>
       ) : null}
 

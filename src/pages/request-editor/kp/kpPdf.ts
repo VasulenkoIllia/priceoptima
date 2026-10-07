@@ -2,7 +2,7 @@
 import type { Content, ContentImage, ContentSvg, CustomTableLayout, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { formatMoney, formatQty } from '@shared/format';
 import type { KpSnapshot } from '@shared/types';
-import { trimImageMargins } from '@/lib/images';
+import { trimImageMargins, trimmedPlacementIn } from '@/lib/images';
 import {
   KP_SIGN_LABEL,
   kpAmountLine,
@@ -83,16 +83,18 @@ async function pictureContent(url: string | null | undefined, fit: [number, numb
 }
 
 /**
- * Логотип шапки: без порожніх полів навколо малюнка, місце — рівно під його ширину (за пропорціями), щоб гасло й контакти
- * стояли по центру між рамкою й логотипом (правки замовника 06.10). Не вдалося обрізати (SVG) — повна ширина місця.
+ * Логотип шапки: без бічних полів навколо малюнка, місце — рівно під його ширину, щоб гасло й контакти стояли по центру
+ * між рамкою й логотипом (правки замовника 06.10). Розмір і висота — як у всього малюнка з полями в LOGO_FIT (07.10:
+ * обрізаний не більшає, шапка тієї самої висоти). Не вдалося обрізати (SVG) — повна ширина місця.
  */
 async function headLogoContent(url: string | null): Promise<{ content: Content; width: number } | null> {
   if (!url) return null;
   const trimmed = await trimImageMargins(url).catch(() => null);
-  const picture = await pictureContent(trimmed?.dataUrl ?? url, LOGO_FIT);
+  const place = trimmed ? trimmedPlacementIn(trimmed, LOGO_FIT) : null;
+  const picture = await pictureContent(trimmed?.dataUrl ?? url, place ? [place.width, place.height] : LOGO_FIT);
   if (!picture) return null;
-  const width = trimmed ? Math.min(LOGO_FIT[0], (LOGO_FIT[1] * trimmed.width) / trimmed.height) : LOGO_FIT[0];
-  return { content: { ...picture, alignment: 'right' } as Content, width };
+  const margin = place ? { margin: [0, place.top, 0, place.bottom] } : {};
+  return { content: { ...picture, ...margin, alignment: 'right' } as Content, width: place?.width ?? LOGO_FIT[0] };
 }
 
 /** Позначки контактів у шапці (у Roboto немає значків телефону й конверта). */
