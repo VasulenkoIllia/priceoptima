@@ -14,6 +14,7 @@ import { ds } from '@/data';
 import { errorMessage } from '@/data/errors';
 import { toSupplierRef } from '@/lib/supplierRef';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { useMenuFit } from '@/lib/useMenuFit';
 import { getRequestDocStore, useRequestDoc } from '@/stores/requestDocStore';
 import { CreateProductDialog } from './CreateProductDialog';
 import { usePickerStore, type PickerRequest } from './pickerStore';
@@ -61,6 +62,7 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
   const [supplierId, setSupplierId] = useState<UUID | 'all'>(request.supplierId ?? 'all');
   const [selected, setSelected] = useState<ProductPickDto[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const siteMenu = useMenuFit();
 
   // шукаємо від 2 символів: одна літера дає випадковий список і пропозицію «Створити товар» не до місця
   const searchable = q.length >= MIN_QUERY;
@@ -187,7 +189,9 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
     ) : siteSuppliers.length ? (
       <Dropdown
         trigger={['click']}
+        onOpenChange={siteMenu.onOpenChange}
         menu={{
+          style: siteMenu.style,
           items: siteSuppliers.map((x) => ({
             key: x.supplier.id,
             label: <SupplierLogo name={x.supplier.name} logoUrl={x.supplier.logoUrl} color={x.supplier.color} size={16} showName />,
@@ -198,7 +202,9 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
           },
         }}
       >
-        <Button icon={<GlobalOutlined />}>Знайти на сайті постачальника</Button>
+        <Button ref={siteMenu.ref} icon={<GlobalOutlined />}>
+          Знайти на сайті постачальника
+        </Button>
       </Dropdown>
     ) : null;
 

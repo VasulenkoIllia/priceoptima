@@ -3,6 +3,7 @@ import { BarChartOutlined, CheckOutlined, DeleteOutlined, DownOutlined, FileExce
 import { App, Button, Dropdown, Input, Segmented, Select, Tooltip } from 'antd';
 import { useState } from 'react';
 import { SupplierLogo } from '@/components/SupplierLogo';
+import { useMenuFit } from '@/lib/useMenuFit';
 import { useRequestDoc } from '@/stores/requestDocStore';
 import { useUiPrefs, type EditorMode } from '@/stores/uiPrefsStore';
 import { RequestImportDialog } from '../import/RequestImportDialog';
@@ -38,6 +39,7 @@ export function SourcingToolbar({ counts }: SourcingToolbarProps) {
   const selected = useSourcingUi((s) => s.selectedLineIds);
   const openDrawer = useSourcingUi((s) => s.openDrawer);
   const [importOpen, setImportOpen] = useState(false);
+  const supplierMenu = useMenuFit();
 
   const used = new Set((blocks ?? []).map((b) => b.supplierId));
   const supplierItems = suppliers
@@ -77,9 +79,10 @@ export function SourcingToolbar({ counts }: SourcingToolbarProps) {
       <Dropdown
         disabled={readOnly}
         trigger={['click']}
-        menu={{ items: supplierItems, onClick: ({ key }) => onAddSupplier(key) }}
+        onOpenChange={supplierMenu.onOpenChange}
+        menu={{ items: supplierItems, onClick: ({ key }) => onAddSupplier(key), style: supplierMenu.style }}
       >
-        <Button icon={<PlusOutlined />}>
+        <Button ref={supplierMenu.ref} icon={<PlusOutlined />}>
           Постачальник <DownOutlined />
         </Button>
       </Dropdown>

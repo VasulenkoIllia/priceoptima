@@ -14,6 +14,7 @@ import { ds, errorMessage, qk } from '@/data';
 import { saveBlob } from '@/lib/files';
 import { GRID_LOCALE, gridTheme } from '@/lib/agGrid';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { useMenuFit } from '@/lib/useMenuFit';
 import { columnLayoutHandlers, withSavedLayout } from '@/lib/gridColumnLayout';
 import { useUiPrefs } from '@/stores/uiPrefsStore';
 import { PriceImportDialog } from '../suppliers/priceImport';
@@ -100,6 +101,8 @@ export default function CatalogPage() {
   const [selectedIds, setSelectedIds] = useState<UUID[]>([]);
   const [unitOpen, setUnitOpen] = useState(false);
   const [name1cOpen, setName1cOpen] = useState(false);
+  const importMenu = useMenuFit();
+  const name1cMenu = useMenuFit();
   // одна літера на великому каталозі — майже весь каталог; шукаємо від 2 символів
   const q = useDebouncedValue(search.trim().length >= 2 ? search.trim() : '', 300);
 
@@ -347,28 +350,32 @@ export default function CatalogPage() {
             <Dropdown
               trigger={['click']}
               disabled={!suppliers.data?.length}
+              onOpenChange={importMenu.onOpenChange}
               menu={{
                 items: (suppliers.data ?? [])
                   .filter((s) => s.isActive)
                   .map((s) => ({ key: s.id, label: <SupplierLogo name={s.name} logoUrl={s.logoUrl} color={s.color} size={16} showName /> })),
                 onClick: ({ key }) => setImportFor(supplierById.get(key) ?? null),
+                style: importMenu.style,
               }}
             >
-              <Button icon={<UploadOutlined />}>
+              <Button ref={importMenu.ref} icon={<UploadOutlined />}>
                 Імпортувати прайс <DownOutlined />
               </Button>
             </Dropdown>
             <Dropdown
               trigger={['click']}
               disabled={!suppliers.data?.length}
+              onOpenChange={name1cMenu.onOpenChange}
               menu={{
                 items: (suppliers.data ?? [])
                   .filter((s) => s.isActive)
                   .map((s) => ({ key: s.id, label: <SupplierLogo name={s.name} logoUrl={s.logoUrl} color={s.color} size={16} showName /> })),
                 onClick: ({ key }) => setName1cFor(supplierById.get(key) ?? null),
+                style: name1cMenu.style,
               }}
             >
-              <Button title="Файл «артикул → назва 1С» для товарів постачальника">
+              <Button ref={name1cMenu.ref} title="Файл «артикул → назва 1С» для товарів постачальника">
                 Назви 1С з Excel <DownOutlined />
               </Button>
             </Dropdown>
