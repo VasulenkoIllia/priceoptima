@@ -1,8 +1,12 @@
 // Вигрузка YML (формат Rozetka): <yml_catalog date><shop><currencies><categories><offers><offer id available instock?>
 //   <price/><oldprice?/><currencyId/><categoryId/><picture/>…<name/><model?/><vendor/><vendorCode/><param name>…</param>
 // Так вигружають САНДІ (sandi.yml) і кабінети багатьох постачальників.
+// Вигрузка Prom: <shop><currencies><catalog><category/></catalog><items><item id available>, фото — <image/>, решта тегів
+// як у YML (так вигружає сайт Zenner).
 //
 // Код — атрибут offer id. Артикул — vendorCode; у САНДІ vendorCode дублює код, тоді беремо param «Артикул».
+// Код у Prom — як у вигрузці Prom файлом (src/lib/priceXml.ts): штрихкод, без нього vendorCode (id у Prom — внутрішній
+// номер сайту, у каталозі й КП він нічого не скаже). Без обох — item id: файл таку позицію пропускає, посилання — ні.
 // Ціна у вигрузці одна: закупівельна, якщо так сказано в налаштуваннях джерела (hasPurchasePrice), інакше — РРЦ.
 // Валюта — currencyId (без нього — валюта за замовчуванням); курси — з <currencies>, у гривнях за одиницю.
 // Залишок — атрибут instock або тег stock_quantity; без кількості — лише available="true|false".
@@ -124,13 +128,41 @@ function params(offer: Dict): Map<string, string> {
   return out;
 }
 
+/** Розмітка вигрузки: YML (Rozetka) чи Prom. */
+interface FeedLayout {
+  shop: Dict;
+  /** Вузол зі списком <category>: <categories> у YML, <catalog> у Prom. */
+  categories: unknown;
+  offers: unknown[];
+  isProm: boolean;
+}
+
+function feedLayout(data: unknown): FeedLayout {
+  const root = isRecord(data) && isRecord(data.yml_catalog) ? data.yml_catalog : null;
+  const yml = root && isRecord(root.shop) ? root.shop : null;
+  if (yml) {
+    return { shop: yml, categories: yml.categories, offers: asArray(isRecord(yml.offers) ? yml.offers.offer : null), isProm: false };
+  }
+  const prom = isRecord(data) && isRecord(data.shop) ? data.shop : null;
+  if (prom) {
+    return { shop: prom, categories: prom.catalog, offers: asArray(isRecord(prom.items) ? prom.items.item : null), isProm: true };
+  }
+  throw new Error('У вигрузці немає розділу yml_catalog/shop (YML) чи shop (Prom)');
+}
+
+function offerCode(offer: Dict, isProm: boolean): string | null {
+  const id = textOf(offer['@_id']);
+  return isProm ? (nodeText(offer.barcode) ?? nodeText(offer.vendorCode) ?? id) : id;
+}
+
 function priceRow(
   offer: unknown,
   tree: Map<string, Category>,
   options: AdapterOptions,
   badCurrency: UnknownCurrencies,
+  isProm: boolean,
 ): PriceRow | null {
-  const code = isRecord(offer) ? textOf(offer['@_id']) : null;
+  const code = isRecord(offer) ? offerCode(offer, isProm) : null;
   if (!isRecord(offer) || !code) return null;
 
   const props = params(offer);
@@ -144,7 +176,7 @@ function priceRow(
   // невідома валюта: краще без ціни, ніж долари, записані гривнями
   const price = currency ? positiveOrNull(nodeText(offer.price)) : null;
   const stock = ymlStock(offer);
-  const pictures = asArray(offer.picture).filter((url) => typeof url === 'string' && !PLACEHOLDER_IMAGE.test(url.trim()));
+  const pictures = asArray(isProm ? offer.image : offer.picture).filter((url) => typeof url === 'string' && !PLACEHOLDER_IMAGE.test(url.trim()));
 
   return {
     ...emptyRow(code),
@@ -163,27 +195,20 @@ function priceRow(
   };
 }
 
-function* candidates(
-  offers: unknown,
-  tree: Map<string, Category>,
-  options: AdapterOptions,
-  badCurrency: UnknownCurrencies,
-): Generator<PriceRow | null> {
-  for (const offer of asArray(isRecord(offers) ? offers.offer : null)) yield priceRow(offer, tree, options, badCurrency);
+function* candidates(layout: FeedLayout, options: AdapterOptions, badCurrency: UnknownCurrencies): Generator<PriceRow | null> {
+  const tree = categories(layout.categories);
+  for (const offer of layout.offers) yield priceRow(offer, tree, options, badCurrency, layout.isProm);
 }
 
-/** YML-вигрузка → рядки прайсу й курси з неї. */
+/** Вигрузка YML чи Prom → рядки прайсу й курси з неї. */
 export function parseYml(body: string, options: Partial<AdapterOptions> = {}): AdapterResult {
-  const data = parseXml(parser, body, 'YML');
-  const root = isRecord(data) && isRecord(data.yml_catalog) ? data.yml_catalog : null;
-  const shop = root && isRecord(root.shop) ? root.shop : null;
-  if (!shop) throw new Error('У вигрузці YML немає розділу yml_catalog/shop');
+  const layout = feedLayout(parseXml(parser, body, 'YML / Prom'));
 
   const badCurrency: UnknownCurrencies = { count: 0, codes: new Set() };
-  const { rows, warnings } = finishRows(candidates(shop.offers, categories(shop.categories), adapterOptions(options), badCurrency));
+  const { rows, warnings } = finishRows(candidates(layout, adapterOptions(options), badCurrency));
   if (badCurrency.count) {
     warnings.push(`Позицій з невідомою валютою (${[...badCurrency.codes].join(', ')}): ${badCurrency.count}, ціни не взято`);
   }
-  const rates = parseYmlRates(shop.currencies);
+  const rates = parseYmlRates(layout.shop.currencies);
   return rates ? { rows, rates, warnings } : { rows, warnings };
 }

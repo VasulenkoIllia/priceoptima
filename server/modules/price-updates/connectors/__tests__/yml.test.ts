@@ -159,9 +159,75 @@ describe('вигрузка YML (інші постачальники)', () => {
     expect(warnings).toEqual(['Пропущено позицій без артикула: 2', 'Повтори артикула: 1, узято перший рядок (0045)']);
   });
 
-  it('не YML або обірваний файл — зрозуміла помилка', () => {
-    expect(() => parseYml('<catalog><categories/></catalog>')).toThrow('немає розділу yml_catalog/shop');
+  it('не YML і не Prom або обірваний файл — зрозуміла помилка', () => {
+    expect(() => parseYml('<catalog><categories/></catalog>')).toThrow('немає розділу yml_catalog/shop (YML) чи shop (Prom)');
     expect(() => parseYml(FIXTURE.slice(0, Math.floor(FIXTURE.length / 2)))).toThrow('не є коректним XML');
+  });
+});
+
+/** Мінімальна вигрузка Prom: shop/catalog/category, shop/items/item, фото в <image>. */
+const prom = (items: string) =>
+  `<?xml version="1.0" encoding="UTF-8"?><shop date="2026-10-13 06:00">` +
+  `<currencies><currency id="UAH" rate="1"/><currency id="EUR" rate="51.5"/></currencies>` +
+  `<catalog><category id="16">Лічильники</category><category id="17" parentId="16">Квартирні</category></catalog>` +
+  `<items>${items}</items></shop>`;
+
+describe('вигрузка Prom', () => {
+  it('позиції, фото з <image>, категорії з <catalog>, курси; код — vendorCode, коли штрихкоду немає', () => {
+    const body = prom(
+      `<item id="83" available="true">
+         <url>https://shop.example/item-83</url>
+         <name>Лічильник води Ду 15</name><price>18.00</price><currencyId>EUR</currencyId><categoryId>17</categoryId>
+         <image>https://shop.example/files/83_1.png</image><image>https://shop.example/files/83_2.png</image>
+         <vendor>DemoMeter</vendor><vendorCode>DM-15</vendorCode><description>Опис</description>
+         <param name="Діаметр умовний, мм">15</param>
+       </item>
+       <item id="84" available="false"><name>Лічильник води Ду 20</name><price>21</price><currencyId>EUR</currencyId>
+         <vendorCode>DM-20</vendorCode></item>`,
+    );
+    const { rows, rates, warnings } = parseYml(body, RRP_ONLY);
+    expect(rows).toEqual([
+      {
+        code: 'DM-15',
+        sku: null,
+        name: 'Лічильник води Ду 15',
+        brand: 'DemoMeter',
+        unitCode: null,
+        purchasePrice: null,
+        currency: 'EUR',
+        rrp: 18,
+        stockQty: null,
+        availability: 'in_stock',
+        multiplicity: null,
+        minOrderQty: null,
+        barcode: null,
+        categoryPath: 'Лічильники / Квартирні',
+        imageUrls: ['https://shop.example/files/83_1.png', 'https://shop.example/files/83_2.png'],
+      },
+      expect.objectContaining({ code: 'DM-20', rrp: 21, availability: 'out_of_stock', categoryPath: null, imageUrls: [] }),
+    ]);
+    expect(rates).toEqual({ USD: null, EUR: 51.5 });
+    expect(warnings).toEqual([NO_PURCHASE_PRICES_WARNING]);
+  });
+
+  it('код — як у вигрузці Prom файлом: штрихкод, без нього vendorCode, без нього id', () => {
+    const body = prom(
+      '<item id="1"><barcode>BC-1</barcode><vendorCode>V-1</vendorCode><price>1</price></item>' +
+        '<item id="2"><vendorCode>V-2</vendorCode><price>2</price></item>' +
+        '<item id="3"><price>3</price></item>' +
+        '<item><price>4</price></item>',
+    );
+    const { rows, warnings } = parseYml(body);
+    expect(rows.map((r) => [r.code, r.sku, r.barcode])).toEqual([
+      ['BC-1', 'V-1', 'BC-1'],
+      ['V-2', null, null],
+      ['3', null, null],
+    ]);
+    expect(warnings).toEqual(['Пропущено позицій без артикула: 1']);
+  });
+
+  it('порожня вигрузка Prom — попередження, не помилка', () => {
+    expect(parseYml(prom('')).warnings).toEqual(['У прайсі не знайдено жодної позиції']);
   });
 });
 

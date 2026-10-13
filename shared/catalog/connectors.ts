@@ -1,6 +1,6 @@
 // Підключення автооновлення прайсу: у кожного постачальника своя вигрузка (формат, поля, доступ), тож і модуль свій.
 // Новий постачальник з автооновленням — новий модуль у server/modules/price-updates/connectors і рядок тут.
-// 'yml' — стандартний YML (Prom / Rozetka) для постачальників без власного модуля.
+// 'yml' — стандартний YML (Rozetka) і вигрузка Prom (shop/items/item) для постачальників без власного модуля.
 import type { PriceFeedAuth } from '../types';
 
 export const FEED_CONNECTORS = ['sandi', 'sanwell', 'yml'] as const;
@@ -31,7 +31,7 @@ export const FEED_CONNECTOR_INFO: Record<FeedConnector, FeedConnectorInfo> = {
   },
   yml: {
     label: 'Стандартний YML (Prom / Rozetka)',
-    hint: 'Для постачальника без власного підключення. Ціна у YML одна: вкажіть нижче, закупівельна вона чи РРЦ.',
+    hint: 'Для постачальника без власного підключення: вигрузка YML або Prom. Ціна у вигрузці одна: вкажіть нижче, закупівельна вона чи РРЦ.',
     auth: 'none',
     hasPurchasePrice: true,
   },
