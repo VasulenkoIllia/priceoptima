@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import { linkUpdatesPurchasePrice } from '@shared/catalog/connectors';
 import { normalizeSku } from '@shared/parse';
+import { parseFeed } from '../modules/price-updates/connectors';
 import { emptyRow, type PriceRow } from '../modules/price-updates/connectors/types';
 import {
   FULL_ROLES,
@@ -399,6 +401,15 @@ describe('звірка: ролі змішаного джерела', () => {
     // «ціну перевірено» ставить лише джерело вхідної ціни
     expect(result.priceConfirmedIds).toEqual([]);
     expect(result.missingMarks).toEqual([absent.id]);
+  });
+
+  it('посилання hybrid з вигрузкою YML: ціна йде в РРЦ, новий товар без вхідної (13.10)', () => {
+    const body =
+      '<shop><currencies><currency id="UAH" rate="1"/><currency id="EUR" rate="52"/></currencies>' +
+      '<items><item id="1" available="true"><name>Лічильник</name><price>12</price><currencyId>EUR</currencyId><vendorCode>DM-1</vendorCode></item></items></shop>';
+    const { rows } = parseFeed('yml', body, { hasPurchasePrice: linkUpdatesPurchasePrice('hybrid', 'yml', true) });
+    const result = plan({ existing: [], rows, roles: HYBRID_LINK });
+    expect(result.creates).toEqual([expect.objectContaining({ sku: 'DM-1', currency: 'EUR', purchasePrice: null, rrp: 12 })]);
   });
 
   it('посилання hybrid не змінює валюту й не пише РРЦ у чужій валюті', () => {

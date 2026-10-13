@@ -1,10 +1,17 @@
 // Налаштування джерела прайсу: вигрузка за посиланням (підключення постачальника, доступ, година оновлення) або файл від менеджера.
 // Посилання й токен сервер назад не віддає: у формі видно лише, що вони збережені, а порожнє поле означає «лишити як є».
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, App, Form, Input, Modal, Radio, Select, Spin, Switch } from 'antd';
+import { Alert, App, Form, Input, Modal, Radio, Select, Spin } from 'antd';
 import { useEffect } from 'react';
 import { formatDateTime } from '@shared/format';
-import { FEED_CONNECTOR_INFO, FEED_CONNECTORS, isFeedConnector, type FeedConnector } from '@shared/catalog/connectors';
+import {
+  FEED_CONNECTOR_INFO,
+  FEED_CONNECTORS,
+  isFeedConnector,
+  linkUpdatesPurchasePrice,
+  type FeedConnector,
+  type FeedPrices,
+} from '@shared/catalog/connectors';
 import type { PriceFeedAuth, PriceSourceKind, SupplierPriceSourceInput, SupplierPriceSourceSettings, UUID } from '@shared/types';
 import { ds, errorMessage, qk } from '@/data';
 import { viaLink } from './supplierView';
@@ -26,7 +33,19 @@ const KIND_HINTS: Record<PriceSourceKind, string> = {
   auto: 'Усе за посиланням: асортимент, ціни, наявність і фото оновлюються щодня самі.',
   manual: 'Прайс завантажує менеджер кнопкою «Завантажити прайс» з файлу Excel або CSV.',
   hybrid:
-    'Асортимент, наявність і фото оновлюються щодня за посиланням; ціни завантажуються файлом через «Завантажити прайс». Файл із цінами нових позицій не створює й не позначає відсутні.',
+    'Асортимент, наявність, фото й РРЦ оновлюються щодня за посиланням; вхідні ціни завантажуються файлом через «Завантажити прайс». Файл із цінами нових позицій не створює й не позначає відсутні.',
+};
+
+/** Варіанти «Ціна у вигрузці» для вигрузки з вхідними цінами: true — посилання оновлює вхідні ціни. */
+const LINK_PRICE_CHOICES: Record<Exclude<FeedPrices, 'rrp'>, { value: boolean; label: string }[]> = {
+  one: [
+    { value: true, label: 'Вхідна' },
+    { value: false, label: 'РРЦ' },
+  ],
+  both: [
+    { value: true, label: 'Вхідна і РРЦ' },
+    { value: false, label: 'Лише РРЦ' },
+  ],
 };
 
 interface FormValues {
@@ -37,11 +56,12 @@ interface FormValues {
   login: string;
   secret: string;
   scheduleHour: number;
-  hasPurchasePrice: boolean;
+  /** undefined — ще не вибрано: «Ціна у вигрузці» обов'язкова й без типового значення. */
+  hasPurchasePrice: boolean | undefined;
   note: string;
 }
 
-function toFormValues(s: SupplierPriceSourceSettings): FormValues {
+export function toFormValues(s: SupplierPriceSourceSettings): FormValues {
   return {
     kind: s.kind,
     connector: isFeedConnector(s.connector) ? s.connector : null,
@@ -50,9 +70,20 @@ function toFormValues(s: SupplierPriceSourceSettings): FormValues {
     login: '',
     secret: '',
     scheduleHour: s.scheduleHour ?? 6,
-    hasPurchasePrice: s.hasPurchasePrice,
+    // у «Гібриді» й «Файлом» цей вибір не показувався й міг лишитися типовим: відкривши джерело такого постачальника
+    // й перейшовши «За посиланням», вибирають заново
+    hasPurchasePrice: s.kind === 'auto' ? s.hasPurchasePrice : undefined,
     note: s.note ?? '',
   };
+}
+
+/**
+ * «Ціна у вигрузці» до збереження: «За посиланням» — вибір у формі (вигрузка лише з РРЦ — завжди ні);
+ * «Гібрид» і «Файлом» вхідних цін із посилання не беруть, тож збережене значення не чіпаємо.
+ */
+function linkPurchaseInput(v: FormValues, current: SupplierPriceSourceSettings): boolean {
+  if (v.kind !== 'auto') return current.hasPurchasePrice;
+  return linkUpdatesPurchasePrice(v.kind, v.connector, v.hasPurchasePrice ?? current.hasPurchasePrice);
 }
 
 /** Порожні посилання й токен не надсилаємо — сервер лишить збережені. */
@@ -75,10 +106,33 @@ export function buildPriceSourceInput(v: FormValues, current: SupplierPriceSourc
     auth: auto ? v.auth : 'none',
     ...(secret !== undefined ? { secret } : {}),
     scheduleHour: auto ? v.scheduleHour : null,
-    // у гібриді ціни приходять файлом — прапорець стосується лише вигрузки з цінами
-    hasPurchasePrice: v.kind === 'hybrid' ? current.hasPurchasePrice : v.hasPurchasePrice,
+    hasPurchasePrice: linkPurchaseInput(v, current),
     note: v.note.trim() || null,
   };
+}
+
+// antd віддає role і aria-* групи в DOM, але в типах RadioGroupProps role немає: без них екранний читач не назве групу
+const LINK_PRICE_GROUP_A11Y = { role: 'radiogroup', 'aria-label': 'Ціна у вигрузці' };
+
+/** «Ціна у вигрузці» в режимі «За посиланням»: обов'язковий вибір без типового значення; вигрузка лише з РРЦ — без вибору. */
+function LinkPriceField({ prices }: { prices: FeedPrices }) {
+  if (prices === 'rrp') {
+    return (
+      <Form.Item label="Ціна у вигрузці">
+        <span>Лише РРЦ: вхідних цін у цій вигрузці немає.</span>
+      </Form.Item>
+    );
+  }
+  return (
+    <Form.Item
+      name="hasPurchasePrice"
+      label="Ціна у вигрузці"
+      rules={[{ required: true, message: 'Оберіть, яка ціна у вигрузці' }]}
+      extra="РРЦ: вхідні ціни за посиланням не оновлюються. Якщо вхідні будуть файлом, оберіть «Гібрид»."
+    >
+      <Radio.Group {...LINK_PRICE_GROUP_A11Y} options={LINK_PRICE_CHOICES[prices]} />
+    </Form.Item>
+  );
 }
 
 export interface PriceSourceDialogProps {
@@ -138,7 +192,14 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
       ) : !current ? (
         <Spin style={{ display: 'block', margin: '32px auto' }} />
       ) : (
-        <Form<FormValues> form={form} layout="vertical" requiredMark={false} onFinish={(v) => save.mutate(v)} style={{ marginTop: 12 }}>
+        <Form<FormValues>
+          form={form}
+          layout="vertical"
+          requiredMark={false}
+          // onFinish отримує лише показані поля, а «Файлом» ховає посилання й доступ — беремо всі значення форми
+          onFinish={() => save.mutate(form.getFieldsValue(true) as FormValues)}
+          style={{ marginTop: 12 }}
+        >
           {current.lastError ? (
             <Alert
               type="warning"
@@ -170,8 +231,8 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
                 <Select
                   placeholder="Оберіть підключення"
                   options={CONNECTOR_OPTIONS}
-                  // типовий доступ і вид ціни для цієї вигрузки; далі їх можна змінити
-                  onChange={(c: FeedConnector) => form.setFieldsValue({ auth: FEED_CONNECTOR_INFO[c].auth, hasPurchasePrice: FEED_CONNECTOR_INFO[c].hasPurchasePrice })}
+                  // типовий доступ для цієї вигрузки (його можна змінити); яка в ній ціна — вибирають заново
+                  onChange={(c: FeedConnector) => form.setFieldsValue({ auth: FEED_CONNECTOR_INFO[c].auth, hasPurchasePrice: undefined })}
                 />
               </Form.Item>
               <Form.Item
@@ -226,14 +287,10 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
             </>
           ) : null}
 
-          {kind === 'auto' ? (
-            <Form.Item
-              name="hasPurchasePrice"
-              label="У вигрузці є вхідні ціни"
-              valuePropName="checked"
-              extra="Вимкніть, якщо за посиланням лише РРЦ: ціни підуть у РРЦ, а вхідні краще брати файлом, тоді оберіть «Гібрид»"
-            >
-              <Switch />
+          {kind === 'auto' && connector ? <LinkPriceField prices={FEED_CONNECTOR_INFO[connector].prices} /> : null}
+          {kind === 'hybrid' ? (
+            <Form.Item label="Ціна у вигрузці">
+              <span>РРЦ. Вхідні ціни завантажуються файлом («Завантажити прайс»).</span>
             </Form.Item>
           ) : null}
           <Form.Item name="note" label="Примітка">

@@ -92,7 +92,7 @@ function priceRow(item: unknown, refs: SandiRefs, options: AdapterOptions): Pric
     brand: brandName(refs.brands, main.brand),
     unitCode: pipeLength != null ? METRE : null,
     multiplicity: pipeLength,
-    // «у прайсі немає закупівельних цін» у налаштуваннях джерела — беремо лише РРЦ
+    // «Ціна у вигрузці: Лише РРЦ» у джерелі прайсу або режим «Гібрид» — беремо лише РРЦ
     purchasePrice: options.hasPurchasePrice ? positiveOrNull(cash.current) : null,
     // ціни у вигрузці САНДІ завжди в гривні
     currency: 'UAH',

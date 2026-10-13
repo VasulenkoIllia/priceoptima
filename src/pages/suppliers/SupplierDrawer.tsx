@@ -14,7 +14,16 @@ import { useIsAdmin } from '@/app/session';
 import { PriceSourceDialog } from './PriceSourceDialog';
 import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierFormDialog } from './SupplierFormDialog';
-import { hostOf, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, ratePolicyLabel, viaLink } from './supplierView';
+import {
+  hostOf,
+  pctLabel,
+  PRICE_SOURCE_COLORS,
+  priceListRatesLabel,
+  priceSourceLabel,
+  purchaseSourceLabel,
+  ratePolicyLabel,
+  viaLink,
+} from './supplierView';
 
 function ExtLink({ url: raw }: { url: string | null }) {
   const url = webUrl(raw);
@@ -133,6 +142,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
   const rates = useQuery({ queryKey: qk.rates(today), queryFn: () => ds.getRates(today) });
   const maxAgeDays = usePriceListRateMaxAge();
   const source = detail.priceSource;
+  const purchase = purchaseSourceLabel(source);
   const [openedUpdate, setOpenedUpdate] = useState<number | null>(null);
 
   // вигрузка без запису: чи працює посилання й що саме зміниться
@@ -198,11 +208,9 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
           <Tag color={PRICE_SOURCE_COLORS[source.kind]} bordered={false}>
             {priceSourceLabel(source)}
           </Tag>
-          {source.kind === 'auto' && !source.hasPurchasePrice ? (
-            <Tag color="orange" bordered={false}>
-              лише РРЦ
-            </Tag>
-          ) : null}
+          <Tag color={purchase.isRrpOnly ? 'orange' : undefined} bordered={false}>
+            {purchase.text}
+          </Tag>
           <span className="po-sup-source-actions">
             {viaLink(source.kind) ? (
               <Tooltip title="Завантажити вигрузку й показати, що зміниться, нічого не записуючи">

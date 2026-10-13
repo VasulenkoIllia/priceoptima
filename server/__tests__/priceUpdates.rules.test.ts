@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { isFeedConnector } from '@shared/catalog/connectors';
+import { isFeedConnector, linkUpdatesPurchasePrice } from '@shared/catalog/connectors';
 import { FULL_ROLES } from '../modules/price-updates/plan';
 import {
   archiveCutoff,
@@ -37,6 +37,21 @@ describe('підключення й година вигрузки', () => {
     expect(feedHourOf(0)).toBe(0);
     expect(feedHourOf(null)).toBe(DEFAULT_FEED_HOUR);
     expect(feedHourOf(24)).toBe(DEFAULT_FEED_HOUR);
+  });
+});
+
+describe('вхідні ціни з посилання', () => {
+  it('«За посиланням»: як вказано в джерелі; вигрузка лише з РРЦ — ніколи', () => {
+    expect(linkUpdatesPurchasePrice('auto', 'yml', true)).toBe(true);
+    expect(linkUpdatesPurchasePrice('auto', 'yml', false)).toBe(false);
+    expect(linkUpdatesPurchasePrice('auto', 'sandi', true)).toBe(true);
+    expect(linkUpdatesPurchasePrice('auto', 'sanwell', true)).toBe(false);
+  });
+
+  it('«Гібрид» і «Файлом»: вхідні тільки з файлу, хоч би що збережено', () => {
+    expect(linkUpdatesPurchasePrice('hybrid', 'yml', true)).toBe(false);
+    expect(linkUpdatesPurchasePrice('hybrid', 'sandi', true)).toBe(false);
+    expect(linkUpdatesPurchasePrice('manual', null, true)).toBe(false);
   });
 });
 

@@ -13,7 +13,17 @@ import { downloadPriceTemplate, PriceImportDialog } from './priceImport';
 import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierDrawer } from './SupplierDrawer';
 import { SupplierFormDialog } from './SupplierFormDialog';
-import { moveSupplier, pctLabel, PRICE_SOURCE_COLORS, priceListRatesLabel, priceSourceLabel, pricesFromFile, ratePolicyLabel, viaLink } from './supplierView';
+import {
+  moveSupplier,
+  pctLabel,
+  PRICE_SOURCE_COLORS,
+  priceListRatesLabel,
+  priceSourceLabel,
+  pricesFromFile,
+  purchaseSourceLabel,
+  ratePolicyLabel,
+  viaLink,
+} from './supplierView';
 import './suppliers.css';
 
 interface SupplierCardProps {
@@ -33,6 +43,7 @@ interface SupplierCardProps {
 }
 
 function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, onImport, onOpen, onGrab }: SupplierCardProps) {
+  const purchase = purchaseSourceLabel(s.priceSource);
   return (
     <Card className="po-sup-card" styles={{ body: { padding: 16 } }}>
       <div className="po-sup-head">
@@ -75,13 +86,12 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, o
         <Tag color={PRICE_SOURCE_COLORS[s.priceSource.kind]} bordered={false}>
           {priceSourceLabel(s.priceSource)}
         </Tag>
-        {s.priceSource.kind !== 'auto' || s.priceSource.hasPurchasePrice ? null : (
-          <Tooltip title={s.priceSource.note}>
-            <Tag color="orange" bordered={false}>
-              лише РРЦ
-            </Tag>
-          </Tooltip>
-        )}
+        {/* примітка джерела (напр. «договірні ціни у менеджера») — підказкою там, де вхідних цін немає */}
+        <Tooltip title={purchase.isRrpOnly ? s.priceSource.note : null}>
+          <Tag color={purchase.isRrpOnly ? 'orange' : undefined} bordered={false}>
+            {purchase.text}
+          </Tag>
+        </Tooltip>
         {s.priceSource.lastErrorAt && viaLink(s.priceSource.kind) ? (
           <Tooltip
             title={

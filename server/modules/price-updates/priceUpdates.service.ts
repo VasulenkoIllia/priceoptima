@@ -3,7 +3,7 @@
 // або прайс застосовано повністю, або не застосовано нічого й у журналі — запис із помилкою.
 import { Prisma, type PriceImportFile, type Supplier, type SupplierPriceFeed, type User } from '@prisma/client';
 import { getSettings } from '../settings/settings.service';
-import { FEED_CONNECTOR_INFO, isFeedConnector, type FeedConnector } from '@shared/catalog/connectors';
+import { FEED_CONNECTOR_INFO, isFeedConnector, linkUpdatesPurchasePrice, type FeedConnector } from '@shared/catalog/connectors';
 import { PRICE_UPDATE_FIELD_LABELS, type PriceUpdateField } from '@shared/catalog/priceUpdateFields';
 import type { RatesPair, UUID } from '@shared/types';
 import { config } from '../../config';
@@ -144,10 +144,12 @@ export async function runFeedUpdate(
       fileId: null,
       fileName: null,
     };
+    // у «Гібриді» вхідні ціни лише з файлу: одна ціна вигрузки читається як РРЦ, і нові товари входу з посилання не отримують
+    const withPurchase = linkUpdatesPurchasePrice(feed.kind, connector, feed.hasPurchasePrice);
     const body = await step(ctx, () => downloadFeed(feed, secrets));
-    const parsed = await step(ctx, () => parseFeedBody(connector, body, supplier, feed));
+    const parsed = await step(ctx, () => parseFeedBody(connector, body, supplier, withPurchase));
     // без закупівельних цін у вигрузці ціну входу не чіпаємо, хоч би що віддав розбір
-    const priced = feed.hasPurchasePrice ? parsed.rows : parsed.rows.map((r) => ({ ...r, purchasePrice: null }));
+    const priced = withPurchase ? parsed.rows : parsed.rows.map((r) => ({ ...r, purchasePrice: null }));
     const rows = vatNormalizedRows(priced, supplier, (await getSettings()).vatRatePct);
     return applyPrice(ctx, {
       rows,
@@ -172,14 +174,14 @@ async function step<T>(ctx: RunContext, task: () => Promise<T>): Promise<T> {
   }
 }
 
-async function parseFeedBody(connector: FeedConnector, body: string, supplier: Supplier, feed: SupplierPriceFeed): Promise<AdapterResult> {
+async function parseFeedBody(connector: FeedConnector, body: string, supplier: Supplier, hasPurchasePrice: boolean): Promise<AdapterResult> {
   try {
     // розбір у окремому потоці: вигрузка на 100 тис. позицій розбирається секунди
     return await runPriceTask({
       kind: 'parseFeed',
       connector,
       body,
-      options: { hasPurchasePrice: feed.hasPurchasePrice, defaultCurrency: supplier.defaultCurrency },
+      options: { hasPurchasePrice, defaultCurrency: supplier.defaultCurrency },
     });
   } catch (e) {
     // повідомлення адаптерів українською; технічні (JSON.parse тощо) показувати користувачу нема сенсу

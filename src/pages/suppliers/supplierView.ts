@@ -1,6 +1,6 @@
 // Підписи для карток постачальників.
 import { formatDate, formatPct, formatRate } from '@shared/format';
-import { FEED_CONNECTOR_INFO } from '@shared/catalog/connectors';
+import { FEED_CONNECTOR_INFO, linkUpdatesPurchasePrice } from '@shared/catalog/connectors';
 import type { PriceListRates, PriceSourceKind, SupplierListItem, SupplierPriceSource } from '@shared/types';
 
 const KIND_LABELS: Record<PriceSourceKind, string> = { auto: 'Автоматично', manual: 'Вручну', hybrid: 'Гібрид' };
@@ -13,16 +13,22 @@ export const pricesFromFile = (kind: PriceSourceKind) => kind !== 'auto';
 
 export const PRICE_SOURCE_COLORS: Record<PriceSourceKind, string> = { auto: 'green', manual: 'blue', hybrid: 'cyan' };
 
-/** «Автоматично · САНДІ — JSON · щодня о 06:00», «Вручну · файлом» або «Гібрид · SANWELL — XML · щодня о 06:00 · ціни файлом». */
+/** «Автоматично · САНДІ — JSON · щодня о 06:00», «Вручну» або «Гібрид · SANWELL — XML · щодня о 06:00»; звідки вхідні ціни — purchaseSourceLabel. */
 export function priceSourceLabel(s: SupplierPriceSource): string {
   const parts = [KIND_LABELS[s.kind] ?? s.kind];
   if (viaLink(s.kind)) {
     if (s.connector) parts.push(FEED_CONNECTOR_INFO[s.connector]?.label ?? s.connector);
     if (s.scheduleHour != null) parts.push(`щодня о ${String(s.scheduleHour).padStart(2, '0')}:00`);
   }
-  if (s.kind === 'manual') parts.push('файлом');
-  if (s.kind === 'hybrid') parts.push('ціни файлом');
   return parts.join(' · ');
+}
+
+/** Звідки вхідні ціни: «вхідні за посиланням», «вхідні файлом» чи «лише РРЦ» (за посиланням, а вхідних у вигрузці немає). */
+export function purchaseSourceLabel(s: SupplierPriceSource): { text: string; isRrpOnly: boolean } {
+  if (s.kind !== 'auto') return { text: 'вхідні файлом', isRrpOnly: false };
+  return linkUpdatesPurchasePrice(s.kind, s.connector, s.hasPurchasePrice)
+    ? { text: 'вхідні за посиланням', isRrpOnly: false }
+    : { text: 'лише РРЦ, вхідних немає', isRrpOnly: true };
 }
 
 /**

@@ -3,6 +3,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { Alert, App, Button, Modal } from 'antd';
 import { useState } from 'react';
+import { linkUpdatesPurchasePrice } from '@shared/catalog/connectors';
 import { FEED_DEFAULT_FIELDS, type PriceUpdateField } from '@shared/catalog/priceUpdateFields';
 import type { PriceUpdateDto, SupplierListItem } from '@shared/types';
 import { ds, errorMessage } from '@/data';
@@ -19,7 +20,9 @@ interface FeedUpdateDialogProps {
 export function unavailableFeedFields(supplier: Pick<SupplierListItem, 'priceSource'>): UnavailableFields {
   const source = supplier.priceSource;
   if (source.kind === 'hybrid') return { purchasePrice: 'Гібрид: вхідні ціни завантажуються файлом, а не з вигрузки' };
-  if (!source.hasPurchasePrice) return { purchasePrice: 'У вигрузці немає вхідних цін (лише РРЦ)' };
+  if (!linkUpdatesPurchasePrice(source.kind, source.connector, source.hasPurchasePrice)) {
+    return { purchasePrice: 'У вигрузці немає вхідних цін (лише РРЦ)' };
+  }
   return {};
 }
 

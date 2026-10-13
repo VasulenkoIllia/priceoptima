@@ -224,7 +224,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
       queryClient.setQueryData(qk.supplierPriceSource(supplierId), saved);
       void queryClient.invalidateQueries({ queryKey: qk.supplier(supplierId) });
       void queryClient.invalidateQueries({ queryKey: qk.suppliers });
-      message.success('Режим «Гібрид»: ціни з файлу, асортимент і наявність за посиланням');
+      message.success('Режим «Гібрид»: вхідні ціни з файлу; асортимент, наявність і РРЦ за посиланням');
     },
     onError: (e) => message.error(errorMessage(e)),
   });
