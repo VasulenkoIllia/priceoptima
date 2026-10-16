@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRICE_XML_HEADER } from '@/lib/priceXml';
+import { CATALOG_XML_HEADER, PRICE_XML_HEADER } from '@/lib/priceXml';
 import {
   unavailableFileFields,
   buildPriceRows,
@@ -330,6 +330,13 @@ describe('артикул: одна назва в усій програмі (пр
 
   it('XML-вигрузка: «Артикул (штрихкод)» — артикул, «Артикул виробника» — артикул виробника', () => {
     expect(mapHeaderRow([...PRICE_XML_HEADER])).toMatchObject({ code: 0, sku: 1 });
+  });
+
+  it('XML Catalog/Product: усі колонки впізнаються; валюта ціни з заголовка (грн), ПДВ — з картки', () => {
+    const map = mapHeaderRow([...CATALOG_XML_HEADER]);
+    expect(map).toMatchObject({ code: 0, sku: 1, name: 2, brand: 3, purchasePrice: 4, currency: 5, rrp: 6, stock: 7, image: 8 });
+    expect(detectHeaderCurrency(CATALOG_XML_HEADER[4])).toBe('UAH');
+    expect(detectPriceIncludesVat(CATALOG_XML_HEADER[4])).toBeNull();
   });
 
   it('файл як у замовника: «Код постачальника» порожній, «Артикул» заповнений → артикулом стає «Артикул»', () => {

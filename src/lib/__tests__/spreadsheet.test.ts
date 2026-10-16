@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import XLSX from '@e965/xlsx';
+import { buildPriceRows, DEFAULT_BUILD_OPTIONS, detectColumns } from '@/pages/suppliers/priceImport/priceRows';
 import { columnLetter, detectDelimiter, isOle2, isZip, parseCsv, readSpreadsheetFile, SpreadsheetError } from '../spreadsheet';
 
 /** Справжній BIFF-файл (як віддає кабінет постачальника), зібраний у пам'яті. */
@@ -120,6 +121,49 @@ describe('XML-вигрузка прайсу (правки замовника 28.
   it('YML: артикул із параметра, фото з picture, наявність з атрибута', async () => {
     const [sheet] = await readSpreadsheetFile(textFile(YML, 'rozetka.xml'));
     expect(sheet.rows[1]).toEqual(['', 'TR-20', 'Трійник 20', '', '12.5', 'UAH', 'є', 'https://img.example/y.jpg', '7']);
+  });
+
+  // вигадані товари у форматі кабінету SEQUOIA: гурт у $, EURO чи UAH з курсом Rate, РРЦ у гривнях
+  const CATALOG = `<?xml version="1.0" encoding="UTF-8"?>
+<Catalog>
+ <Product><SKU>9000001</SKU><Article></Article><Brand>Тест фітинг</Brand><Thumbnail>https://img.example/1.webp</Thumbnail>
+  <Name>Муфта 40</Name><Price PriceType="Wholesale price" Currency="$" Rate="45.3">0.26</Price>
+  <Price PriceType="РРЦ" Currency="UAH" Rate="1">15.600</Price><Stock Branch="Склад 1">244</Stock><Stock Branch="Склад 2">6</Stock></Product>
+ <Product><SKU>9000002</SKU><Article>SA-1</Article><Brand>Тест</Brand><Name lng="ru">Комплект рус</Name><Name lng="uk">Комплект</Name>
+  <Price PriceType="Wholesale price" Currency="EURO" Rate="50.9">15.439</Price><Price PriceType="РРЦ" Currency="UAH" Rate="1">1248.000</Price></Product>
+ <Product><SKU>9000003</SKU><Article>K-3</Article><Brand>Тест</Brand><Name>Кран</Name>
+  <Price PriceType="Wholesale price" Currency="UAH" Rate="1">472.48</Price><Price PriceType="РРЦ" Currency="UAH" Rate="1">591.000</Price>
+  <Stock Branch="Склад 1">10</Stock><Stock Branch="Склад 2"></Stock><Stock Branch="Склад 3">2</Stock></Product>
+ <Product><SKU>9000004</SKU><Article></Article><Brand>Тест</Brand><Name>Без курсу</Name>
+  <Price PriceType="Wholesale price" Currency="$">1.5</Price><Price PriceType="РРЦ" Currency="UAH" Rate="1"></Price></Product>
+ <Product><SKU>9000005</SKU><Article></Article><Brand>Тест</Brand><Name>Курс нуль</Name>
+  <Price PriceType="Wholesale price" Currency="EURO" Rate="0">2</Price><Stock Branch="Склад 1">є</Stock></Product>
+</Catalog>`;
+
+  it('Catalog/Product: код SKU, гурт × курс файлу в гривнях, РРЦ, залишок по філіях, без Stock — 0', async () => {
+    const [sheet] = await readSpreadsheetFile(textFile(CATALOG, 'catalog.xml'));
+    expect(sheet.rows[0]).toEqual(['Код', 'Артикул виробника', 'Назва', 'Бренд', 'Ціна гурт, грн', 'Валюта', 'РРЦ, грн', 'Наявність', 'Фото']);
+    expect(sheet.rows[1]).toEqual(['9000001', '', 'Муфта 40', 'Тест фітинг', '11.778', 'UAH', '15.6', '250', 'https://img.example/1.webp']);
+    expect(sheet.rows[2].slice(0, 8)).toEqual(['9000002', 'SA-1', 'Комплект', 'Тест', '785.8451', 'UAH', '1248', '0']);
+    // порожня філія не склеює числа («10 2» прочиталось би як 102)
+    expect(sheet.rows[3].slice(4, 8)).toEqual(['472.48', 'UAH', '591', '12']);
+    // курсу немає чи він нуль — ціни не вигадуємо: рядок без ціни
+    expect(sheet.rows[4].slice(4, 7)).toEqual(['', 'UAH', '']);
+    expect(sheet.rows[5].slice(4, 8)).toEqual(['', 'UAH', '', 'є']);
+  });
+
+  it('Catalog/Product → рядки прайсу: усе в гривнях, хоч у файлі $ і EURO; без курсу — «Немає ціни»', async () => {
+    const [sheet] = await readSpreadsheetFile(textFile(CATALOG, 'catalog.xml'));
+    const { rows, preview } = buildPriceRows(sheet.rows, detectColumns(sheet.rows), { ...DEFAULT_BUILD_OPTIONS, pricesIncludeVat: true, currency: 'EUR' });
+    expect(rows.map((r) => [r.code, r.currency, r.purchasePrice, r.rrp, r.stockQty])).toEqual([
+      ['9000001', 'UAH', 9.815, 15.6, 250],
+      ['9000002', 'UAH', 654.8709, 1248, 0],
+      ['9000003', 'UAH', 393.7333, 591, 12],
+    ]);
+    expect(preview.filter((p) => p.skipped).map((p) => [p.row.code, p.errors])).toEqual([
+      ['9000004', ['Немає ціни']],
+      ['9000005', ['Немає ціни']],
+    ]);
   });
 
   it('пошкоджений XML чи без товарів — зрозуміла помилка', async () => {

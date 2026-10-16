@@ -394,7 +394,7 @@ function ImportFlow({ supplierId, supplierName, onClose, onDone }: Omit<PriceImp
               </p>
               <p className="ant-upload-text">Перетягніть сюди файл прайсу або натисніть для вибору</p>
               <p className="ant-upload-hint">
-                xlsx, старий xls, csv, tsv або XML-вигрузка з кабінету постачальника (формат Prom чи YML).
+                xlsx, старий xls, csv, tsv або XML-вигрузка з кабінету постачальника (формат Prom, YML чи SEQUOIA).
               </p>
             </Upload.Dragger>
             <div style={{ marginTop: 16 }}>
