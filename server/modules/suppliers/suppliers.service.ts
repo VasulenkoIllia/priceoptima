@@ -1,7 +1,7 @@
 // Постачальники: довідник із юрособами, контактами й джерелом прайсу.
-// Посилання на вигрузку й токен доступу лишаються на сервері — в API йде лише хост і стан доступу.
+// Токен доступу до вигрузки лишається на сервері; посилання (у ньому буває ключ) — лише адміністратору, решті хост.
 import { randomUUID } from 'node:crypto';
-import type { Prisma, User } from '@prisma/client';
+import type { ImportRunSource, Prisma, User } from '@prisma/client';
 import type { PriceImportMapping, SupplierDetail, SupplierListItem, SupplierPriceSourceSettings } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
@@ -11,7 +11,7 @@ import { dateOnly } from '../../lib/mapping';
 import { createSecretBox } from '../../lib/secretBox';
 import { expectedVersion, staleCardError } from '../../lib/cardVersion';
 import { audit, lastChangeOf } from '../audit/audit.service';
-import type { SupplierDetailRow } from './suppliers.mapper';
+import type { LastPriceRuns, SupplierDetailRow } from './suppliers.mapper';
 import { toPriceSourceSettings, toSupplierDetail, toSupplierListItem } from './suppliers.mapper';
 import { priceMappingSchema, type PriceMappingBody, type PriceSourceBody, type SupplierInputBody } from './suppliers.schemas';
 
@@ -25,8 +25,8 @@ const INCLUDE = {
 } satisfies Prisma.SupplierInclude;
 
 export async function listSuppliers(): Promise<SupplierListItem[]> {
-  const [rows, counts] = await Promise.all([supplierRows(), productCounts()]);
-  return rows.map((row) => toSupplierListItem(row, counts.get(row.id) ?? 0));
+  const [rows, counts, runs] = await Promise.all([supplierRows(), productCounts(), lastPriceRuns()]);
+  return rows.map((row) => toSupplierListItem(row, counts.get(row.id) ?? 0, runs.get(row.id)));
 }
 
 /**
@@ -42,8 +42,13 @@ function supplierRows() {
 }
 
 export async function getSupplier(id: string): Promise<SupplierDetail> {
-  const [row, count, lastChange] = await Promise.all([getSupplierOrFail(id), productCount(id), lastChangeOf('supplier', id)]);
-  return { ...toSupplierDetail(row, count), lastChange };
+  const [row, count, lastChange, runs] = await Promise.all([
+    getSupplierOrFail(id),
+    productCount(id),
+    lastChangeOf('supplier', id),
+    lastPriceRuns(id),
+  ]);
+  return { ...toSupplierDetail(row, count, runs.get(id)), lastChange };
 }
 
 export async function createSupplier(input: SupplierInputBody, actor: User): Promise<SupplierDetail> {
@@ -97,10 +102,11 @@ export async function reorderSuppliers(ids: string[], actor: User): Promise<void
   await audit({ userId: actor.id, action: 'supplier.order', entityType: 'supplier', entityId: null, summary: 'Змінено порядок постачальників' });
 }
 
-export async function getPriceSource(id: string): Promise<SupplierPriceSourceSettings> {
+/** Налаштування вигрузки; посилання (у ньому буває ключ доступу) — лише адміністратору, як і зміна вигрузки (рішення 18.09). */
+export async function getPriceSource(id: string, viewer: User): Promise<SupplierPriceSourceSettings> {
   const supplier = await prisma.supplier.findUnique({ where: { id }, include: { feed: true } });
   if (!supplier) throw notFound('Постачальника не знайдено');
-  return toPriceSourceSettings(supplier.feed);
+  return toPriceSourceSettings(supplier.feed, { withUrl: viewer.role === 'admin' });
 }
 
 /** Налаштування вигрузки прайсу. Секрет приходить відкритим текстом і лягає в базу зашифрованим. */
@@ -144,7 +150,8 @@ export async function updatePriceSource(id: string, input: PriceSourceBody, acto
     entityId: id,
     summary: `Джерело прайсу ${supplier.name}: ${input.kind === 'manual' ? 'файлом' : input.kind === 'hybrid' ? 'змішано' : 'за посиланням'}${accessChanged ? ', змінено доступ' : ''}`,
   });
-  return toPriceSourceSettings(row);
+  // змінювати вигрузку може лише адміністратор (requireAdmin) — посилання повертаємо за тією самою перевіркою, що й у getPriceSource
+  return toPriceSourceSettings(row, { withUrl: actor.role === 'admin' });
 }
 
 /** Зіставлення колонок файлу прайсу; збережене в старому форматі чи пошкоджене — немає. */
@@ -205,6 +212,28 @@ function productCounts(): Promise<Map<string, number>> {
 
 function productCount(supplierId: string): Promise<number> {
   return prisma.product.count({ where: { supplierId, isArchived: false } });
+}
+
+/** Запуск журналу оновлень → дата на картці: «За посиланням» чи «Файлом». */
+const RUN_SLOT: Record<ImportRunSource, keyof LastPriceRuns> = { auto: 'link', file: 'file' };
+
+/**
+ * Останні вдалі оновлення за посиланням і файлом — один груповий запит на весь список (не більше двох рядків
+ * на постачальника), щоб картка показувала дві дати замість однієї «Прайс оновлено».
+ */
+async function lastPriceRuns(supplierId?: string): Promise<Map<string, LastPriceRuns>> {
+  const groups = await prisma.priceImportRun.groupBy({
+    by: ['supplierId', 'source'],
+    where: { status: 'ok', ...(supplierId ? { supplierId } : {}) },
+    _max: { startedAt: true },
+  });
+  const runs = new Map<string, LastPriceRuns>();
+  for (const g of groups) {
+    const entry = runs.get(g.supplierId) ?? { link: null, file: null };
+    entry[RUN_SLOT[g.source]] = g._max.startedAt;
+    runs.set(g.supplierId, entry);
+  }
+  return runs;
 }
 
 function toRow(input: SupplierInputBody) {

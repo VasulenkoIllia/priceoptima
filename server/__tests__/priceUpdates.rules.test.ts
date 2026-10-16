@@ -7,6 +7,7 @@ import {
   DEFAULT_FEED_HOUR,
   feedHourOf,
   lastScheduledAt,
+  linkRolesOf,
   priceFileStoredPath,
   rolesFor,
   vatNormalizedRows,
@@ -52,6 +53,21 @@ describe('вхідні ціни з посилання', () => {
     expect(linkUpdatesPurchasePrice('hybrid', 'yml', true)).toBe(false);
     expect(linkUpdatesPurchasePrice('hybrid', 'sandi', true)).toBe(false);
     expect(linkUpdatesPurchasePrice('manual', null, true)).toBe(false);
+  });
+});
+
+describe('що оновлює посилання (картка постачальника)', () => {
+  it('«За посиланням»: одна ціна YML — або вхідна, або РРЦ; САНДІ — обидві; SANWELL — лише РРЦ', () => {
+    expect(linkRolesOf('auto', 'yml', true)).toEqual({ purchasePrice: true, rrp: 'none', stock: true, assortment: true });
+    expect(linkRolesOf('auto', 'yml', false)).toEqual({ purchasePrice: false, rrp: 'set', stock: true, assortment: true });
+    expect(linkRolesOf('auto', 'sandi', true)).toEqual(FULL_ROLES);
+    expect(linkRolesOf('auto', 'sanwell', true)).toEqual({ purchasePrice: false, rrp: 'set', stock: true, assortment: true });
+  });
+
+  it('«Гібрид»: посилання — РРЦ, наявність, асортимент; «Файлом» — посилання немає', () => {
+    expect(linkRolesOf('hybrid', 'yml', true)).toEqual(rolesFor('hybrid', 'link'));
+    expect(linkRolesOf('hybrid', 'sandi', true)).toEqual({ purchasePrice: false, rrp: 'set', stock: true, assortment: true });
+    expect(linkRolesOf('manual', null, true)).toBeNull();
   });
 });
 

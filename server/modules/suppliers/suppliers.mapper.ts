@@ -1,5 +1,6 @@
 // Постачальник із бази → типи фронта.
-// Джерело прайсу віддаємо без посилання й без секрету: назовні йдуть лише хост і налаштування розкладу.
+// Джерело прайсу віддаємо без посилання й без секрету: назовні йдуть хост, розклад і що оновлює посилання й файл;
+// саме посилання — лише адміністратору в налаштуваннях вигрузки.
 import type { Supplier, SupplierContact, SupplierLegalEntity, SupplierPriceFeed } from '@prisma/client';
 import { isFeedConnector } from '@shared/catalog/connectors';
 import { CURRENCY_CODES, RATE_POLICIES } from '@shared/enums';
@@ -13,6 +14,7 @@ import type {
   SupplierRef,
 } from '@shared/types';
 import { isoDate, isoDateTime, num, numOrNull, oneOf } from '../../lib/mapping';
+import { linkRolesOf, rolesFor } from '../price-updates/priceUpdates.rules';
 
 export type SupplierRow = Supplier & { feed: SupplierPriceFeed | null };
 export type SupplierDetailRow = SupplierRow & {
@@ -20,8 +22,16 @@ export type SupplierDetailRow = SupplierRow & {
   contacts: SupplierContact[];
 };
 
+/** Останні вдалі оновлення прайсу постачальника за посиланням і файлом (з журналу оновлень). */
+export interface LastPriceRuns {
+  link: Date | null;
+  file: Date | null;
+}
+
+const NO_RUNS: LastPriceRuns = { link: null, file: null };
+
 /** Постачальник без налаштованої вигрузки: прайс приносить менеджер файлом. */
-const MANUAL_SOURCE: SupplierPriceSource = {
+const MANUAL_SOURCE: Omit<SupplierPriceSource, 'fileRoles' | 'lastLinkAt' | 'lastFileAt'> = {
   kind: 'manual',
   connector: null,
   host: null,
@@ -31,6 +41,7 @@ const MANUAL_SOURCE: SupplierPriceSource = {
   lastError: null,
   lastErrorAt: null,
   failCount: 0,
+  linkRoles: null,
 };
 
 /** Хост вигрузки — без шляху, ключів і токенів; неправильне посилання показуємо як «немає». */
@@ -43,8 +54,9 @@ export function hostOf(url: string | null | undefined): string | null {
   }
 }
 
-export function toPriceSource(feed: SupplierPriceFeed | null): SupplierPriceSource {
-  if (!feed) return { ...MANUAL_SOURCE };
+export function toPriceSource(feed: SupplierPriceFeed | null, runs: LastPriceRuns = NO_RUNS): SupplierPriceSource {
+  const lastRuns = { lastLinkAt: isoDateTime(runs.link), lastFileAt: isoDateTime(runs.file) };
+  if (!feed) return { ...MANUAL_SOURCE, fileRoles: rolesFor('manual', 'file'), ...lastRuns };
   return {
     kind: feed.kind,
     connector: isFeedConnector(feed.connector) ? feed.connector : null,
@@ -55,16 +67,25 @@ export function toPriceSource(feed: SupplierPriceFeed | null): SupplierPriceSour
     lastError: feed.lastError,
     lastErrorAt: feed.lastErrorAt ? isoDateTime(feed.lastErrorAt) : null,
     failCount: feed.failCount,
+    linkRoles: linkRolesOf(feed.kind, feed.connector, feed.hasPurchasePrice),
+    fileRoles: rolesFor(feed.kind, 'file'),
+    ...lastRuns,
   };
 }
 
-/** Налаштування для форми: те саме, що бачить список, плюс стан доступу (посилання й токен — лише «збережено»). */
-export function toPriceSourceSettings(feed: SupplierPriceFeed | null): SupplierPriceSourceSettings {
+/**
+ * Налаштування для форми: те саме, що бачить список, плюс стан доступу. Токен — лише «збережено»; посилання
+ * (у ньому буває ключ доступу) — лише адміністратору (withUrl), решті хост.
+ */
+export function toPriceSourceSettings(feed: SupplierPriceFeed | null, options: { withUrl?: boolean } = {}): SupplierPriceSourceSettings {
+  // дати запусків — на картці постачальника (список і «Детальніше»), у налаштуваннях їх немає
+  const { lastLinkAt: _link, lastFileAt: _file, ...source } = toPriceSource(feed);
   return {
-    ...toPriceSource(feed),
+    ...source,
     auth: feed?.auth ?? 'none',
     hasUrl: !!feed?.url,
     hasSecret: feed?.secret != null,
+    ...(options.withUrl && feed?.url ? { url: feed.url } : {}),
   };
 }
 
@@ -94,12 +115,12 @@ export function toSupplierRef(row: Supplier): SupplierRef {
   };
 }
 
-export function toSupplierListItem(row: SupplierRow, productsCount: number): SupplierListItem {
+export function toSupplierListItem(row: SupplierRow, productsCount: number, runs: LastPriceRuns = NO_RUNS): SupplierListItem {
   return {
     ...toSupplierRef(row),
     productsCount,
     lastImportAt: isoDateTime(row.lastImportAt),
-    priceSource: toPriceSource(row.feed),
+    priceSource: toPriceSource(row.feed, runs),
     isActive: row.isActive,
     sortOrder: row.sortOrder,
   };
@@ -135,9 +156,9 @@ export function toSupplierContactDto(row: SupplierContact): SupplierContactDto {
   };
 }
 
-export function toSupplierDetail(row: SupplierDetailRow, productsCount: number): SupplierDetail {
+export function toSupplierDetail(row: SupplierDetailRow, productsCount: number, runs: LastPriceRuns = NO_RUNS): SupplierDetail {
   return {
-    ...toSupplierListItem(row, productsCount),
+    ...toSupplierListItem(row, productsCount, runs),
     version: row.version,
     notes: row.notes,
     deliveryInfo: row.deliveryInfo,

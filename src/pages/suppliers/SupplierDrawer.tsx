@@ -11,16 +11,17 @@ import { LastChangeNote, LoadError, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
 import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { useIsAdmin } from '@/app/session';
+import { PriceSourceDetails } from './PriceSourceDetails';
 import { PriceSourceDialog } from './PriceSourceDialog';
 import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierFormDialog } from './SupplierFormDialog';
 import {
   hostOf,
+  lacksPurchasePrice,
   pctLabel,
   PRICE_SOURCE_COLORS,
   priceListRatesLabel,
   priceSourceLabel,
-  purchaseSourceLabel,
   ratePolicyLabel,
   viaLink,
 } from './supplierView';
@@ -142,7 +143,6 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
   const rates = useQuery({ queryKey: qk.rates(today), queryFn: () => ds.getRates(today) });
   const maxAgeDays = usePriceListRateMaxAge();
   const source = detail.priceSource;
-  const purchase = purchaseSourceLabel(source);
   const [openedUpdate, setOpenedUpdate] = useState<number | null>(null);
 
   // вигрузка без запису: чи працює посилання й що саме зміниться
@@ -208,9 +208,11 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
           <Tag color={PRICE_SOURCE_COLORS[source.kind]} bordered={false}>
             {priceSourceLabel(source)}
           </Tag>
-          <Tag color={purchase.isRrpOnly ? 'orange' : undefined} bordered={false}>
-            {purchase.text}
-          </Tag>
+          {lacksPurchasePrice(source) ? (
+            <Tag color="orange" bordered={false}>
+              вхідних цін немає
+            </Tag>
+          ) : null}
           <span className="po-sup-source-actions">
             {viaLink(source.kind) ? (
               <Tooltip title="Завантажити вигрузку й показати, що зміниться, нічого не записуючи">
@@ -226,11 +228,7 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
             ) : null}
           </span>
         </div>
-        <span className="po-muted">
-          {detail.lastImportAt ? `Оновлено ${formatDateTime(detail.lastImportAt)}` : 'Прайс ще не завантажено'}
-          {source.host ? ` · ${source.host}` : ''}
-        </span>
-        {source.note ? <span className="po-muted">{source.note}</span> : null}
+        <PriceSourceDetails supplierId={detail.id} source={source} isAdmin={isAdmin} />
       </div>
 
       <div className="po-sup-section">Юрособи</div>

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Space, Spin, Tag, Tooltip } from 'antd';
 import { useState, type DragEvent } from 'react';
 import { CURRENCY_LABELS } from '@shared/enums';
-import { formatDate, formatDateTime, formatMoneyUah, formatQty, toIsoDate } from '@shared/format';
+import { formatDate, formatMoneyUah, formatQty, toIsoDate } from '@shared/format';
 import type { EffectiveRates, PriceUpdateDto, SupplierListItem } from '@shared/types';
 import { EmptyState, LoadError, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
@@ -14,14 +14,16 @@ import { PriceUpdateReportView } from './PriceUpdateReport';
 import { SupplierDrawer } from './SupplierDrawer';
 import { SupplierFormDialog } from './SupplierFormDialog';
 import {
+  lacksPurchasePrice,
+  lastRunLabel,
   moveSupplier,
   pctLabel,
   PRICE_SOURCE_COLORS,
   priceListRatesLabel,
   priceSourceLabel,
   pricesFromFile,
-  purchaseSourceLabel,
   ratePolicyLabel,
+  sourceLines,
   viaLink,
 } from './supplierView';
 import './suppliers.css';
@@ -43,7 +45,6 @@ interface SupplierCardProps {
 }
 
 function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, onImport, onOpen, onGrab }: SupplierCardProps) {
-  const purchase = purchaseSourceLabel(s.priceSource);
   return (
     <Card className="po-sup-card" styles={{ body: { padding: 16 } }}>
       <div className="po-sup-head">
@@ -87,11 +88,13 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, o
           {priceSourceLabel(s.priceSource)}
         </Tag>
         {/* примітка джерела (напр. «договірні ціни у менеджера») — підказкою там, де вхідних цін немає */}
-        <Tooltip title={purchase.isRrpOnly ? s.priceSource.note : null}>
-          <Tag color={purchase.isRrpOnly ? 'orange' : undefined} bordered={false}>
-            {purchase.text}
-          </Tag>
-        </Tooltip>
+        {lacksPurchasePrice(s.priceSource) ? (
+          <Tooltip title={s.priceSource.note}>
+            <Tag color="orange" bordered={false}>
+              вхідних цін немає
+            </Tag>
+          </Tooltip>
+        ) : null}
         {s.priceSource.lastErrorAt && viaLink(s.priceSource.kind) ? (
           <Tooltip
             title={
@@ -109,7 +112,11 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, o
             </Tag>
           </Tooltip>
         ) : null}
-        <span>{s.lastImportAt ? `Прайс оновлено ${formatDateTime(s.lastImportAt)}` : 'Прайс ще не завантажено'}</span>
+        {sourceLines(s.priceSource).map((line) => (
+          <div key={line.label} className="po-sup-line">
+            <b>{line.label}:</b> {line.what} · <span className="po-muted">{lastRunLabel(line)}</span>
+          </div>
+        ))}
       </div>
       <div className="po-sup-actions">
         {viaLink(s.priceSource.kind) ? (

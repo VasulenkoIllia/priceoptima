@@ -1,5 +1,6 @@
 // Налаштування джерела прайсу: вигрузка за посиланням (підключення постачальника, доступ, година оновлення) або файл від менеджера.
-// Посилання й токен сервер назад не віддає: у формі видно лише, що вони збережені, а порожнє поле означає «лишити як є».
+// Токен сервер назад не віддає: у формі видно лише, що він збережений, а порожнє поле означає «лишити як є». Посилання
+// адміністратор (лише він відкриває цю форму) бачить заповненим.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, App, Form, Input, Modal, Radio, Select, Spin } from 'antd';
 import { useEffect } from 'react';
@@ -65,7 +66,7 @@ export function toFormValues(s: SupplierPriceSourceSettings): FormValues {
   return {
     kind: s.kind,
     connector: isFeedConnector(s.connector) ? s.connector : null,
-    url: '',
+    url: s.url ?? '',
     auth: s.auth,
     login: '',
     secret: '',
@@ -114,8 +115,23 @@ export function buildPriceSourceInput(v: FormValues, current: SupplierPriceSourc
 // antd віддає role і aria-* групи в DOM, але в типах RadioGroupProps role немає: без них екранний читач не назве групу
 const LINK_PRICE_GROUP_A11Y = { role: 'radiogroup', 'aria-label': 'Ціна у вигрузці' };
 
+/** Що щодня оновлюватиме посилання за вибраною «Ціною у вигрузці»; ще не вибрано — що означає кожен варіант. */
+export function linkPriceHint(prices: Exclude<FeedPrices, 'rrp'>, hasPurchasePrice: boolean | undefined): string {
+  if (hasPurchasePrice === undefined) {
+    return prices === 'both'
+      ? '«Вхідна і РРЦ»: посилання оновлює обидві ціни. «Лише РРЦ»: вхідні ціни за посиланням не оновлюються.'
+      : '«Вхідна»: ціна у вигрузці закупівельна. «РРЦ»: ціна у вигрузці роздрібна, вхідні за посиланням не оновлюються.';
+  }
+  if (!hasPurchasePrice) return 'Посилання оновлює РРЦ, вхідні ціни ні. Якщо вхідні будуть файлом, оберіть «Гібрид».';
+  return prices === 'both'
+    ? 'Посилання щодня оновлює і вхідні ціни, і РРЦ.'
+    : 'Посилання щодня оновлює вхідні ціни. РРЦ у цій вигрузці немає, її можна завантажити файлом.';
+}
+
 /** «Ціна у вигрузці» в режимі «За посиланням»: обов'язковий вибір без типового значення; вигрузка лише з РРЦ — без вибору. */
 function LinkPriceField({ prices }: { prices: FeedPrices }) {
+  const form = Form.useFormInstance<FormValues>();
+  const hasPurchasePrice = Form.useWatch('hasPurchasePrice', form);
   if (prices === 'rrp') {
     return (
       <Form.Item label="Ціна у вигрузці">
@@ -128,7 +144,7 @@ function LinkPriceField({ prices }: { prices: FeedPrices }) {
       name="hasPurchasePrice"
       label="Ціна у вигрузці"
       rules={[{ required: true, message: 'Оберіть, яка ціна у вигрузці' }]}
-      extra="РРЦ: вхідні ціни за посиланням не оновлюються. Якщо вхідні будуть файлом, оберіть «Гібрид»."
+      extra={linkPriceHint(prices, hasPurchasePrice)}
     >
       <Radio.Group {...LINK_PRICE_GROUP_A11Y} options={LINK_PRICE_CHOICES[prices]} />
     </Form.Item>
@@ -238,9 +254,9 @@ export function PriceSourceDialog({ open, supplierId, supplierName, onClose }: P
               <Form.Item
                 name="url"
                 label="Посилання на вигрузку"
-                extra={current.hasUrl && current.host ? `Збережено посилання на ${current.host}` : undefined}
                 rules={[
-                  { required: !current.hasUrl, whitespace: true, message: 'Вкажіть посилання на вигрузку' },
+                  // заповнене посилання стерли — це не «лишити як є», а помилка: прибрати посилання форма не вміє
+                  { required: !current.hasUrl || current.url !== undefined, whitespace: true, message: 'Вкажіть посилання на вигрузку' },
                   { pattern: /^https?:\/\/\S+$/iu, message: 'Посилання має починатися з http:// або https://' },
                 ]}
               >

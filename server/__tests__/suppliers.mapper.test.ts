@@ -83,6 +83,10 @@ describe('джерело прайсу', () => {
       lastError: null,
       lastErrorAt: null,
       failCount: 0,
+      linkRoles: { purchasePrice: true, rrp: 'none', stock: true, assortment: true },
+      fileRoles: { purchasePrice: true, rrp: 'set', stock: true, assortment: true },
+      lastLinkAt: null,
+      lastFileAt: null,
     });
     expect(JSON.stringify(source)).not.toContain('token');
     expect(JSON.stringify(source)).not.toContain('секретний');
@@ -100,7 +104,17 @@ describe('джерело прайсу', () => {
       lastError: null,
       lastErrorAt: null,
       failCount: 0,
+      linkRoles: null,
+      fileRoles: { purchasePrice: true, rrp: 'set', stock: true, assortment: true },
+      lastLinkAt: null,
+      lastFileAt: null,
     });
+  });
+
+  it('дати останніх оновлень за посиланням і файлом — окремо', () => {
+    const source = toPriceSource(feed, { link: new Date('2026-10-16T03:00:00.000Z'), file: null });
+    expect(source.lastLinkAt).toBe('2026-10-16T03:00:00.000Z');
+    expect(source.lastFileAt).toBeNull();
   });
 
   it('у відповіді на збереження видно лише сам факт збереженого токена', () => {
@@ -108,6 +122,14 @@ describe('джерело прайсу', () => {
     expect(toPriceSourceSettings({ ...feed, secret: null, auth: 'none' }).hasSecret).toBe(false);
     expect(Object.keys(toPriceSourceSettings(feed))).not.toContain('secret');
     expect(Object.keys(toPriceSourceSettings(feed))).not.toContain('url');
+  });
+
+  it('посилання (з ключем доступу) — лише адміністратору, токен — нікому', () => {
+    const forAdmin = toPriceSourceSettings(feed, { withUrl: true });
+    expect(forAdmin.url).toBe(feed.url);
+    expect(JSON.stringify(forAdmin)).not.toContain(feed.secret);
+    expect(Object.keys(toPriceSourceSettings(feed, { withUrl: false }))).not.toContain('url');
+    expect(Object.keys(toPriceSourceSettings({ ...feed, url: null }, { withUrl: true }))).not.toContain('url');
   });
 
   it('постачальник без налаштованої вигрузки — файловий прайс без доступу', () => {

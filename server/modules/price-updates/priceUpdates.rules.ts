@@ -1,5 +1,6 @@
 // Правила оновлення прайсів, які не залежать від бази: ролі джерела, розклад, архівація зниклих, шлях файлу прайсу.
 import type { PriceRow } from './connectors';
+import { FEED_CONNECTOR_INFO, isFeedConnector, linkUpdatesPurchasePrice } from '@shared/catalog/connectors';
 import { normalizeInputPrice, normalizeInputRrp } from '@shared/pricing';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -26,6 +27,18 @@ export function rolesFor(kind: PriceFeedKind | null | undefined, source: 'link' 
   return source === 'link'
     ? { purchasePrice: false, rrp: 'set', stock: true, assortment: true }
     : { purchasePrice: true, rrp: 'fill', stock: true, assortment: false };
+}
+
+/**
+ * Що насправді оновлює посилання (картка постачальника «Що оновлюється»): ролі режиму, звужені цінами вигрузки —
+ * вхідні лише за linkUpdatesPurchasePrice, а одна ціна YML, прочитана як вхідна, РРЦ не дає. Файлом — посилання немає.
+ */
+export function linkRolesOf(kind: PriceFeedKind, connector: string | null, hasPurchasePrice: boolean): SourceRoles | null {
+  if (kind === 'manual') return null;
+  const roles = rolesFor(kind, 'link');
+  const purchasePrice = roles.purchasePrice && linkUpdatesPurchasePrice(kind, connector, hasPurchasePrice);
+  const rrpInFeed = !(purchasePrice && isFeedConnector(connector) && FEED_CONNECTOR_INFO[connector].prices === 'one');
+  return { ...roles, purchasePrice, rrp: rrpInFeed ? roles.rrp : 'none' };
 }
 
 export function feedHourOf(scheduleHour: number | null | undefined): number {

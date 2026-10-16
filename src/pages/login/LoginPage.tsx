@@ -37,6 +37,9 @@ export default function LoginPage() {
     setError(null);
     try {
       const res = await ds.login(login.trim(), password);
+      // попередня сесія могла скінчитися без «Вийти» (строк, вихід в іншій вкладці): її дані, як-от посилання
+      // вигрузок для адміністратора, новому користувачу з кешу не дістаються
+      queryClient.clear();
       queryClient.setQueryData(qk.me, res);
       navigate(returnPath, { replace: true });
     } catch (e) {

@@ -30,6 +30,7 @@ import type {
   PriceDetailField,
   PriceNotFoundRow,
   PriceRelinkedItem,
+  PriceSourceRoles,
   PriceReplacedField,
   PriceReplacedItem,
   PriceReportSection,
@@ -54,14 +55,8 @@ export const REPORT_SAMPLE = 50;
 const MIN_BARCODE_LENGTH = 8;
 const MIN_ARTICLE_LENGTH = 3;
 
-export interface SourceRoles {
-  /** Вхідна ціна й валюта товару. */
-  purchasePrice: boolean;
-  /** РРЦ: 'set' — з прайсу, коли вона там є; 'fill' — лише якщо в каталозі порожньо; 'none' — не чіпати. */
-  rrp: 'set' | 'fill' | 'none';
-  stock: boolean;
-  assortment: boolean;
-}
+/** Що веде джерело прайсу (той самий тип іде на картку постачальника — «Що оновлюється»). */
+export type SourceRoles = PriceSourceRoles;
 
 /** Прайс, що веде все (вигрузка «auto» або файл для постачальника без вигрузки). */
 export const FULL_ROLES: SourceRoles = { purchasePrice: true, rrp: 'set', stock: true, assortment: true };

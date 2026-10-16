@@ -67,7 +67,9 @@ suppliersRouter.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { id } = parseParams(supplierIdSchema, req);
-    res.json(await getPriceSource(id));
+    // у відповіді адміністратору — посилання з ключем: не лишаємо його в кеші браузера
+    res.set('Cache-Control', 'no-store');
+    res.json(await getPriceSource(id, currentUser(req)));
   }),
 );
 
@@ -77,6 +79,7 @@ suppliersRouter.put(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const { id } = parseParams(supplierIdSchema, req);
+    res.set('Cache-Control', 'no-store');
     res.json(await updatePriceSource(id, parseBody(priceSourceSchema, req), currentUser(req)));
   }),
 );

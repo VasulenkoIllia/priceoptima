@@ -145,7 +145,7 @@ export interface DataSource {
   reorderSuppliers(ids: UUID[]): Promise<void>;
   getSupplier(id: UUID): Promise<SupplierDetail>;
   saveSupplier(id: UUID | null, input: SupplierInput): Promise<SupplierDetail>;
-  /** Налаштування вигрузки прайсу: посилання й токен назовні не віддаються — лише «збережено». */
+  /** Налаштування вигрузки прайсу: токен не віддається — лише «збережено»; посилання — лише адміністратору. */
   getSupplierPriceSource(supplierId: UUID): Promise<SupplierPriceSourceSettings>;
   saveSupplierPriceSource(supplierId: UUID, input: SupplierPriceSourceInput): Promise<SupplierPriceSourceSettings>;
   /** Оновити прайс постачальника зараз (у робочій системі прайси приходять автоматично; тут — імітація). */

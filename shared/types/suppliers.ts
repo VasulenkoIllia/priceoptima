@@ -52,6 +52,17 @@ import type { PriceReplaceField, PriceUpdateField } from '../catalog/priceUpdate
  */
 export type PriceSourceKind = 'auto' | 'manual' | 'hybrid';
 
+/** Що оновлює посилання чи файл — те саме правило, за яким сервер застосовує прайс. */
+export interface PriceSourceRoles {
+  /** Вхідна ціна й валюта товару. */
+  purchasePrice: boolean;
+  /** 'set' — з прайсу, коли вона там є; 'fill' — лише якщо в каталозі порожньо; 'none' — не чіпає. */
+  rrp: 'set' | 'fill' | 'none';
+  stock: boolean;
+  /** Нові товари, «немає у прайсі», заповнення порожніх фото й описів. */
+  assortment: boolean;
+}
+
 export interface SupplierPriceSource {
   kind: PriceSourceKind;
   /** Чиєю вигрузкою оновлюється за посиланням. */
@@ -70,16 +81,28 @@ export interface SupplierPriceSource {
   lastError: string | null;
   lastErrorAt: ISODateTime | null;
   failCount: number;
+  /** Що оновлює посилання з урахуванням цін у вигрузці; null — посилання немає («Файлом»). */
+  linkRoles: PriceSourceRoles | null;
+  /** Що оновлює файл («Завантажити прайс»). */
+  fileRoles: PriceSourceRoles;
+  /** Останнє вдале оновлення за посиланням і файлом (список для розрахунку заявки їх не рахує — null). */
+  lastLinkAt: ISODateTime | null;
+  lastFileAt: ISODateTime | null;
 }
 
 /** Доступ до вигрузки: bearer — токен у заголовку; basic — «логін:пароль»; query — токен параметром посилання. */
 export type PriceFeedAuth = 'none' | 'bearer' | 'basic' | 'query';
 
-/** Налаштування вигрузки для форми: саме посилання й токен назовні не віддаються — лише факт, що вони збережені. */
-export interface SupplierPriceSourceSettings extends SupplierPriceSource {
+/**
+ * Налаштування вигрузки для форми. Токен назовні не віддається ніколи — лише факт, що він збережений;
+ * посилання (у ньому буває ключ доступу) — лише адміністратору, решта бачить хост.
+ */
+export interface SupplierPriceSourceSettings extends Omit<SupplierPriceSource, 'lastLinkAt' | 'lastFileAt'> {
   auth: PriceFeedAuth;
   hasUrl: boolean;
   hasSecret: boolean;
+  /** Збережене посилання; є лише у відповіді адміністратору. */
+  url?: string;
 }
 
 export interface SupplierPriceSourceInput {

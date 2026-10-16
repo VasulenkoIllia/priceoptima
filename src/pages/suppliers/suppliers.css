@@ -89,6 +89,15 @@
 .po-sup-status .ant-tag {
   margin-inline-end: 0;
 }
+/* «За посиланням: …» / «Файлом: …» — кожен з нового рядка під позначками режиму */
+.po-sup-line {
+  flex-basis: 100%;
+  min-width: 0;
+}
+.po-sup-line b {
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.8);
+}
 .po-sup-actions {
   display: flex;
   flex-wrap: wrap;
@@ -211,6 +220,17 @@
 }
 .po-sup-source-head .ant-tag {
   margin-inline-end: 0;
+}
+/* посилання вигрузки: довге (з ключем) — обрізається, повністю в підказці й копіюванні */
+.po-sup-source-url {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.po-sup-source-url .ant-typography {
+  min-width: 0;
+  flex: 1;
 }
 .po-sup-source-actions {
   display: inline-flex;
