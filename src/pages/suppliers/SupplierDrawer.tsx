@@ -202,35 +202,6 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
       <div className="po-sup-section">Умови для заявок</div>
       <Descriptions column={1} size="small" items={terms} styles={{ label: { width: 190 } }} />
 
-      <div className="po-sup-section">Джерело прайсу</div>
-      <div className="po-sup-source">
-        <div className="po-sup-source-head">
-          <Tag color={PRICE_SOURCE_COLORS[source.kind]} bordered={false}>
-            {priceSourceLabel(source)}
-          </Tag>
-          {lacksPurchasePrice(source) ? (
-            <Tag color="orange" bordered={false}>
-              вхідних цін немає
-            </Tag>
-          ) : null}
-          <span className="po-sup-source-actions">
-            {viaLink(source.kind) ? (
-              <Tooltip title="Завантажити вигрузку й показати, що зміниться, нічого не записуючи">
-                <Button size="small" icon={<ExperimentOutlined />} loading={check.isPending} onClick={() => check.mutate()}>
-                  Перевірити
-                </Button>
-              </Tooltip>
-            ) : null}
-            {isAdmin ? (
-              <Button size="small" icon={<SettingOutlined />} onClick={onSource}>
-                Налаштувати
-              </Button>
-            ) : null}
-          </span>
-        </div>
-        <PriceSourceDetails supplierId={detail.id} source={source} isAdmin={isAdmin} />
-      </div>
-
       <div className="po-sup-section">Юрособи</div>
       {detail.legalEntities.length ? (
         <div className="po-sup-items">
@@ -287,6 +258,36 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
       ) : (
         <Typography.Text type="secondary">Контактів немає</Typography.Text>
       )}
+
+      {/* джерело прайсу — над журналом оновлень, після юросіб і контактів (правки замовника 17.10) */}
+      <div className="po-sup-section">Джерело прайсу</div>
+      <div className="po-sup-source">
+        <div className="po-sup-source-head">
+          <Tag color={PRICE_SOURCE_COLORS[source.kind]} bordered={false}>
+            {priceSourceLabel(source)}
+          </Tag>
+          {lacksPurchasePrice(source) ? (
+            <Tag color="orange" bordered={false}>
+              вхідних цін немає
+            </Tag>
+          ) : null}
+          <span className="po-sup-source-actions">
+            {viaLink(source.kind) ? (
+              <Tooltip title="Завантажити вигрузку й показати, що зміниться, нічого не записуючи">
+                <Button size="small" icon={<ExperimentOutlined />} loading={check.isPending} onClick={() => check.mutate()}>
+                  Перевірити
+                </Button>
+              </Tooltip>
+            ) : null}
+            {isAdmin ? (
+              <Button size="small" icon={<SettingOutlined />} onClick={onSource}>
+                Налаштувати
+              </Button>
+            ) : null}
+          </span>
+        </div>
+        <PriceSourceDetails supplierId={detail.id} source={source} isAdmin={isAdmin} />
+      </div>
 
       <div className="po-sup-section">Журнал оновлень прайсу</div>
       {log.isError ? (
