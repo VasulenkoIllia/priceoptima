@@ -1,14 +1,9 @@
 // Наш шаблон заявки для клієнтів (xlsx з аркушами «Заявка» й «Інструкція») — при імпорті розпізнається одразу.
+import type { Workbook } from 'exceljs';
 import { loadExcelJs, saveBlob, XLSX_MIME } from '@/lib/files';
 import { REQUEST_TEMPLATE_HEADERS } from './requestRows';
 
 const WIDTHS = [6, 60, 8, 12, 36];
-
-const EXAMPLE_ROWS: (string | number)[][] = [
-  [1, 'Кран кульовий 1/2" в-в, ручка-метелик', 'шт', 10, ''],
-  [2, 'Труба ППР PN20 D20', 'м', 120, 'біла'],
-  [3, 'Радіатор сталевий 22 500x1000', 'шт', 4, 'бокове підключення'],
-];
 
 const INSTRUCTIONS: [string, string][] = [
   ['Як заповнити заявку', ''],
@@ -20,12 +15,12 @@ const INSTRUCTIONS: [string, string][] = [
   ['Примітка', 'Побажання до позиції: колір, виробник, аналог тощо.'],
 ];
 
-export async function downloadRequestTemplate(fileName = 'Шаблон заявки PriceOptima.xlsx'): Promise<void> {
+// «Заявка» лише із заголовками, без рядків-прикладів: клієнтові не треба їх стирати щоразу (правки замовника 21.10)
+export async function buildRequestTemplate(): Promise<Workbook> {
   const ExcelJS = await loadExcelJs();
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Заявка');
   ws.columns = REQUEST_TEMPLATE_HEADERS.map((header, i) => ({ header, width: WIDTHS[i] }));
-  ws.addRows(EXAMPLE_ROWS);
   ws.getRow(1).font = { bold: true };
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 
@@ -37,7 +32,11 @@ export async function downloadRequestTemplate(fileName = 'Шаблон заяв�
     row.getCell(1).font = { bold: true, ...row.getCell(1).font };
     row.getCell(2).alignment = { wrapText: true, vertical: 'top' };
   });
+  return wb;
+}
 
+export async function downloadRequestTemplate(fileName = 'Шаблон заявки PriceOptima.xlsx'): Promise<void> {
+  const wb = await buildRequestTemplate();
   const data = await wb.xlsx.writeBuffer();
   saveBlob(new Blob([data], { type: XLSX_MIME }), fileName);
 }
