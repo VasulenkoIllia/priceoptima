@@ -232,6 +232,8 @@ model Supplier {
   b2bUrl            String?
   notes             String?
   deliveryInfo      String?
+  /// Короткий опис на картці постачальника (правки замовника 21.10, п.14).
+  description       String?
   isActive          Boolean    @default(true)
   sortOrder         Int        @default(0)
   lastImportAt      DateTime?
@@ -801,4 +803,26 @@ model RequestLock {
   expiresAt DateTime
 
   @@index([userId])
+}
+
+// ── довідник ────────────────────────────────────────────────────────
+
+/// «Довідник» (правки замовника 21.10, п.11): спільні аркуші-таблиці для всіх користувачів (сайти брендів, нотатки).
+/// Колонки й рядки аркуша — одним JSON: аркуш зберігається цілком, з перевіркою версії.
+model ReferenceSheet {
+  id          String   @id @default(uuid())
+  /// Лічильник змін: зберігаємо лише з тією версією, яку відкрив користувач (ДОВ-6).
+  version     Int      @default(1)
+  title       String
+  sortOrder   Int      @default(0)
+  /// [{id, title, width?}]
+  columns     Json
+  /// [{id, cells: {<id колонки>: текст}}]
+  rows        Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  updatedById String?
+
+  @@index([sortOrder])
 }

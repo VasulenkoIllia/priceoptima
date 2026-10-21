@@ -6,11 +6,11 @@ import type { ProductImageDto, UUID } from '@shared/types';
 import { config } from '../../config';
 import { prisma } from '../../db';
 import { notFound } from '../../http/errors';
-import { fetchPublic } from '../../lib/publicFetch';
+import { fetchPublic, PublicFetchError, type PublicFetchErrorKind } from '../../lib/publicFetch';
 import { logger } from '../../logger';
 import { productOrFail } from '../products/products.service';
 import { imageUrlOf, servedImageUrl, toProductImageDto } from './images.mapper';
-import { nextMainId } from './images.rules';
+import { feedImageAttempts, nextMainId } from './images.rules';
 import type { ProductImagePatchBody, ProductImageUrlBody } from './images.schemas';
 import {
   assertUploadedImage,
@@ -38,6 +38,8 @@ const FEED_IMAGE_BUDGET_MS = 20_000;
 /** Повтори, коли сайт фото відповідає «забагато запитів» (429), і пауза перед ними (×1, ×2). */
 const RATE_LIMIT_RETRIES = 2;
 const RATE_LIMIT_WAIT_MS = 1_500;
+/** Помилки самого хоста: після них запасна спроба через https не має сенсу. */
+const HOST_ERRORS: ReadonlySet<PublicFetchErrorKind> = new Set(['blocked', 'not_found', 'scheme']);
 
 /**
  * Головні фото товарів для КП: посилання на файл у нашому сховищі.
@@ -87,8 +89,23 @@ async function storeFeedImage(row: ProductImage): Promise<ProductImage | null> {
 
 /** Посилання на фото приходить із прайсу постачальника (недовірені дані): лише публічні адреси (lib/publicFetch). */
 async function downloadImage(url: string): Promise<{ data: Buffer; type: ImageMimeType }> {
+  let firstError: unknown;
   // посилання Google Диска на файл — пряме на зображення (у збережених до 07.10 воно ще у вигляді сторінки перегляду)
-  const target = new URL(directImageUrl(url));
+  for (const target of feedImageAttempts(new URL(directImageUrl(url)))) {
+    try {
+      return await downloadImageFrom(target);
+    } catch (e) {
+      // назовні йде помилка за посиланням із прайсу, невдалу запасну спробу через https пишемо в журнал окремо
+      if (firstError === undefined) firstError = e;
+      else logger.warn({ err: e, host: target.host }, 'Фото з прайсу не вдалося взяти й через https');
+      // хост не знайдено, він внутрішній чи посилання не http(s) — https:// цього не змінить
+      if (e instanceof PublicFetchError && HOST_ERRORS.has(e.kind)) break;
+    }
+  }
+  throw firstError;
+}
+
+async function downloadImageFrom(target: URL): Promise<{ data: Buffer; type: ImageMimeType }> {
   let { response } = await fetchPublic(target, { signal: AbortSignal.timeout(FEED_IMAGE_TIMEOUT_MS) });
   // «забагато запитів» (Google Диск обмежує часті звернення з однієї адреси) — коротка пауза й ще спроба
   for (let attempt = 1; response.status === 429 && attempt <= RATE_LIMIT_RETRIES; attempt++) {
@@ -96,9 +113,12 @@ async function downloadImage(url: string): Promise<{ data: Buffer; type: ImageMi
     await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_WAIT_MS * attempt));
     ({ response } = await fetchPublic(target, { signal: AbortSignal.timeout(FEED_IMAGE_TIMEOUT_MS) }));
   }
-  if (!response.ok) throw new Error(`Фото недоступне (HTTP ${response.status})`);
   const declared = Number(response.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) throw new Error('Фото завелике');
+  if (!response.ok || (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES)) {
+    // тіло не читаємо, але закриваємо: http-фото SANWELL тепер щоразу спершу дають 404
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error(response.ok ? 'Фото завелике' : `Фото недоступне (HTTP ${response.status})`);
+  }
   const data = await readLimited(response, MAX_IMAGE_BYTES);
   return { data, type: assertUploadedImage(data) };
 }

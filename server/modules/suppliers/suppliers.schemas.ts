@@ -1,8 +1,9 @@
 // Перевірка даних постачальника, його юросіб, контактів і джерела прайсу.
 import { z } from 'zod';
 import { FEED_CONNECTORS } from '@shared/catalog/connectors';
+import { SUPPLIER_DESCRIPTION_MAX } from '@shared/catalog/limits';
 import { CURRENCY_CODES, PRICE_COLUMN_ROLES, RATE_POLICIES } from '@shared/enums';
-import { imageSrcField, numberField, optionalIsoDateString, optionalNumberField, optionalRateField, optionalText, searchUrlTemplateField, trimmed, webUrlField } from '../../lib/fields';
+import { imageSrcField, numberField, optionalIsoDateString, optionalNumberField, optionalRateField, optionalText, trimmed, webUrlField } from '../../lib/fields';
 
 const FEED_AUTH = ['none', 'bearer', 'basic', 'query'] as const;
 const FEED_KINDS = ['auto', 'manual', 'hybrid'] as const;
@@ -64,11 +65,11 @@ export const supplierInputSchema = z.object({
     .max(365, 'Актуальність ціни: не більше 365')
     .nullish()
     .transform((v) => v ?? null),
-  searchUrlTemplate: searchUrlTemplateField(500, 'Шаблон пошуку на сайті'),
   website: webUrlField(300, 'Сайт'),
   b2bUrl: webUrlField(300, 'B2B-кабінет'),
   notes: optionalText(4000),
   deliveryInfo: optionalText(2000),
+  description: optionalText(SUPPLIER_DESCRIPTION_MAX),
   isActive: z.boolean().default(true),
   legalEntities: z.array(legalEntityInputSchema).max(20, 'Забагато юросіб (до 20)').optional(),
   contacts: z.array(supplierContactInputSchema).max(50, 'Забагато контактів (до 50)').optional(),

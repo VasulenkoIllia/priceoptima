@@ -31,6 +31,7 @@ const SECTION_TITLES: Record<string, string> = {
   clients: 'Клієнти',
   rates: 'Курси валют',
   settings: 'Налаштування',
+  reference: 'Довідник',
 };
 
 export const REQUEST_TAB_PREFIX = 'request:';

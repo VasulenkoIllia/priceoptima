@@ -109,7 +109,6 @@ export function toSupplierRef(row: Supplier): SupplierRef {
     },
     minOrderAmount: numOrNull(row.minOrderAmount),
     priceStaleDays: row.priceStaleDays,
-    searchUrlTemplate: row.searchUrlTemplate,
     website: row.website,
     b2bUrl: row.b2bUrl,
   };
@@ -121,6 +120,7 @@ export function toSupplierListItem(row: SupplierRow, productsCount: number, runs
     productsCount,
     lastImportAt: isoDateTime(row.lastImportAt),
     priceSource: toPriceSource(row.feed, runs),
+    description: row.description,
     isActive: row.isActive,
     sortOrder: row.sortOrder,
   };

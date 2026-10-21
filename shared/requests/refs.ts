@@ -18,7 +18,6 @@ export function toSupplierRef(s: SupplierRef): SupplierRef {
     priceListRates: { ...s.priceListRates },
     minOrderAmount: s.minOrderAmount,
     priceStaleDays: s.priceStaleDays,
-    searchUrlTemplate: s.searchUrlTemplate,
     website: s.website,
     b2bUrl: s.b2bUrl,
   };

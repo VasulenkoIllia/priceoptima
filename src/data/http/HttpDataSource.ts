@@ -40,6 +40,9 @@ import type {
   SupplierListItem,
   SupplierPriceSourceInput,
   SupplierPriceSourceSettings,
+  ReferenceSheetDto,
+  ReferenceSheetInput,
+  ReferenceSheetMeta,
   UserDto,
   UserUpdateInput,
   UUID,
@@ -273,6 +276,26 @@ export class HttpDataSource implements DataSource {
 
   importSupplierPrices(supplierId: UUID, body: PriceImportBody): Promise<PriceUpdateDto> {
     return api<PriceUpdateDto>('/price-updates/import', { body: { supplierId, ...body } });
+  }
+
+  // ── довідник ──────────────────────────────────────────────────────
+
+  listReferenceSheets(): Promise<ReferenceSheetMeta[]> {
+    return api<ReferenceSheetMeta[]>('/reference-sheets');
+  }
+
+  getReferenceSheet(id: UUID): Promise<ReferenceSheetDto> {
+    return api<ReferenceSheetDto>(`/reference-sheets/${id}`);
+  }
+
+  saveReferenceSheet(id: UUID | null, input: ReferenceSheetInput): Promise<ReferenceSheetDto> {
+    return id
+      ? api<ReferenceSheetDto>(`/reference-sheets/${id}`, { method: 'PUT', body: input })
+      : api<ReferenceSheetDto>('/reference-sheets', { body: input });
+  }
+
+  deleteReferenceSheet(id: UUID): Promise<void> {
+    return api<void>(`/reference-sheets/${id}`, { method: 'DELETE' });
   }
 
   // ── каталог ───────────────────────────────────────────────────────

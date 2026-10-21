@@ -118,7 +118,7 @@ function clientColumns(mode: EditorMode): SourcingColDef[] {
       pinned: 'left',
       editable: canEditClient,
       cellEditor: 'agTextCellEditor',
-      cellClass: ['po-note-cell', 'po-cell-text'],
+      cellClass: ['po-note-cell', 'po-client-note-cell', 'po-cell-text'],
       valueGetter: (p) => (isLineRow(p.data) ? (p.data.line.clientNote ?? '') : ''),
       cellRenderer: ClientNoteCell,
       autoHeight: true,

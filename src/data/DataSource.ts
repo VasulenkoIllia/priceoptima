@@ -64,6 +64,9 @@ import type {
   SupplierListItem,
   SupplierPriceSourceInput,
   SupplierPriceSourceSettings,
+  ReferenceSheetDto,
+  ReferenceSheetInput,
+  ReferenceSheetMeta,
   UserDto,
   UUID,
   AccessLinkCreated,
@@ -160,6 +163,14 @@ export interface DataSource {
   savePriceImportMapping(supplierId: UUID, mapping: PriceImportMapping): Promise<PriceImportMapping>;
   /** Прайс файлом (постачальники без вигрузки за посиланням): звірка за кодом; dryRun — лише порахувати зміни. */
   importSupplierPrices(supplierId: UUID, body: PriceImportBody): Promise<PriceUpdateDto>;
+
+  // ── Довідник (правки замовника 21.10, п.11) ──────────────────────
+  /** Спільні аркуші в порядку показу. */
+  listReferenceSheets(): Promise<ReferenceSheetMeta[]>;
+  getReferenceSheet(id: UUID): Promise<ReferenceSheetDto>;
+  /** id === null — новий аркуш; VERSION_CONFLICT — аркуш тим часом змінив інший користувач. */
+  saveReferenceSheet(id: UUID | null, input: ReferenceSheetInput): Promise<ReferenceSheetDto>;
+  deleteReferenceSheet(id: UUID): Promise<void>;
 
   // ── Каталог ─────────────────────────────────────────────────────
   /** Сторінка номенклатури з загальною кількістю: пошук, фільтри й сортування виконує сервер. */

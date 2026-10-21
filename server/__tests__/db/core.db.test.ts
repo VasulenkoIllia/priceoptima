@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import type { User } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { SUPPLIER_DESCRIPTION_MAX } from '@shared/catalog/limits';
 import { DEFAULT_UNITS } from '@shared/parse';
 import { createOfferFromProduct, createRequestLine, createSupplierBlock } from '@shared/pricing';
 import { toSupplierRef } from '@shared/requests';
@@ -24,7 +25,9 @@ import { changeStatus, createRequest, getRequestDocument, saveRequestDocument } 
 import { addManualRate, cancelManualRates, getEffectiveRates, saveNbuRate } from '../../modules/rates/rates.service';
 import { getSettings } from '../../modules/settings/settings.service';
 import { supplierInputSchema } from '../../modules/suppliers/suppliers.schemas';
-import { createSupplier, getSupplier, listSuppliers, reorderSuppliers } from '../../modules/suppliers/suppliers.service';
+import { createSupplier, getSupplier, listSuppliers, reorderSuppliers, updateSupplier } from '../../modules/suppliers/suppliers.service';
+import { referenceSheetInputSchema } from '../../modules/reference/reference.schemas';
+import { createReferenceSheet, deleteReferenceSheet, getReferenceSheet, listReferenceSheets, updateReferenceSheet } from '../../modules/reference/reference.service';
 import { uiPrefsSchema } from '../../modules/users/users.schemas';
 import { getUiPrefs, saveUiPrefs } from '../../modules/users/users.service';
 
@@ -152,18 +155,21 @@ describe('прайс файлом', () => {
   });
 });
 
-describe('новий товар вручну (правки замовника 23.09 п.14)', () => {
-  it('без артикула — «ВР-00001», «ВР-00002»; назва 1С зберігається; зайнятий артикул — відмова', async () => {
+describe('новий товар вручну (правки замовника 23.09 п.14, префікс «ПР-» з 21.10)', () => {
+  it('без артикула — «ПР-00001», «ПР-00002»; назва 1С зберігається; зайнятий артикул — відмова', async () => {
     const own = await createSupplier(parse(supplierInputSchema, { name: `Ручні ${RUN}`, defaultCurrency: 'UAH' }), admin);
     const input = (extra: object) => parse(productInputSchema, { supplierId: own.id, nameWork: 'Лічильник води', currency: 'UAH', ...extra });
     const a = await createProduct(input({ sku: '', name1c: 'Лічильник ХВ 1/2' }), admin);
     const b = await createProduct(input({}), admin);
-    expect([a.sku, b.sku]).toEqual(['ВР-00001', 'ВР-00002']);
+    expect([a.sku, b.sku]).toEqual(['ПР-00001', 'ПР-00002']);
     expect(a.name1c).toBe('Лічильник ХВ 1/2');
     // одночасно — різні номери
     const [c, d] = await Promise.all([createProduct(input({}), admin), createProduct(input({}), admin)]);
-    expect(new Set([c.sku, d.sku])).toEqual(new Set(['ВР-00003', 'ВР-00004']));
-    expect(await errorCode(() => createProduct(input({ sku: 'ВР-00001' }), admin))).toBe('DUPLICATE');
+    expect(new Set([c.sku, d.sku])).toEqual(new Set(['ПР-00003', 'ПР-00004']));
+    expect(await errorCode(() => createProduct(input({ sku: 'ПР-00001' }), admin))).toBe('DUPLICATE');
+    // старі «ВР-…» (якщо лишилися) нумерацію «ПР-» не зсувають
+    await createProduct(input({ sku: 'ВР-00099' }), admin);
+    expect((await createProduct(input({}), admin)).sku).toBe('ПР-00005');
   });
 });
 
@@ -442,6 +448,83 @@ describe('порядок постачальників (правки замовн
     expect((await getSupplier(extra.id)).version).toBe(extra.version);
 
     expect(await errorCode(() => reorderSuppliers(reversed.slice(1), admin))).toBe('VERSION_CONFLICT');
+  });
+});
+
+describe('«Пошук на сайті» прибрано (правки замовника 21.10)', () => {
+  it('збереження картки не чіпає колонку, що лишилась у базі', async () => {
+    const saved = 'https://sandi.ua/?q={query}';
+    const s = await createSupplier(parse(supplierInputSchema, { name: `Без пошуку ${RUN}`, defaultCurrency: 'UAH' }), admin);
+    await prisma.supplier.update({ where: { id: s.id }, data: { searchUrlTemplate: saved } });
+    const input = parse(supplierInputSchema, { name: s.name, defaultCurrency: 'UAH', version: s.version, searchUrlTemplate: null });
+    await updateSupplier(s.id, input, admin);
+    expect((await prisma.supplier.findUniqueOrThrow({ where: { id: s.id } })).searchUrlTemplate).toBe(saved);
+  });
+});
+
+describe('короткий опис постачальника (правки замовника 21.10, п.14)', () => {
+  it('зберігається обрізаним, є в списку й картці; порожній — null; довший за межу — помилка', async () => {
+    const s = await createSupplier(
+      parse(supplierInputSchema, { name: `З описом ${RUN}`, defaultCurrency: 'UAH', description: '  Імпортер труб і фітингів, офіційний дилер  ' }),
+      admin,
+    );
+    expect(s.description).toBe('Імпортер труб і фітингів, офіційний дилер');
+    expect((await listSuppliers()).find((x) => x.id === s.id)?.description).toBe('Імпортер труб і фітингів, офіційний дилер');
+
+    const updated = await updateSupplier(s.id, parse(supplierInputSchema, { name: s.name, defaultCurrency: 'UAH', version: s.version, description: 'Виробник латунних виробів' }), admin);
+    expect((await getSupplier(s.id)).description).toBe('Виробник латунних виробів');
+
+    await updateSupplier(s.id, parse(supplierInputSchema, { name: s.name, defaultCurrency: 'UAH', version: updated.version, description: '   ' }), admin);
+    expect((await getSupplier(s.id)).description).toBeNull();
+
+    const atLimit = (n: number) => supplierInputSchema.safeParse({ name: 'Х', defaultCurrency: 'UAH', description: 'я'.repeat(n) }).success;
+    expect([atLimit(SUPPLIER_DESCRIPTION_MAX), atLimit(SUPPLIER_DESCRIPTION_MAX + 1)]).toEqual([true, false]);
+  });
+});
+
+describe('довідник (правки замовника 21.10, п.11)', () => {
+  it('аркуш: створення останнім, збереження з версією, чужі правки не затираються, видалений — у журналі цілком', async () => {
+    const columns = [
+      { id: 'c1', title: 'Назва бренду' },
+      { id: 'c2', title: 'Посилання', width: 320 },
+    ];
+    const rows = [{ id: 'r1', cells: { c1: 'Бренд А', c2: 'brand-a.ua', c9: 'від видаленої колонки', c3: '' } }];
+    const sheet = await createReferenceSheet(parse(referenceSheetInputSchema, { title: `Сайти ТМ ${RUN}`, columns, rows }), koval);
+    expect(sheet.rows).toEqual([{ id: 'r1', cells: { c1: 'Бренд А', c2: 'brand-a.ua' } }]);
+    expect(sheet.updatedBy?.shortName).toBe('Коваль О.В.');
+    // список вкладок — без вмісту
+    const listed = await listReferenceSheets();
+    expect(listed[listed.length - 1]).toEqual({
+      id: sheet.id,
+      version: sheet.version,
+      title: sheet.title,
+      sortOrder: sheet.sortOrder,
+      updatedAt: sheet.updatedAt,
+      updatedBy: sheet.updatedBy,
+    });
+    expect((await getReferenceSheet(sheet.id)).rows).toEqual(sheet.rows);
+    // без версії не зберігаємо: інакше чужі правки затерлися б мовчки
+    expect(await errorCode(() => updateReferenceSheet(sheet.id, parse(referenceSheetInputSchema, { title: 'Без версії', columns, rows: [] }), koval))).toBe(
+      'VALIDATION_ERROR',
+    );
+
+    const edited = await updateReferenceSheet(
+      sheet.id,
+      parse(referenceSheetInputSchema, { version: sheet.version, title: `Сайти брендів ${RUN}`, columns, rows: [...sheet.rows, { id: 'r2', cells: { c1: 'Бренд Б' } }] }),
+      bondar,
+    );
+    expect([edited.version, edited.rows.length, edited.updatedBy?.shortName]).toEqual([sheet.version + 1, 2, 'Бондар І.П.']);
+    expect(await errorCode(() => updateReferenceSheet(sheet.id, parse(referenceSheetInputSchema, { version: sheet.version, title: 'Стара', columns, rows: [] }), koval))).toBe(
+      'VERSION_CONFLICT',
+    );
+    expect((await prisma.referenceSheet.findUniqueOrThrow({ where: { id: sheet.id } })).title).toBe(`Сайти брендів ${RUN}`);
+
+    await deleteReferenceSheet(sheet.id, admin);
+    expect(await prisma.referenceSheet.findUnique({ where: { id: sheet.id } })).toBeNull();
+    const events = await prisma.auditEvent.findMany({ where: { entityType: 'reference', entityId: sheet.id }, orderBy: { id: 'asc' } });
+    expect(events.map((e) => e.action)).toEqual(['reference.create', 'reference.rename', 'reference.delete']);
+    expect(events[2].details).toMatchObject({ title: `Сайти брендів ${RUN}`, rows: edited.rows });
+    expect(await errorCode(() => deleteReferenceSheet(sheet.id, admin))).toBe('NOT_FOUND');
   });
 });
 

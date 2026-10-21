@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isImageSrc, isSearchUrlTemplate, webUrl } from '../url';
+import { isImageSrc, webUrl } from '../url';
 
 describe('посилання з карток', () => {
   it('сайт: http(s) як є, без схеми — https://, інші схеми — ні', () => {
@@ -12,11 +12,6 @@ describe('посилання з карток', () => {
     expect(webUrl('просто текст')).toBeNull();
     expect(webUrl('')).toBeNull();
     expect(webUrl(null)).toBeNull();
-  });
-
-  it('шаблон пошуку: лише http(s)', () => {
-    expect(isSearchUrlTemplate('https://sandi.ua/search?q={query}')).toBe(true);
-    expect(isSearchUrlTemplate('javascript:alert("{query}")')).toBe(false);
   });
 
   it('картинка: data-URL зображення, http(s) або шлях застосунку', () => {

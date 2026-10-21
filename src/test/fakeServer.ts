@@ -75,6 +75,7 @@ export function supplierItem(id: string, patch: Partial<SupplierListItem> = {}):
     productsCount: 0,
     lastImportAt: null,
     priceSource: 'file',
+    description: null,
     isActive: true,
     sortOrder: 0,
     ...patch,
@@ -371,8 +372,8 @@ class FakeTab {
   async createProduct(input: ProductInput): Promise<ProductDetail> {
     const at = this.srv.now().toISOString();
     const n = this.srv.products.size + 1;
-    // без артикула — як сервер: «ВР-0000N»
-    const sku = input.sku || `ВР-${String(n).padStart(5, '0')}`;
+    // без артикула — як сервер: «ПР-0000N»
+    const sku = input.sku || `ПР-${String(n).padStart(5, '0')}`;
     const p = pickProduct(`p-new-${n}`, input.supplierId, { sku, nameWork: input.nameWork, purchasePrice: input.purchasePrice ?? null });
     this.srv.addProducts(p);
     return { ...p, version: 1, minOrderQty: null, notes: null, priceSource: 'manual', lastImportId: null, createdAt: at, updatedAt: at } as ProductDetail;

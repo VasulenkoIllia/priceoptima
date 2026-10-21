@@ -260,11 +260,11 @@ function toRow(input: SupplierInputBody) {
       : {}),
     minOrderAmount: input.minOrderAmount,
     priceStaleDays: input.priceStaleDays,
-    searchUrlTemplate: input.searchUrlTemplate,
     website: input.website,
     b2bUrl: input.b2bUrl,
     notes: input.notes,
     deliveryInfo: input.deliveryInfo,
+    description: input.description,
     isActive: input.isActive,
   };
 }

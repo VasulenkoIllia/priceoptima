@@ -1,7 +1,7 @@
 // Вікно вибору товару (§6.7): рядки результатів (ціна в грн за курсом блоку/постачальника), групування однакових назв,
-// правила вибору (1–3 товари різних постачальників), посилання на сайт постачальника. Ранжування — у DataSource.searchProducts.
+// правила вибору (1–3 товари різних постачальників). Ранжування — у DataSource.searchProducts.
 import { computeOfferBase, createOfferFromProduct, createSupplierBlock } from '@shared/pricing';
-import { isHttpUrl, searchTokens } from '@shared/parse';
+import { searchTokens } from '@shared/parse';
 import type { HeaderRates, PricingContext, ProductPickDto, RequestDocument, RequestLine, SupplierRef, UUID } from '@shared/types';
 
 export const MAX_PICK = 3;
@@ -130,18 +130,4 @@ export function toggleSelection(
 export function looksLikeSku(query: string): boolean {
   const q = query.trim();
   return q.length >= 3 && !/\s/u.test(q) && /\d/u.test(q);
-}
-
-/**
- * Пошук на сайті постачальника за шаблоном з картки: '{query}' — назва клієнта або артикул, '{sku}' — артикул
- * (якщо його нема — той самий запит). null — шаблону або запиту нема.
- */
-export function siteSearchUrl(template: string | null | undefined, params: { query?: string | null; sku?: string | null }): string | null {
-  if (!template) return null;
-  const sku = (params.sku ?? '').trim();
-  const query = (params.query ?? '').trim() || sku;
-  if (!query) return null;
-  const url = template.replaceAll('{query}', encodeURIComponent(query)).replaceAll('{sku}', encodeURIComponent(sku || query));
-  // шаблон міг зберегтися до перевірки на сервері: відкриваємо лише http(s)
-  return isHttpUrl(url) ? url : null;
 }

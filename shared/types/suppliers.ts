@@ -35,8 +35,6 @@ export interface SupplierRef {
   priceListRates: PriceListRates;
   minOrderAmount: number | null;
   priceStaleDays: number | null;
-  /** Шаблон пошуку на сайті, '{query}' — назва клієнта або артикул. */
-  searchUrlTemplate: string | null;
   website: string | null;
   b2bUrl: string | null;
 }
@@ -122,6 +120,8 @@ export interface SupplierListItem extends SupplierRef {
   productsCount: number;
   lastImportAt: ISODateTime | null;
   priceSource: SupplierPriceSource;
+  /** Короткий опис на картці постачальника (правки замовника 21.10, п.14). */
+  description: string | null;
   isActive: boolean;
   sortOrder: number;
 }

@@ -410,15 +410,15 @@ export async function lookupSkus(body: SkuLookupInput): Promise<SkuLookupResult>
 
 // ── ручне ведення каталогу ──────────────────────────────────────────
 
-/** Префікс артикула, який сервер присвоює товару, створеному без артикула («вручну»). */
-export const MANUAL_SKU_PREFIX = 'ВР-';
+/** Префікс артикула, який сервер присвоює товару, створеному без артикула; до 21.10 був «ВР-» (правки замовника 21.10). */
+export const MANUAL_SKU_PREFIX = 'ПР-';
 
-/** Наступний вільний артикул «ВР-00001» у цього постачальника. */
+/** Наступний вільний артикул «ПР-00001» у цього постачальника. */
 async function nextManualSku(supplierId: UUID): Promise<string> {
   const rows = await prisma.$queryRaw<{ n: number | null }[]>`
     SELECT MAX(CAST(substring(sku FROM 4) AS integer)) AS n
     FROM "Product"
-    WHERE "supplierId" = ${supplierId} AND sku ~ '^ВР-[0-9]{1,9}$'`;
+    WHERE "supplierId" = ${supplierId} AND sku ~ '^ПР-[0-9]{1,9}$'`;
   return `${MANUAL_SKU_PREFIX}${String((rows[0]?.n ?? 0) + 1).padStart(5, '0')}`;
 }
 
@@ -427,7 +427,7 @@ const skuTaken = (e: unknown) =>
   (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') || (e instanceof ApiError && e.code === 'DUPLICATE');
 
 /**
- * Новий товар вручну. Без артикула — сервер присвоює наступний вільний «ВР-00001» (правки замовника 23.09 п.14);
+ * Новий товар вручну. Без артикула — сервер присвоює наступний вільний «ПР-00001» (правки замовника 23.09 п.14, 21.10);
  * двоє одночасно отримали той самий номер — унікальний індекс відмовить одному, тож беремо наступний.
  */
 export async function createProduct(input: ProductInputBody, actor: User): Promise<ProductDetail> {

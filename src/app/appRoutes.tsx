@@ -12,6 +12,7 @@ const ClientsPage = lazy(() => import('@/pages/clients/ClientsPage'));
 const RequestEditorPage = lazy(() => import('@/pages/request-editor/RequestEditorPage'));
 const RegistryPage = lazy(() => import('@/pages/requests/RegistryPage'));
 const RatesPage = lazy(() => import('@/pages/settings/RatesPage'));
+const ReferencePage = lazy(() => import('@/pages/reference/ReferencePage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const SuppliersPage = lazy(() => import('@/pages/suppliers/SuppliersPage'));
 
@@ -28,5 +29,6 @@ export const APP_ROUTES: RouteObject[] = [
   { path: 'clients', element: page(ClientsPage) },
   { path: 'rates', element: page(RatesPage) },
   { path: 'settings', element: page(SettingsPage, (el) => <RequireAdmin>{el}</RequireAdmin>) },
+  { path: 'reference', element: page(ReferencePage) },
   { path: '*', element: <NotFoundPage /> },
 ];

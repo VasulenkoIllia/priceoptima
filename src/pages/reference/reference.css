@@ -1,0 +1,88 @@
+/* «Довідник» (правки замовника 21.10, п.11) */
+.po-ref-tabs .ant-tabs-nav {
+  margin-bottom: 0 !important;
+}
+.po-ref-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+.po-ref-status {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+/* текст клітинки з переносами рядків як введено; висота рядка — за вмістом (autoHeight) */
+.po-ref-cell.ag-cell {
+  line-height: 1.45;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.po-ref-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.po-ref-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(100dvh - 260px);
+  overflow-y: auto;
+}
+.po-ref-cols-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* «плюсики» в таблиці (правки власника 21.10): видно завжди, але приглушено, щоб не заважали читати */
+.po-ref-insert-cell.ag-cell {
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.po-ref-insert.ant-btn,
+.po-ref-header-menu.ant-btn {
+  opacity: 0.55;
+}
+/* на рівні з галочкою рядка, і в рядку з кількома рядками тексту теж */
+.po-ref-insert.ant-btn {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  margin-top: 6px;
+}
+.ag-row-hover .po-ref-insert.ant-btn,
+.ag-row-focus .po-ref-insert.ant-btn,
+.ag-header-cell:hover .po-ref-header-menu.ant-btn,
+.po-ref-insert.ant-btn:focus-visible,
+.po-ref-header-menu.ant-btn:focus-visible,
+.po-ref-header-menu.ant-btn.ant-dropdown-open {
+  opacity: 1;
+}
+.po-ref-add-row {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 4px;
+}
+.po-ref-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+}
+.po-ref-header-title {
+  min-width: 0;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.po-ref-header-menu.ant-btn {
+  flex: none;
+}

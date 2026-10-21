@@ -6,3 +6,4 @@ export type * from './products';
 export type * from './requests';
 export type * from './kp';
 export type * from './computed';
+export type * from './reference';

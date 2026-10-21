@@ -1,7 +1,7 @@
 // Поля, які повторюються в схемах довідників: обрізані тексти з межею довжини,
 // необов'язкові тексти (порожній рядок = «не вказано») і дати у форматі ISO.
 import { z } from 'zod';
-import { isImageSrc, isSearchUrlTemplate, webUrl } from '@shared/parse';
+import { isImageSrc, webUrl } from '@shared/parse';
 
 /** Обов'язковий текст: обрізаний, непорожній, не довший за max. */
 export const trimmed = (max: number, required: string) =>
@@ -58,10 +58,6 @@ export const webUrlField = (max: number, label: string) =>
   optionalText(max).superRefine((v, ctx) => {
     if (v != null && webUrl(v) == null) ctx.addIssue({ code: 'custom', message: `${label}: посилання має починатися з http:// або https://` });
   }).transform((v) => (v == null ? null : webUrl(v)));
-
-/** Шаблон пошуку на сайті: після підстановки {query}/{sku} — посилання http(s). */
-export const searchUrlTemplateField = (max: number, label: string) =>
-  optionalText(max).refine((v) => v == null || isSearchUrlTemplate(v), `${label}: посилання має починатися з http:// або https://`);
 
 /** Логотип: зображення з файлу (data-URL), посилання http(s) або шлях застосунку. */
 export const imageSrcField = (max: number, label: string) =>

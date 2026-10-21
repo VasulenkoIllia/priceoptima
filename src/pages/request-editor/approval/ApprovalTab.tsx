@@ -294,7 +294,7 @@ export default function ApprovalTab() {
           <Button
             icon={<FileExcelOutlined />}
             disabled={!approvedCount}
-            title="Один Excel, аркуш на кожного постачальника: артикул, найменування, од., погоджена кількість (кратно)"
+            title="Один Excel, аркуш на кожного постачальника: артикул, найменування, од., погоджена кількість (кратно), ціна й сума з ПДВ, грн"
             onClick={() => void exportOrders()}
           >
             Замовлення постачальникам

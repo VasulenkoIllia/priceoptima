@@ -45,7 +45,6 @@ export function supplierRefOf(s: Supplier): SupplierRef {
     },
     minOrderAmount: num(s.minOrderAmount),
     priceStaleDays: s.priceStaleDays,
-    searchUrlTemplate: s.searchUrlTemplate,
     website: s.website,
     b2bUrl: s.b2bUrl,
   };

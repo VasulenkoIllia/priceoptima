@@ -39,6 +39,7 @@ function supplier(part: Partial<Supplier> = {}): Supplier {
     b2bUrl: null,
     notes: null,
     deliveryInfo: null,
+    description: null,
     isActive: true,
     sortOrder: 0,
     lastImportAt: null,

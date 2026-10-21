@@ -6,7 +6,7 @@ import { logger } from '../../logger';
 import type { AuditQueryInput } from './audit.schemas';
 
 /** Тип запису, щоб у картці показати його історію: 'client' + id, 'supplier' + id тощо. */
-export type AuditEntity = 'user' | 'settings' | 'own_company' | 'supplier' | 'client' | 'product' | 'rate' | 'request';
+export type AuditEntity = 'user' | 'settings' | 'own_company' | 'supplier' | 'client' | 'product' | 'rate' | 'request' | 'reference';
 
 export interface AuditEntry {
   userId: string | null;
@@ -48,7 +48,7 @@ export async function userRefs(ids: readonly (string | null | undefined)[]): Pro
 
 /** Остання зміна картки за журналом дій: хто, коли й що (для підпису «Змінено …» у картці). */
 export async function lastChangeOf(entityType: AuditEntity, entityId: string): Promise<LastChange | null> {
-  const row = await prisma.auditEvent.findFirst({ where: { entityType, entityId }, orderBy: { at: 'desc' } });
+  const row = await prisma.auditEvent.findFirst({ where: { entityType, entityId }, orderBy: { at: 'desc' }, select: { at: true, userId: true, summary: true } });
   if (!row) return null;
   const users = await userRefs([row.userId]);
   return { at: row.at.toISOString(), user: row.userId ? (users.get(row.userId) ?? null) : null, summary: row.summary };
@@ -65,6 +65,8 @@ export async function listAudit(query: AuditQueryInput): Promise<AuditPage> {
       ...(query.entityId ? { entityId: query.entityId } : {}),
       ...(query.before ? { id: { lt: BigInt(query.before) } } : {}),
     },
+    // без details: там бувають великі знімки (видалений аркуш довідника), а в списку вони не потрібні
+    select: { id: true, at: true, userId: true, action: true, entityType: true, entityId: true, summary: true },
     orderBy: { id: 'desc' },
     take: limit + 1,
   });

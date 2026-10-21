@@ -1,8 +1,8 @@
 // Вікно вибору товару (§6.7): пошук по всьому каталогу (артикул/назви), фільтр постачальника, вибір 1–3 товарів
 // різних постачальників → пропозиції в блоках їх постачальників (блоки створюються автоматично).
-import { GlobalOutlined, LoadingOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { LoadingOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Alert, App, Button, Dropdown, Empty, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
+import { Alert, App, Button, Empty, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography, type TableColumnsType } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AVAILABILITY_LABELS, CURRENCY_LABELS, type AvailabilityStatus } from '@shared/enums';
 import { formatDate, formatMoney, formatPct, formatQty, formatRate } from '@shared/format';
@@ -14,11 +14,10 @@ import { ds } from '@/data';
 import { errorMessage } from '@/data/errors';
 import { toSupplierRef } from '@/lib/supplierRef';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
-import { useMenuFit } from '@/lib/useMenuFit';
 import { getRequestDocStore, useRequestDoc } from '@/stores/requestDocStore';
 import { CreateProductDialog } from './CreateProductDialog';
 import { usePickerStore, type PickerRequest } from './pickerStore';
-import { buildPickerRows, looksLikeSku, MAX_PICK, siteSearchUrl, toggleSelection, type PickerRow } from './results';
+import { buildPickerRows, looksLikeSku, MAX_PICK, toggleSelection, type PickerRow } from './results';
 import './ProductPicker.css';
 
 export interface ProductPickerHostProps {
@@ -62,7 +61,6 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
   const [supplierId, setSupplierId] = useState<UUID | 'all'>(request.supplierId ?? 'all');
   const [selected, setSelected] = useState<ProductPickDto[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
-  const siteMenu = useMenuFit();
 
   // шукаємо від 2 символів: одна літера дає випадковий список і пропозицію «Створити товар» не до місця
   const searchable = q.length >= MIN_QUERY;
@@ -166,47 +164,10 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
     );
   }
 
-  // ── створити товар / сайт постачальника ─────────────────────────
+  // ── створити товар ──────────────────────────────────────────────
   const targetSupplierId = supplierId !== 'all' ? supplierId : request.supplierId;
   const targetBlockId = targetSupplierId ? (doc.blocks.find((b) => b.supplierId === targetSupplierId)?.id ?? null) : null;
   const skuLike = looksLikeSku(query);
-  const siteQuery = query.trim() || line.clientName;
-  const siteSuppliers = (supplierId !== 'all' ? [supplierRef(supplierId)] : suppliers.filter((s) => s.isActive).map(toSupplierRef))
-    .filter((s): s is SupplierRef => !!s)
-    .flatMap((s) => {
-      const url = siteSearchUrl(s.searchUrlTemplate, {
-        query: siteQuery,
-        sku: selected.find((p) => p.supplierId === s.id)?.sku ?? (skuLike ? siteQuery : null),
-      });
-      return url ? [{ supplier: s, url }] : [];
-    });
-  const openSite = (url: string) => window.open(url, '_blank', 'noopener,noreferrer');
-  const siteButton =
-    siteSuppliers.length === 1 ? (
-      <Button icon={<GlobalOutlined />} onClick={() => openSite(siteSuppliers[0].url)}>
-        Знайти на сайті {siteSuppliers[0].supplier.name}
-      </Button>
-    ) : siteSuppliers.length ? (
-      <Dropdown
-        trigger={['click']}
-        onOpenChange={siteMenu.onOpenChange}
-        menu={{
-          style: siteMenu.style,
-          items: siteSuppliers.map((x) => ({
-            key: x.supplier.id,
-            label: <SupplierLogo name={x.supplier.name} logoUrl={x.supplier.logoUrl} color={x.supplier.color} size={16} showName />,
-          })),
-          onClick: ({ key }) => {
-            const x = siteSuppliers.find((y) => y.supplier.id === key);
-            if (x) openSite(x.url);
-          },
-        }}
-      >
-        <Button ref={siteMenu.ref} icon={<GlobalOutlined />}>
-          Знайти на сайті постачальника
-        </Button>
-      </Dropdown>
-    ) : null;
 
   const replaceTarget = request.mode === 'replace' && request.blockId ? doc.blocks.find((b) => b.id === request.blockId) : undefined;
   const replacing = !!replaceTarget && selected.length === 1 && selected[0].supplierId === replaceTarget.supplierId;
@@ -418,7 +379,6 @@ function PickerBody({ request, onClose, onAdded }: { request: PickerRequest; onC
         <Button icon={<PlusOutlined />} disabled={readOnly} onClick={() => setCreateOpen(true)}>
           Створити товар
         </Button>
-        {siteButton}
         <span className="po-picker-spacer" />
         <Space>
           <Button onClick={onClose}>Скасувати</Button>

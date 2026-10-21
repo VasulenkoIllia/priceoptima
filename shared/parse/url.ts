@@ -1,4 +1,4 @@
-// Посилання, які вводять у картках (сайт, B2B, сторінка товару, шаблон пошуку, логотип).
+// Посилання, які вводять у картках (сайт, B2B, сторінка товару, логотип).
 // Відкриваємо в браузері лише http(s): «javascript:…» у полі — це виконання чужого коду в сесії колеги.
 
 const SCHEME = /^[a-z][a-z\d+.-]*:/iu;
@@ -24,11 +24,6 @@ export function webUrl(value: string | null | undefined): string | null {
   if (/\s/u.test(v) || !v.includes('.')) return null;
   const withScheme = `https://${v}`;
   return isHttpUrl(withScheme) ? withScheme : null;
-}
-
-/** Шаблон пошуку на сайті постачальника: після підстановки {query} і {sku} — посилання http(s). */
-export function isSearchUrlTemplate(template: string): boolean {
-  return isHttpUrl(template.replaceAll('{query}', 'x').replaceAll('{sku}', 'x'));
 }
 
 /** Джерело картинки (логотип, фото): data-URL зображення, посилання http(s) або шлях застосунку «/…». */

@@ -4,6 +4,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Checkbox, ColorPicker, Form, Input, InputNumber, Modal, Select, Switch, Tooltip } from 'antd';
 import { useEffect } from 'react';
+import { SUPPLIER_DESCRIPTION_MAX } from '@shared/catalog/limits';
 import { CURRENCY_CODES, CURRENCY_LABELS, RATE_POLICIES, RATE_POLICY_LABELS, type CurrencyCode, type RatePolicy } from '@shared/enums';
 import { toIsoDate } from '@shared/format';
 import type { SupplierDetail, SupplierInput, UUID } from '@shared/types';
@@ -38,8 +39,8 @@ interface FormValues {
   isActive: boolean;
   website?: string | null;
   b2bUrl?: string | null;
-  searchUrlTemplate?: string | null;
   deliveryInfo?: string | null;
+  description?: string | null;
   defaultCurrency: CurrencyCode;
   pricesIncludeVat: boolean;
   rrpIncludesVat: boolean;
@@ -86,8 +87,8 @@ function toFormValues(s: SupplierDetail | null): FormValues {
     isActive: s.isActive,
     website: s.website,
     b2bUrl: s.b2bUrl,
-    searchUrlTemplate: s.searchUrlTemplate,
     deliveryInfo: s.deliveryInfo,
+    description: s.description,
     defaultCurrency: s.defaultCurrency,
     pricesIncludeVat: s.pricesIncludeVat,
     rrpIncludesVat: s.rrpIncludesVat,
@@ -165,11 +166,11 @@ function buildInput(v: FormValues, prev: SupplierDetail | null, today: string): 
     manualRatesDate: manualChanged ? (manualRateUsd != null || manualRateEur != null ? today : null) : (prev?.manualRatesDate ?? null),
     minOrderAmount: v.minOrderAmount ?? null,
     priceStaleDays: v.priceStaleDays ?? null,
-    searchUrlTemplate: text(v.searchUrlTemplate),
     website: text(v.website),
     b2bUrl: text(v.b2bUrl),
     notes: text(v.notes),
     deliveryInfo: text(v.deliveryInfo),
+    description: text(v.description),
     isActive: !!v.isActive,
     legalEntities,
     contacts,
@@ -265,6 +266,15 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
             <Switch />
           </Form.Item>
         </div>
+        {/* опис на картці постачальника замість умов (правки замовника 21.10, п.14) */}
+        <Form.Item name="description" label="Короткий опис" extra="Показуємо на картці постачальника, до трьох рядків; повністю в «Детальніше»">
+          <Input.TextArea
+            autoSize={{ minRows: 2, maxRows: 4 }}
+            maxLength={SUPPLIER_DESCRIPTION_MAX}
+            showCount
+            placeholder="Напр.: імпортер труб і фітингів, офіційний дилер кількох брендів"
+          />
+        </Form.Item>
         <div className="po-sup-grid-form po-sup-grid-2">
           <Form.Item name="website" label="Сайт" rules={[urlRule]}>
             <Input placeholder="https://…" />
@@ -273,14 +283,6 @@ export function SupplierFormDialog({ open, supplier, onClose, onSaved }: Supplie
             <Input placeholder="https://…" />
           </Form.Item>
         </div>
-        <Form.Item
-          name="searchUrlTemplate"
-          label="Пошук на сайті"
-          extra="Посилання пошуку, де {query} означає артикул або назву. Напр.: https://site.ua/search?q={query}"
-          rules={[urlRule]}
-        >
-          <Input placeholder="https://…{query}" />
-        </Form.Item>
         <Form.Item name="deliveryInfo" label="Доставка">
           <Input placeholder="Напр.: власна доставка по Києву, НП за рахунок покупця" />
         </Form.Item>

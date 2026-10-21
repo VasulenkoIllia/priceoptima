@@ -31,6 +31,7 @@ const supplier: Supplier = {
   b2bUrl: null,
   notes: 'Самовивіз зі складу',
   deliveryInfo: 'Нова пошта',
+  description: 'Імпортер труб і фітингів, офіційний дилер',
   isActive: true,
   sortOrder: 3,
   lastImportAt: new Date('2026-09-15T06:12:00.000Z'),
@@ -150,6 +151,7 @@ describe('постачальник у списку', () => {
     expect(item.productsCount).toBe(128);
     expect(item.ratePolicy).toBe('nbu_adjusted');
     expect(item.defaultCurrency).toBe('EUR');
+    expect(item.description).toBe('Імпортер труб і фітингів, офіційний дилер');
   });
 
   it('невідоме значення з бази замінюється значенням за замовчуванням', () => {

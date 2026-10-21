@@ -164,6 +164,11 @@ function SupplierCard({ detail, onSource }: SupplierCardProps) {
   });
 
   const info: { key: string; label: string; children: ReactNode }[] = [
+    {
+      key: 'description',
+      label: 'Короткий опис',
+      children: detail.description ? <span style={{ whiteSpace: 'pre-line' }}>{detail.description}</span> : null,
+    },
     { key: 'site', label: 'Сайт', children: <ExtLink url={detail.website} /> },
     { key: 'b2b', label: 'B2B-кабінет', children: <ExtLink url={detail.b2bUrl} /> },
     { key: 'delivery', label: 'Доставка', children: detail.deliveryInfo ?? '' },

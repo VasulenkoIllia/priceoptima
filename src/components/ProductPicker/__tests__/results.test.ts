@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeBlock, makeCtx, makeDoc, makeLine, makeOffer, makeSupplier } from '@shared/pricing/__tests__/fixtures';
 import type { ProductPickDto } from '@shared/types';
-import { buildPickerRows, groupSameNames, looksLikeSku, siteSearchUrl, toggleSelection, type PickerRow } from '../results';
+import { buildPickerRows, groupSameNames, looksLikeSku, toggleSelection, type PickerRow } from '../results';
 
 function product(id: string, supplierId: string, patch: Partial<ProductPickDto> = {}): ProductPickDto {
   return {
@@ -98,16 +98,6 @@ describe('результати вікна вибору', () => {
     expect(over.limited).toBe(true);
     expect(ids(over.selected)).toEqual(['a2', 'b1', 'c1']);
     expect(ids(toggleSelection(sel, b1).selected)).toEqual(['a2', 'c1']);
-  });
-
-  it('пошук на сайті постачальника: {query} і {sku}', () => {
-    expect(siteSearchUrl('https://x.example/?q={query}', { query: ' Кран 1/2" ' })).toBe(`https://x.example/?q=${encodeURIComponent('Кран 1/2"')}`);
-    expect(siteSearchUrl('https://x.example/p/{sku}?q={query}', { query: 'Змішувач', sku: 'СІ-1' })).toBe(
-      `https://x.example/p/${encodeURIComponent('СІ-1')}?q=${encodeURIComponent('Змішувач')}`,
-    );
-    expect(siteSearchUrl('https://x.example/p/{sku}', { query: 'Змішувач' })).toBe(`https://x.example/p/${encodeURIComponent('Змішувач')}`);
-    expect(siteSearchUrl(null, { query: 'x' })).toBeNull();
-    expect(siteSearchUrl('https://x.example/?q={query}', { query: ' ' })).toBeNull();
   });
 
   it('запит схожий на артикул', () => {

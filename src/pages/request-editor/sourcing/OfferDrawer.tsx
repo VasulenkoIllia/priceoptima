@@ -3,7 +3,6 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   EditOutlined,
-  GlobalOutlined,
   SearchOutlined,
   StopOutlined,
   SwapOutlined,
@@ -18,7 +17,6 @@ import { offerDisplayName, offerPriceDate } from '@shared/pricing';
 import type { UUID } from '@shared/types';
 import { SupplierLogo } from '@/components/SupplierLogo';
 import { WarningBadge } from '@/components/WarningBadge';
-import { siteSearchUrl } from '@/components/ProductPicker';
 import { useRequestComputed, useRequestDoc } from '@/stores/requestDocStore';
 import { SEMANTIC_COLORS } from '@/theme';
 import { blockRateLabel } from '@/lib/rateLabels';
@@ -45,22 +43,13 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
   if (!line || !block) return <Empty description="Рядок або блок видалено" />;
   const oc = offer ? computed?.offers[offer.id] : undefined;
   const cmp = computed?.lines[lineId];
-  const webUrl = supplier ? siteSearchUrl(supplier.searchUrlTemplate, { query: offer?.sku || line.clientName, sku: offer?.sku }) : null;
-  const webLink = webUrl ? (
-    <Typography.Link href={webUrl} target="_blank" rel="noopener noreferrer">
-      <GlobalOutlined /> Знайти на сайті постачальника
-    </Typography.Link>
-  ) : null;
 
   if (!offer) {
     return (
       <Empty description={`У ${supplier?.name ?? 'постачальника'} ще немає пропозиції для цього рядка`}>
-        <Space direction="vertical">
-          <Button type="primary" icon={<SearchOutlined />} disabled={readOnly} onClick={() => actions.openPickerFor(lineId, blockId, 'add')}>
-            Підібрати товар (F4)
-          </Button>
-          {webLink}
-        </Space>
+        <Button type="primary" icon={<SearchOutlined />} disabled={readOnly} onClick={() => actions.openPickerFor(lineId, blockId, 'add')}>
+          Підібрати товар (F4)
+        </Button>
       </Empty>
     );
   }
@@ -179,7 +168,6 @@ function OfferDetails({ lineId, blockId }: { lineId: UUID; blockId: UUID }) {
           <span className="po-num">{formatDate(offerPriceDate(offer))}</span>
           {offerPriceDate(offer) !== offer.priceDate ? <span className="po-muted">(прайс підтвердив ціну)</span> : null}
           {oc?.stale.isStale ? <Tag color="orange">застаріла</Tag> : null}
-          {webLink}
         </Space>
       ),
     },

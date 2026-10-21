@@ -16,6 +16,7 @@ const ENTITY_OPTIONS = [
   { value: 'product', label: 'Номенклатура' },
   { value: 'rate', label: 'Курси' },
   { value: 'request', label: 'Заявки' },
+  { value: 'reference', label: 'Довідник' },
 ];
 
 const columns: TableColumnsType<AuditEventDto> = [

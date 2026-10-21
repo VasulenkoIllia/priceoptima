@@ -6,5 +6,5 @@ export { CreateProductDialog } from './CreateProductDialog';
 export type { CreateProductDialogProps, CreateProductInitial } from './CreateProductDialog';
 export { NewProductDialog } from './NewProductDialog';
 export type { NewProductDialogProps } from './NewProductDialog';
-export { buildPickerRows, groupSameNames, looksLikeSku, MAX_PICK, siteSearchUrl, toggleSelection } from './results';
+export { buildPickerRows, groupSameNames, looksLikeSku, MAX_PICK, toggleSelection } from './results';
 export type { PickerPricing, PickerRow } from './results';

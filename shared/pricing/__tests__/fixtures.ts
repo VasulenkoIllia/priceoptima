@@ -38,7 +38,6 @@ export function makeSupplier(id: string, patch: Partial<SupplierRef> = {}): Supp
     priceListRates: { USD: null, EUR: null, date: null },
     minOrderAmount: null,
     priceStaleDays: null,
-    searchUrlTemplate: null,
     website: null,
     b2bUrl: null,
     ...patch,

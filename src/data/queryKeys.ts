@@ -34,4 +34,6 @@ export const qk = {
   history: (requestId: UUID) => ['history', requestId] as const,
   rates: (date: string) => ['rates', date] as const,
   ratesList: ['rates-list'] as const,
+  referenceSheets: ['reference-sheets'] as const,
+  referenceSheet: (id: UUID) => ['reference-sheets', id] as const,
 };

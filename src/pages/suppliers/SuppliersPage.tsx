@@ -2,12 +2,10 @@ import { ControlOutlined, FileExcelOutlined, HolderOutlined, PlusOutlined, Right
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App, Button, Card, Space, Spin, Tag, Tooltip } from 'antd';
 import { useState, type DragEvent } from 'react';
-import { CURRENCY_LABELS } from '@shared/enums';
-import { formatDate, formatMoneyUah, formatQty, toIsoDate } from '@shared/format';
-import type { EffectiveRates, PriceUpdateDto, SupplierListItem } from '@shared/types';
+import { formatDate, formatQty } from '@shared/format';
+import type { PriceUpdateDto, SupplierListItem } from '@shared/types';
 import { EmptyState, LoadError, PageHeader, SupplierLogo } from '@/components';
 import { ds, errorMessage, qk } from '@/data';
-import { GENERAL_RATE_HINT, requestRatesLabel, usePriceListRateMaxAge } from '@/lib/rateLabels';
 import { FeedUpdateDialog } from './FeedUpdateDialog';
 import { downloadPriceTemplate, PriceImportDialog } from './priceImport';
 import { PriceUpdateReportView } from './PriceUpdateReport';
@@ -17,12 +15,9 @@ import {
   lacksPurchasePrice,
   lastRunLabel,
   moveSupplier,
-  pctLabel,
   PRICE_SOURCE_COLORS,
-  priceListRatesLabel,
   priceSourceLabel,
   pricesFromFile,
-  ratePolicyLabel,
   sourceLines,
   viaLink,
 } from './supplierView';
@@ -30,10 +25,6 @@ import './suppliers.css';
 
 interface SupplierCardProps {
   s: SupplierListItem;
-  /** Загальні курси на сьогодні — щоб показати, який курс отримає новий блок заявки. */
-  rates: EffectiveRates | undefined;
-  /** Строк дії курсу з прайсу, днів. */
-  maxAgeDays: number;
   refreshing: boolean;
   onRefresh: () => void;
   /** «Оновити вручну…»: вибрати поля, перевірити й застосувати. */
@@ -44,7 +35,7 @@ interface SupplierCardProps {
   onGrab: () => void;
 }
 
-function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, onImport, onOpen, onGrab }: SupplierCardProps) {
+function SupplierCard({ s, refreshing, onRefresh, onManual, onImport, onOpen, onGrab }: SupplierCardProps) {
   return (
     <Card className="po-sup-card" styles={{ body: { padding: 16 } }}>
       <div className="po-sup-head">
@@ -61,28 +52,14 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, o
           onMouseDown={onGrab}
         />
       </div>
-      <dl className="po-sup-facts">
-        <dt>Валюта прайсу</dt>
-        <dd>{CURRENCY_LABELS[s.defaultCurrency]}</dd>
-        <dt>Курс для заявок</dt>
-        <dd style={{ fontVariantNumeric: 'tabular-nums' }}>
-          <Tooltip
-            title={
-              <>
-                Спосіб: {ratePolicyLabel(s)}. Курс у прайсі: {priceListRatesLabel(s.priceListRates)}.
-                <br />
-                {GENERAL_RATE_HINT}.
-              </>
-            }
-          >
-            <span>{requestRatesLabel(s, rates, maxAgeDays)}</span>
-          </Tooltip>
-        </dd>
-        <dt>Націнка постачальника</dt>
-        <dd className="po-num">{pctLabel(s.supplierMarkupPct)}</dd>
-        <dt>Мін. замовлення з ПДВ</dt>
-        <dd className="po-num">{s.minOrderAmount != null ? formatMoneyUah(s.minOrderAmount) : null}</dd>
-      </dl>
+      {/* спереду короткий опис; валюта, курс, націнка й мін. замовлення — у «Детальніше» (правки замовника 21.10, п.14) */}
+      {s.description ? (
+        <div className="po-sup-desc" title={s.description}>
+          {s.description}
+        </div>
+      ) : (
+        <div className="po-sup-desc po-muted">Короткий опис не заповнено (Детальніше → Редагувати)</div>
+      )}
       <div className="po-sup-status">
         <Tag color={PRICE_SOURCE_COLORS[s.priceSource.kind]} bordered={false}>
           {priceSourceLabel(s.priceSource)}
@@ -140,7 +117,7 @@ function SupplierCard({ s, rates, maxAgeDays, refreshing, onRefresh, onManual, o
   );
 }
 
-/** Постачальники: картки з умовами і станом прайсу; прайси оновлюються автоматично. */
+/** Постачальники: картки з коротким описом і станом прайсу; прайси оновлюються автоматично. */
 export default function SuppliersPage() {
   const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
@@ -150,9 +127,6 @@ export default function SuppliersPage() {
   const [manualFor, setManualFor] = useState<SupplierListItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const suppliers = useQuery({ queryKey: qk.suppliers, queryFn: () => ds.listSuppliers() });
-  const today = toIsoDate(new Date());
-  const rates = useQuery({ queryKey: qk.rates(today), queryFn: () => ds.getRates(today) });
-  const maxAgeDays = usePriceListRateMaxAge();
 
   // порядок перетягуванням карток (правки замовника 25.09 п.3): картку тягнуть за ⠿, порядок видно одразу
   const [grabbed, setGrabbed] = useState<string | null>(null);
@@ -268,8 +242,6 @@ export default function SuppliersPage() {
             >
               <SupplierCard
                 s={s}
-                rates={rates.data}
-                maxAgeDays={maxAgeDays}
                 refreshing={refresh.isPending && refresh.variables?.id === s.id}
                 onRefresh={() => refresh.mutate(s)}
                 onManual={() => setManualFor(s)}

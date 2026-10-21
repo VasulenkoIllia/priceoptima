@@ -86,7 +86,7 @@ export function NewProductDialog({
     try {
       const product = await onSubmit({
         supplierId: v.supplierId,
-        // порожній артикул — сервер присвоїть «ВР-00001» (правки замовника 23.09 п.14)
+        // порожній артикул — сервер присвоїть «ПР-00001» (правки замовника 23.09 п.14, 21.10)
         sku: v.sku?.trim() || null,
         nameWork: v.nameWork.trim(),
         name1c: v.name1c?.trim() || null,
@@ -155,7 +155,7 @@ export function NewProductDialog({
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="sku" label="Артикул" extra="Порожньо: присвоїться автоматично (ВР-00001, ВР-00002…)">
+            <Form.Item name="sku" label="Артикул" extra="Порожньо: присвоїться автоматично (ПР-00001, ПР-00002…)">
               <Input autoFocus={!initial?.sku} placeholder="присвоїться автоматично" />
             </Form.Item>
           </Col>

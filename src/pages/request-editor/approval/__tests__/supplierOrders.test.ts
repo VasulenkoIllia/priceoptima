@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeRequest } from '@shared/pricing';
-import { makeBlock, makeCtx, makeDoc, makeLine, makeSupplier, uah } from '@shared/pricing/__tests__/fixtures';
+import { makeBlock, makeCtx, makeDoc, makeLine, makeOffer, makeSupplier, uah } from '@shared/pricing/__tests__/fixtures';
 import { buildSupplierOrders, buildSupplierOrdersWorkbook, sheetName } from '../supplierOrders';
 
 const approved = (qty: number | null = null) => ({ approval: { approved: true, approvedQty: qty } });
@@ -46,19 +46,40 @@ describe('замовлення постачальникам (п.4.2 правок
 
   it('к-сть — погоджена (або з КП), некратна — вгору до кратності пропозиції', () => {
     const [alpha, beta] = result.orders;
-    expect(alpha.rows[0]).toMatchObject({ name: 'Кран', unit: 'шт', qty: 2, roundedFrom: null, price: 100, sum: 200, currency: 'UAH' });
-    expect(alpha.rows[1]).toMatchObject({ name: 'Труба', unit: 'м', qty: 120, roundedFrom: 118, price: 10, sum: 1200 });
+    expect(alpha.rows[0]).toMatchObject({ name: 'Кран', unit: 'шт', qty: 2, roundedFrom: null });
+    expect(alpha.rows[1]).toMatchObject({ name: 'Труба', unit: 'м', qty: 120, roundedFrom: 118 });
     expect(beta.rows[0]).toMatchObject({ qty: 4, roundedFrom: null });
+  });
+
+  it('ціна й сума з ПДВ у грн, як «З ПДВ» у заявці (правки 21.10, п.6)', () => {
+    const [alpha, beta] = result.orders;
+    expect(alpha.rows[0]).toMatchObject({ price: 120, sum: 240 });
+    expect(alpha.rows[1]).toMatchObject({ price: 12, sum: 1440 });
+    expect(alpha.rows[1].price).toBe(computed.offers['L2:A'].unitGrossUah);
+    // ручний вибір дорожчого блоку: ціна обраної пропозиції (60 × 1,2), а не мінімальної
+    expect(beta.rows[0]).toMatchObject({ price: 72, sum: 288 });
+  });
+
+  it('валютна пропозиція: прайс × курс блоку × (1 + націнка постачальника) × ПДВ', () => {
+    const usdDoc = makeDoc({
+      lines: [makeLine('L1', 3, approved())],
+      blocks: [makeBlock('A', 0, { defaultCurrency: 'USD', rates: { USD: 41.5, EUR: null }, supplierMarkupPct: 5 })],
+      offers: [makeOffer('L1', 'A', { purchasePriceCur: 10, currency: 'USD' })],
+    });
+    const usd = buildSupplierOrders({ ...usdDoc, refs }, computeRequest(usdDoc, makeCtx(suppliers)), [{ lineId: 'L1', qty: 3 }]);
+    // 10 × 41,5 × 1,05 = 435,75 без ПДВ; × 1,2 = 522,90
+    expect(usd.orders[0]!.rows[0]).toMatchObject({ price: 522.9, sum: 1568.7 });
   });
 
   it('аркуш на кожного постачальника', async () => {
     const wb = await buildSupplierOrdersWorkbook(result.orders, { requestNumber: 6, requestDate: '2026-09-14', clientName: 'БУДІНВЕСТ' });
     expect(wb.worksheets.map((w) => w.name)).toEqual(['Альфа', 'Бета']);
     const pipe = wb.getWorksheet('Альфа')!.getRow(6).values as unknown[];
-    expect(pipe.slice(1)).toEqual([2, 'Альфа', 'A-2', 'Труба', 'м', 120, 10, 1200]);
-    // «Разом» по постачальнику — сума входу без ПДВ
+    expect(pipe.slice(1)).toEqual([2, 'Альфа', 'A-2', 'Труба', 'м', 120, 12, 1440]);
+    expect((wb.getWorksheet('Альфа')!.getRow(4).values as unknown[]).slice(7)).toEqual(['Ціна з ПДВ', 'Сума з ПДВ']);
+    // «Разом» по постачальнику — сума з ПДВ, грн
     const total = wb.getWorksheet('Альфа')!.getRow(7);
-    expect([total.getCell(7).value, total.getCell(8).value]).toEqual(['Разом', 1400]);
+    expect([total.getCell(7).value, total.getCell(8).value]).toEqual(['Разом', 1680]);
   });
 
   it('назва аркуша: без заборонених символів, до 31 знака, унікальна', () => {

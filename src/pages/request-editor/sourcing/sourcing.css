@@ -123,11 +123,13 @@
 .ag-cell.po-note-cell {
   font-size: calc(1em - 2px);
 }
-/* «Примітка» в блоці постачальника — по центру (правки замовника 01.10) */
-.ag-cell.po-cell-text.po-offer-note-cell {
+/* «Примітка» в блоці постачальника (правки замовника 01.10) і «Примітка клієнта» (правки 21.10) — по центру */
+.ag-cell.po-cell-text.po-offer-note-cell,
+.ag-cell.po-cell-text.po-client-note-cell {
   text-align: center;
 }
-.ag-cell.po-offer-note-cell .po-wrap {
+.ag-cell.po-offer-note-cell .po-wrap,
+.ag-cell.po-client-note-cell .po-wrap {
   justify-content: center;
 }
 /* точка, до якої прив'язане меню правого кліку по рядку */

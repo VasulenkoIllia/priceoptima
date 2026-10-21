@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  BookOutlined,
   ColumnWidthOutlined,
   DollarOutlined,
   DownOutlined,
@@ -33,6 +34,8 @@ const NAV_ITEMS: { key: string; label: string; icon: React.ReactNode; adminOnly?
   { key: '/clients', label: 'Клієнти', icon: <TeamOutlined /> },
   { key: '/rates', label: 'Курси валют', icon: <DollarOutlined /> },
   { key: '/settings', label: 'Налаштування', icon: <SettingOutlined />, adminOnly: true },
+  // спільні нотатки й таблиці для всіх (правки замовника 21.10, п.11)
+  { key: '/reference', label: 'Довідник', icon: <BookOutlined /> },
 ];
 
 export function AppLayout() {
